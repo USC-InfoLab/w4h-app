@@ -37,3 +37,12 @@ __screenshots__/
 
 test-results/
 playwright-report/
+
+.env
+.env.*
+
+# Playwright
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/playwright/.auth/
