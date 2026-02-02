@@ -5,7 +5,48 @@ on:
     branches: [dev, main]
 
 jobs:
-  test:
+  test-backend:
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: w4h_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install backend dependencies
+        run: |
+          cd backend
+          npm ci
+
+      - name: Run backend tests
+        run: |
+          cd backend
+          npm test
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_NAME: w4h_test
+          DB_USER: postgres
+          DB_PASSWORD: postgres
+          NODE_ENV: test
+
+  test-frontend:
     runs-on: ubuntu-latest
 
     steps:
@@ -15,11 +56,22 @@ jobs:
         with:
           node-version: 20
 
-      - name: Install deps
+      - name: Install root deps
         run: npm ci
 
+      - name: Install frontend deps
+        run: |
+          cd frontend
+          npm ci
+
       - name: Build Vue app
-        run: npm run build
+        run: |
+          cd frontend
+          npm run build
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps
 
       - name: Run Playwright tests
-        run: npx playwright test
+        run: npm run test:e2e
+

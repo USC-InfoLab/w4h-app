@@ -1,0 +1,12 @@
+{
+  "testEnvironment": "node",
+  "coverageDirectory": "coverage",
+  "collectCoverageFrom": [
+    "src/**/*.js",
+    "!src/utils/initDb.js"
+  ],
+  "testMatch": [
+    "**/tests/**/*.test.js"
+  ],
+  "transform": {}
+}

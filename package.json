@@ -6,7 +6,27 @@
   "directories": {
     "doc": "docs"
   },
-  "scripts": {},
+  "scripts": {
+    "dev": "cd frontend && npm run dev",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:fullstack": "concurrently \"npm run dev:backend\" \"npm run dev\" --names \"backend,frontend\" --prefix-colors \"blue,green\"",
+    "build": "cd frontend && npm run build",
+    "build:backend": "cd backend && npm install",
+    "preview": "cd frontend && npm run preview",
+    "start:backend": "cd backend && npm start",
+    "test:backend": "cd backend && npm test",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:debug": "playwright test --debug",
+    "test:e2e:chromium": "playwright test --project=chromium",
+    "test:e2e:firefox": "playwright test --project=firefox",
+    "test:e2e:webkit": "playwright test --project=webkit",
+    "playwright:install": "playwright install --with-deps",
+    "install:all": "npm install && cd frontend && npm install && cd ../backend && npm install",
+    "db:init": "cd backend && node src/utils/initDb.js",
+    "db:init:sample": "cd backend && node src/utils/initDb.js --sample"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/USC-InfoLab/w4h-app.git"
@@ -21,6 +41,7 @@
   "homepage": "https://github.com/USC-InfoLab/w4h-app#readme",
   "devDependencies": {
     "@playwright/test": "^1.58.0",
-    "@types/node": "^25.0.10"
+    "@types/node": "^25.0.10",
+    "concurrently": "^9.1.2"
   }
 }
