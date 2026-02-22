@@ -1,0 +1,418 @@
+<template>
+  <div class="d-flex flex-column justify-content-center">
+    <div v-if="showDbConfig" class="card w-100 mx-auto" style="max-width: 450px;">
+      <form class="card-body">
+        <img class="mx-auto d-block mt-2" style="width: 180px" :src="logoSrc" alt="W4H Toolkit logo" />
+        <h2 class="text-center mt-3">W4H Setup</h2>
+        <p class="text-muted text-center mb-3"></p>
+        <div class="alert alert-info" role="alert">
+          <div class="mt-1">
+            <strong>Postgres user must have CREATEDB privilege</strong> to create the database and
+            schema if they don't exist.
+          </div>
+        </div>
+
+        <form @submit.prevent="testAndSaveConnection">
+          <div class="row g-2 mb-3">
+            <div class="col-md-9">
+              <label class="form-label">Host</label>
+              <input v-model="db.host" class="form-control" placeholder="localhost" required />
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Port</label>
+              <input v-model="db.port" class="form-control" placeholder="5432" required />
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Database Name</label>
+            <input v-model="db.database" class="form-control" placeholder="w4h-db" required />
+            <small class="form-text text-muted">Database will be created if it doesn't exist. The <strong>w4h</strong>
+              schema will be created inside.</small>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Username</label>
+            <input v-model="db.user" class="form-control" placeholder="postgres" required />
+            <small class="form-text text-muted">Must have CREATEDB privilege (to create database if needed).</small>
+          </div>
+
+          <div class="mb-4">
+            <label class="form-label">Password</label>
+            <input type="password" v-model="db.password" class="form-control" placeholder="********" required />
+          </div>
+
+          <button :disabled="dbLoading" class="btn btn-primary w-100 btn-lg" type="submit">
+            <span v-if="dbLoading" class="spinner-border spinner-border-sm me-2"></span>
+            Connect to Database
+          </button>
+        </form>
+
+
+        <div v-if="dbError" class="alert alert-danger mt-3">
+          <div class="fw-bold mb-2">❌ Connection Failed</div>
+          <div class="mb-2" style="white-space: pre-wrap;">{{ dbError }}</div>
+          <div class="mb-3" style="border-top: 1px solid rgba(255,255,255,0.2); padding-top: 10px;">
+            <small class="d-block fw-semibold mb-1">Troubleshooting tips:</small>
+            <small class="d-block">✓ Is PostgreSQL running on host:port you specified?</small>
+            <small class="d-block">✓ Check username and password are correct</small>
+            <small class="d-block">✓ User must have CREATEDB privilege</small>
+            <small class="d-block">✓ Check firewall/network connectivity to database host</small>
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <div v-else-if="showAdminSetup" class="card w-100 mx-auto" style="max-width: 450px;">
+      <form class="card-body" @submit.prevent="setupInitialAdmin">
+        <img class="mx-auto d-block mt-2" style="width: 180px" :src="logoSrc" alt="W4H Toolkit logo" />
+        <h2 class="text-center mt-3">W4H Admin Setup</h2>
+
+        <div class="alert alert-success" role="alert">
+          <div class="mt-1">Create an Admin account to finish setup.</div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">Username</label>
+          <input v-model="admin.username" class="form-control" placeholder="admin" required />
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">Email</label>
+          <input type="email" v-model="admin.email" class="form-control" placeholder="admin@example.com" required />
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">Name (optional)</label>
+          <input v-model="admin.name" class="form-control" placeholder="Administrator" />
+        </div>
+
+        <div class="alert alert-info mb-3">
+          <small><strong>Password requirements:</strong> Minimum 12 characters with uppercase, lowercase,
+            number, and special character.</small>
+        </div>
+
+        <div class="mb-2">
+          <label class="form-label">Password</label>
+          <input type="password" v-model="admin.password" class="form-control" placeholder="Choose a strong password"
+            required />
+        </div>
+
+        <div class="mb-4">
+          <label class="form-label">Confirm Password</label>
+          <input type="password" v-model="admin.passwordConfirm" class="form-control" placeholder="Re-enter password"
+            required />
+        </div>
+
+        <button :disabled="adminLoading" class="btn btn-primary w-100 btn-lg" type="submit">
+          <span v-if="adminLoading" class="spinner-border spinner-border-sm me-2"></span>
+          Create Admin Account
+        </button>
+
+        <div v-if="adminError" class="alert alert-danger mt-3">
+          <div class="fw-bold mb-2">❌ Admin Setup Failed</div>
+          <div style="white-space: pre-wrap;">{{ adminError }}</div>
+        </div>
+      </form>
+    </div>
+
+    <div v-else-if="backendError" class="card w-100 mx-auto" style="max-width: 450px;">
+      <div class="card-body text-center">
+        <img class="mx-auto d-block mt-2" style="width: 180px" :src="logoSrc" alt="W4H Toolkit logo" />
+        <h2 class="text-center mt-3">Backend Unavailable</h2>
+        <div class="alert alert-danger mt-4" role="alert">
+          <div class="fw-bold mb-2">⚠️ Cannot Connect to API Server</div>
+          <div>{{ backendError }}</div>
+        </div>
+        <button class="btn btn-primary mt-3" @click="checkDbStatus()">
+          Retry Connection
+        </button>
+      </div>
+    </div>
+
+    <form v-else class="form-signin w-100" @submit.prevent="login()" style="max-width: 360px;">
+      <img class="mt-5 mx-auto d-block" style="width: 230px" :src="logoSrc" alt="W4H Toolkit logo" />
+      <div class="logotype mb-4 text-center">W4H Toolkit</div>
+
+      <label for="inputEmail" class="visually-hidden">Email</label>
+      <input id="inputEmail" class="form-control mb-2" placeholder="Email" required autofocus v-model="email"
+        @input="resetMessage" />
+
+      <label for="inputPassword" class="visually-hidden">Password</label>
+      <input type="password" id="inputPassword" class="form-control mb-3" placeholder="Password" required
+        v-model="password" @input="resetMessage" autocomplete="on" />
+
+      <button class="w-100 btn btn-lg btn-primary" type="submit">Sign in</button>
+
+      <div class="btn btn-link mt-3 w-100 text-center" @click="router.push({ name: 'loginCode' })">
+        Login with email code
+      </div>
+
+      <p class="mt-2 fw-bold text-danger text-center">{{ message }}</p>
+    </form>
+
+    <p id="footer" class="text-muted mt-4 mb-3 text-center">{{ copyright }}</p>
+  </div>
+</template>
+
+<script setup>
+import { ref, reactive, onMounted, computed } from 'vue';
+import { api } from '../utils/api';
+import { validatePassword, PASSWORD_REQUIREMENTS } from '@/utils/password-validator';
+import { useRouter } from 'vue-router';
+const router = useRouter();
+
+import { useUserStore } from '../stores/user';
+const userStore = useUserStore();
+
+const copyright = import.meta.env.VITE_COPYRIGHT;
+
+import { useUIStore } from '@/stores/ui';
+const uiStore = useUIStore();
+
+const logoSrc = computed(() => (uiStore.darkMode ? '/w4h-dark.svg' : '/w4h-light.svg'));
+
+const dbConfigured = ref(true);
+const showDbConfig = ref(false);
+const showAdminSetup = ref(false);
+const dbLoading = ref(false);
+const dbError = ref('');
+const adminLoading = ref(false);
+const adminError = ref('');
+const backendError = ref('');
+
+const db = reactive({
+  host: '',
+  port: '5432',
+  database: '',
+  user: '',
+  password: ''
+});
+
+const admin = reactive({
+  username: '',
+  email: '',
+  name: '',
+  password: '',
+  passwordConfirm: ''
+});
+
+const checkDbStatus = async () => {
+
+  try {
+    const res = await api.get('config/status');
+    dbConfigured.value = !!res.data.configured;
+    showDbConfig.value = !dbConfigured.value;
+    showAdminSetup.value = false;
+    backendError.value = '';
+  } catch (err) {
+    // Only treat as "not configured" if status code is 503 (Service Unavailable)
+    // Other errors (network, auth, etc.) should not show DB config form
+    if (err.response?.status === 503) {
+      dbConfigured.value = false;
+      showDbConfig.value = true;
+      showAdminSetup.value = false;
+      backendError.value = '';
+    } else {
+      console.error('Failed to check database status:', err);
+      showDbConfig.value = false;
+      backendError.value = 'Backend server is not available. Please check if the API server is running.';
+    }
+  }
+};
+
+const login = async () => {
+  try {
+    const response = await api.post('users/login', {
+      username: email.value.trim(),
+      password: password.value.trim(),
+    });
+
+    if (response.data.error) {
+      message.value = response.data.error.message;
+    } else {
+      const user = response.data;
+      localStorage.setItem('w4h.user.token', user.token);
+      await userStore.setUser(user);
+
+      if (user.role === 'admin') uiStore.exitAdmin();
+
+      router.push('/home');
+    }
+  } catch (error) {
+    message.value = 'Login failed:' + error;
+  }
+};
+
+const testAndSaveConnection = async () => {
+  dbLoading.value = true;
+  dbError.value = '';
+
+  try {
+    const res = await api.post('config/database', {
+      ...db
+    });
+
+    if (res.data.success) {
+      showDbConfig.value = false;
+      showAdminSetup.value = true;
+      dbError.value = '';
+    } else {
+      dbError.value = res.data.error || res.data.message || 'Connection failed.';
+    }
+  } catch (err) {
+    // Show specific error from server if available
+    let errorMsg = err.response?.data?.error || err.response?.data?.message;
+    let detailsMsg = err.response?.data?.details;
+
+    if (!errorMsg) {
+      if (err.code === 'ECONNREFUSED' || err.message?.includes('ECONNREFUSED')) {
+        errorMsg = 'Connection refused - PostgreSQL may not be running or host/port is incorrect';
+      } else if (err.message?.includes('ENOTFOUND')) {
+        errorMsg = 'Host not found - check the database host address';
+      } else if (err.message?.includes('ETIMEDOUT')) {
+        errorMsg = 'Connection timed out - check firewall and network connectivity';
+      } else {
+        errorMsg = 'Connection failed. Check your database settings.';
+      }
+    }
+
+    // If we have additional details, append them
+    if (detailsMsg && detailsMsg !== errorMsg) {
+      dbError.value = `${errorMsg}\n\nDetails: ${detailsMsg}`;
+    } else {
+      dbError.value = errorMsg;
+    }
+  } finally {
+    dbLoading.value = false;
+  }
+};
+
+const setupInitialAdmin = async () => {
+  adminLoading.value = true;
+  adminError.value = '';
+
+  if (!admin.username || !admin.email || !admin.password || !admin.passwordConfirm) {
+    adminLoading.value = false;
+    adminError.value = 'Username, email, password, and confirmation are required.';
+    return;
+  }
+
+  if (admin.password !== admin.passwordConfirm) {
+    adminLoading.value = false;
+    adminError.value = 'Admin passwords do not match.';
+    return;
+  }
+
+  if (!validatePassword(admin.password)) {
+    adminLoading.value = false;
+    adminError.value = PASSWORD_REQUIREMENTS;
+    return;
+  }
+
+  try {
+    const res = await api.post('config/admin-setup', {
+      username: admin.username,
+      email: admin.email,
+      name: admin.name,
+      password: admin.password
+    });
+
+    if (res.data.success) {
+      localStorage.setItem('w4h.user.token', res.data.token);
+      await userStore.setUser(res.data.user);
+      router.push('/home');
+    } else {
+      adminError.value = res.data.error || res.data.message || 'Failed to create admin account.';
+    }
+  } catch (err) {
+    let errorMsg = err.response?.data?.error || err.response?.data?.message;
+    let detailsMsg = err.response?.data?.details;
+
+    if (!errorMsg) {
+      errorMsg = 'Failed to create admin account.';
+    }
+
+    if (detailsMsg && detailsMsg !== errorMsg) {
+      adminError.value = `${errorMsg}\n\nDetails: ${detailsMsg}`;
+    } else {
+      adminError.value = errorMsg;
+    }
+  } finally {
+    adminLoading.value = false;
+  }
+};
+
+const resetMessage = () => {
+  message.value = '';
+};
+
+const email = ref('');
+const password = ref('');
+const message = ref('');
+
+onMounted(() => {
+  checkDbStatus();
+});
+</script>
+
+<style scoped>
+/* REMOVED: body { min-height: 50vh; } */
+
+#footer {
+  position: static;
+}
+
+.form-signin {
+  width: 100%;
+  max-width: 330px;
+  padding: 0px 15px;
+  /* ADJUSTMENT: Add margin-top to place the dialog closer to the top of the page */
+  margin: 50px auto 0;
+  /* Add margin to push the form down from the top */
+}
+
+/* ... rest of existing styles ... */
+.form-signin .checkbox {
+  font-weight: 400;
+}
+
+.form-signin .form-control {
+  position: relative;
+  box-sizing: border-box;
+  height: auto;
+  padding: 10px;
+  font-size: 16px;
+}
+
+.form-signin h1 {
+  font-size: 6em;
+}
+
+.form-signin .form-control:focus {
+  z-index: 2;
+}
+
+.form-signin input[type='email'] {
+  margin-bottom: -1px;
+  border-bottom-right-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+.form-signin input[type='password'] {
+  margin-bottom: 10px;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
+.logotype {
+  margin: 20px 0;
+  font-size: 1.5em;
+  font-weight: bolder;
+}
+
+#inputEmail {
+  border-bottom-left-radius: 0px !important;
+  border-bottom-right-radius: 0px !important;
+}
+</style>

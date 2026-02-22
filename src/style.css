@@ -1,0 +1,112 @@
+@import 'highlight.js/styles/github-dark.css' screen and (prefers-color-scheme: dark);
+@import 'highlight.js/styles/github.css' screen and (prefers-color-scheme: light);
+
+#app {
+  font-family: 'Avenir', Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-align: center;
+}
+
+body {
+  padding-top: 56px; /* for .navbar height */
+}
+
+main {
+  padding: 10px 20px 20px 20px !important;
+  text-align: left;
+}
+
+.tooltip-inner {
+    max-width: 500px !important;
+    white-space: normal !important;
+    text-align: justify !important;
+}
+
+/* Override lists inside tooltip-inner */
+.tooltip-inner ul,
+.tooltip-inner ol {
+  text-align: left !important;      /* keep lists left-aligned */
+  padding-left: 1.25em !important;  /* indent lists */
+  margin: 0.5em 0 !important;       /* some vertical spacing */
+}
+
+/* Optional: left-align list items too */
+.tooltip-inner li {
+  text-align: left !important;
+}
+
+/* Sets the floating-vue theme to dark when the .dark-mode class is present */
+/* .dark-mode {
+  --v-theme: dark;
+}
+
+/* Optional: You can also set light mode explicitly if you prefer
+.light-mode {
+  --v-theme: light;
+} 
+*/
+
+/* .v-popper--theme-my-theme .v-popper__inner code {
+  color: orange;
+} */
+
+
+/* Multiselect dark mode styles */
+/* Common Bootstrap-like base */
+.multiselect {
+  --ms-border-radius: 0.375rem; /* .form-select border radius */
+  --ms-border-color: var(--bs-border-color, #dee2e6);
+  --ms-bg: var(--bs-body-bg, #fff);
+  --ms-color: var(--bs-body-color, #212529);
+  --ms-placeholder-color: var(--bs-secondary-color, #6c757d);
+  --ms-tag-bg: var(--bs-primary, #0d6efd);
+  --ms-tag-color: #fff;
+
+  display: block;
+  width: 100%;
+  padding: 0.375rem 0.75rem;
+  font-size: 1rem;
+  line-height: 1.5;
+  background-color: var(--ms-bg);
+  background-clip: padding-box;
+  border: 1px solid var(--ms-border-color);
+  border-radius: var(--ms-border-radius);
+  transition: border-color .15s ease-in-out, box-shadow .15s ease-in-out;
+}
+
+/* Focus like Bootstrap */
+.multiselect:focus-within {
+  border-color: var(--bs-primary);
+  box-shadow: 0 0 0 0.25rem rgba(13,110,253,.25);
+}
+
+/* Dropdown menu */
+.multiselect-options {
+  background-color: var(--ms-bg);
+  color: var(--ms-color);
+  border: 1px solid var(--ms-border-color);
+  border-radius: var(--ms-border-radius);
+  margin-top: 0.25rem;
+  z-index: 1050; /* above modals */
+}
+
+/* Tags */
+.multiselect-tag {
+  background-color: var(--ms-tag-bg);
+  color: var(--ms-tag-color);
+  border-radius: var(--ms-border-radius);
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
+  margin: 0.125rem;
+}
+
+.dark-mode .multiselect-options {
+  background-color: var(--ms-bg);
+  color: var(--ms-color);
+}
+
+.dark-mode .multiselect-tag {
+  background-color: var(--bs-primary, #0d6efd);
+  color: #fff;
+}

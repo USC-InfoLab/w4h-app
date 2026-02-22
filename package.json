@@ -15,8 +15,26 @@
     "format": "prettier --write --experimental-cli src/"
   },
   "dependencies": {
+    "@highlightjs/vue-plugin": "^2.1.0",
+    "@shikijs/markdown-it": "^3.22.0",
+    "@vueform/multiselect": "^2.6.11",
+    "axios": "^1.13.4",
+    "bootstrap": "^5.3.8",
+    "bootstrap-icons": "^1.13.1",
+    "floating-vue": "^5.2.2",
+    "highlight.js": "^11.11.1",
+    "lodash": "^4.17.23",
+    "markdown-it": "^14.1.1",
+    "markdown-it-anchor": "^9.2.0",
+    "markdown-it-attrs": "^4.3.1",
+    "markdown-it-task-lists": "^2.1.1",
+    "md-editor-v3": "^6.3.1",
+    "mermaid": "^11.12.2",
+    "monaco-editor-vue3": "^1.0.5",
     "pinia": "^3.0.4",
+    "split.js": "^1.6.5",
     "vue": "^3.5.26",
+    "vue-good-table-next": "^0.2.2",
     "vue-router": "^4.6.4"
   },
   "devDependencies": {
