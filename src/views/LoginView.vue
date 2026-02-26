@@ -39,7 +39,13 @@
 
           <div class="mb-4">
             <label class="form-label">Password</label>
-            <input type="password" v-model="db.password" class="form-control" placeholder="********" required />
+            <div class="input-group">
+              <input :type="showDbPassword ? 'text' : 'password'" v-model="db.password" class="form-control"
+                placeholder="********" required />
+              <button type="button" class="btn btn-outline-secondary" @click="showDbPassword = !showDbPassword">
+                {{ showDbPassword ? 'Hide' : 'Show' }}
+              </button>
+            </div>
           </div>
 
           <button :disabled="dbLoading" class="btn btn-primary w-100 btn-lg" type="submit">
@@ -94,14 +100,25 @@
 
         <div class="mb-2">
           <label class="form-label">Password</label>
-          <input type="password" v-model="admin.password" class="form-control" placeholder="Choose a strong password"
-            required />
+          <div class="input-group">
+            <input :type="showAdminPassword ? 'text' : 'password'" v-model="admin.password" class="form-control"
+              placeholder="Choose a strong password" required />
+            <button type="button" class="btn btn-outline-secondary" @click="showAdminPassword = !showAdminPassword">
+              {{ showAdminPassword ? 'Hide' : 'Show' }}
+            </button>
+          </div>
         </div>
 
         <div class="mb-4">
           <label class="form-label">Confirm Password</label>
-          <input type="password" v-model="admin.passwordConfirm" class="form-control" placeholder="Re-enter password"
-            required />
+          <div class="input-group">
+            <input :type="showAdminConfirmPassword ? 'text' : 'password'" v-model="admin.passwordConfirm"
+              class="form-control" placeholder="Re-enter password" required />
+            <button type="button" class="btn btn-outline-secondary"
+              @click="showAdminConfirmPassword = !showAdminConfirmPassword">
+              {{ showAdminConfirmPassword ? 'Hide' : 'Show' }}
+            </button>
+          </div>
         </div>
 
         <button :disabled="adminLoading" class="btn btn-primary w-100 btn-lg" type="submit">
@@ -180,6 +197,9 @@ const dbError = ref('');
 const adminLoading = ref(false);
 const adminError = ref('');
 const backendError = ref('');
+const showDbPassword = ref(false);
+const showAdminPassword = ref(false);
+const showAdminConfirmPassword = ref(false);
 
 const db = reactive({
   host: '',

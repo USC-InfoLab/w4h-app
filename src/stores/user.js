@@ -23,6 +23,11 @@ export const useUserStore = defineStore('user', () => {
     localStorage.setItem('w4h.user', JSON.stringify(user.value));
   };
 
+  function clearUser() {
+    user.value = {};
+    localStorage.removeItem('w4h.user');
+  }
+
   function setTriggerMode(mode) {
     if (!user.value.mixinSettings) user.value.mixinSettings = {};
     user.value.mixinSettings.triggerMode = mode;
@@ -31,6 +36,7 @@ export const useUserStore = defineStore('user', () => {
   return {
     user,
     setUser,
+    clearUser,
     setTriggerMode,
   };
 });

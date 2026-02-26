@@ -2,7 +2,6 @@ import { createRouter, createWebHistory } from 'vue-router'
 
 import Login from '../views/LoginView.vue'
 import LoginWithCode from '../views/LoginWithCode.vue'
-import Logout from '../views/LogoutView.vue'
 import { useUserStore } from '@/stores/user';
 
 import api from '../utils/api'
@@ -11,9 +10,9 @@ const routes = [
   // Public routes
   { path: '/login', name: 'login', component: Login, meta: { guest: true } },
   { path: '/loginCode', name: 'loginCode', component: LoginWithCode, meta: { guest: true } },
-  { path: '/logout', name: 'logout', component: Logout, meta: { guest: true } },
+  { path: '/logout', redirect: '/login' },
   { path: '/', name: 'default', component: Login, meta: { guest: true } },
-  { path: '/:pathMatch(.*)*', name: 'not-found', component: Logout, meta: { guest: true } },
+  { path: '/:pathMatch(.*)*', name: 'not-found', component: Login, meta: { guest: true } },
 
   // User routes
   { path: '/home', name: 'home', component: () => import('../views/HomeView.vue'), meta: { requiresAuth: true } },

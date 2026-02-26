@@ -1,6 +1,6 @@
 <template>
   <main class="DatasetsView">
-    <h3 class="mb-3">{{ user.city_name }} Data</h3>
+    <h3 class="mb-3">{{ user.study_name }} Data</h3>
 
     <div class="toast-container position-fixed top-0 end-0 p-3">
       <div id="previewToast" class="toast align-items-center text-bg-success border-0" role="alert"

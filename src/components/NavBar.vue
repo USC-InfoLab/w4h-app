@@ -54,7 +54,7 @@
               <li v-if="user.role === 'admin'"><a class="dropdown-item admin-entry" @click="onAdminButtonClick">
                   <i class="bi bi-gear me-2"></i> Admin Settings
                 </a></li>
-              <li><a data-cy='logout-menu-item' class="dropdown-item" @click="router.push('/logout')">Sign out</a></li>
+              <li><a data-cy='logout-menu-item' class="dropdown-item" @click="onSignOutClick">Sign out</a></li>
             </ul>
           </div>
         </form>
@@ -93,6 +93,13 @@ function onProfileButtonClick() {
 function onAdminButtonClick() {
   uiStore.enterAdmin();
   router.push({ name: 'adminHome' });
+}
+
+function onSignOutClick() {
+  localStorage.removeItem('w4h.user.token');
+  userStore.clearUser();
+  uiStore.exitAdmin();
+  router.push({ name: 'login' });
 }
 </script>
 
