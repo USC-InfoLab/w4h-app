@@ -60,16 +60,14 @@
           <h5 class="card-title mb-3">Password</h5>
 
           <div class="mb-2">
-            <label class="form-label">New Password</label>
-            <input v-model="user.password" type="text" class="form-control" autocomplete="new-password" />
+            <label class="form-label">Password</label>
+            <input v-model="user.password" type="password" class="form-control" autocomplete="new-password" />
           </div>
 
-          <div class="form-text">The invitation includes instructions to login with an email code, so you can safely
-            leave the password field empty and a default password will be assigned.</div>
+          <div class="form-text">{{ PASSWORD_REQUIREMENTS }}</div>
 
           <div v-if="user.password && !isSecurePassword" class="text-danger small mt-2">
-            Password must be at least 12 characters, and include uppercase,
-            lowercase, a number, and a special character.
+            {{ PASSWORD_REQUIREMENTS }}
           </div>
         </div>
       </div>
@@ -83,8 +81,8 @@
 
       <!-- Save Button -->
       <div class="d-flex justify-content-end mb-3">
-        <button v-if="!submitted" class="btn btn-primary" :disabled="!user.email || !isValidEmail || !isSecurePassword"
-          @click="onSave">
+        <button v-if="!submitted" class="btn btn-primary"
+          :disabled="!user.email || !isValidEmail || !user.password || !isSecurePassword" @click="onSave">
           Send Invite
         </button>
 
@@ -100,7 +98,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue';
 import { api, authHeaders } from '../../utils/api';
-import { validatePassword } from '@/utils/password-validator';
+import { validatePassword, PASSWORD_REQUIREMENTS } from '@/utils/password-validator';
 
 const user = ref({
   email: '',
@@ -135,7 +133,7 @@ async function onSave() {
   try {
     const response = await api.post(
       'users/add',
-      { user: user.value },
+      { user: { ...user.value, username: user.value.email } },
       authHeaders()
     );
 

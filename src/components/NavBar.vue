@@ -22,13 +22,13 @@
               </RouterLink>
             </li> -->
             <li class="nav-item">
-              <RouterLink :to="{ name: 'docs' }" class="nav-link" active-class="active">
+              <RouterLink :to="{ name: 'docs', params: { slug: 'home' } }" class="nav-link" active-class="active">
                 <i class="bi bi-book"></i> Docs
               </RouterLink>
             </li>
             <li class="nav-item">
-              <RouterLink :to="{ name: 'datasets' }" class="nav-link" active-class="active">
-                <i class="bi bi-database"></i> Data
+              <RouterLink :to="{ name: 'studies' }" class="nav-link" active-class="active">
+                <i class="bi bi-beaker"></i> Studies
               </RouterLink>
             </li>
           </ul>

@@ -5,22 +5,22 @@ import { generateTOC } from './toc';
 function getCards(isAdminUI = false) {
   const allCards = [
     {
-      card_title: '<span style="font-size: 2em">📊</span> Data',
+      card_title: '<span style="font-size: 2em">📊</span> Studies',
       description: '<b>Data</b> are organized collections of datasets.',
-      route: isAdminUI ? 'admin/datasets' : 'datasets',
+      route: isAdminUI ? 'admin/studies' : 'studies',
       action_label: 'Browse Data'
+    },
+    {
+      card_title: '<span style="font-size: 2em">📊</span> Analytics',
+      description: 'Insights on wearables and other study data.',
+      route: isAdminUI ? 'admin/analytics' : 'analytics',
+      action_label: 'Open Analytics'
     },
     {
       card_title: '<span style="font-size: 2em">📚</span> Docs',
       description: '<b>Docs</b> provide guides and reference material for using the W4H Toolkit.',
       route: 'docs',
       hidden: false
-    },
-    {
-      card_title: '<span style="font-size: 2em">🗞️</span> Stories',
-      description: '<b>Analytics</b> gives insights on wearable data.',
-      route: isAdminUI ? 'admin/analytics' : 'analytics',
-      action_label: 'Open Analytics'
     },
   ];
 

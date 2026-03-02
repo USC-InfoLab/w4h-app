@@ -98,11 +98,7 @@
         </template>
 
         <template v-else>
-          <div v-if="route.path === '/docs' || route.params?.slug === 'home'">
-            <DocsHome :city="{ id: user.city_id, name: user.city_name }" />
-          </div>
-
-          <div v-else-if="route.params?.slug === 'search'">
+          <div v-if="route.params?.slug === 'search'">
             <DocsSearch />
           </div>
 
@@ -137,7 +133,6 @@ import { api, authHeaders } from '@/utils/api';
 import { stripHTML } from '../../utils/toc';
 
 import DocsDeleteDocModal from '@/components/DocsDeleteDocModal.vue';
-import DocsHome from '@/components/DocsHome.vue';
 import DocsSearch from '@/components/DocsSearch.vue';
 const showDeleteModal = ref(false);
 const docToDelete = ref(null);
@@ -230,7 +225,7 @@ const rightPane = ref(null);
 let splitInstance = null;
 
 const isAdminUI = computed(() => user.value.role === 'admin' && uiStore.isAdminUI);
-const hideSidebar = computed(() => selecteddoc.value?.show_in_docs === false);
+const hideSidebar = computed(() => selecteddoc.value?.show_in_docs === false && selecteddoc.value?.slug !== 'home');
 
 
 function goToNewDoc() {
@@ -252,6 +247,8 @@ const groupedDocs = computed(() => {
   const topDocs = []; // docs with empty doc_type
 
   for (const doc of allDocs.value) {
+    if (doc.slug === 'home') continue;
+
     const type = doc.doc_type || '';
     if (!type) {
       topDocs.push(doc);
@@ -433,13 +430,21 @@ async function handleSlug(slug) {
     const doc = res.data;
 
     if (!allDocs.value.length) {
-      if (doc.show_in_docs) {
-        const res = await api.get(`/docs`, authHeaders());
-        if (isAdminUI.value) {
-          allDocs.value = res.data; // show all docs to admin
-        } else {
-          allDocs.value = res.data.filter(c => c.hidden === false);
-        }
+      const listRes = await api.get(`/docs`, authHeaders());
+      if (isAdminUI.value) {
+        allDocs.value = listRes.data; // show all docs to admin
+      } else {
+        allDocs.value = listRes.data.filter(c => c.hidden === false);
+
+        // filter -datasets for user city
+        const userCity = user.value.city_id;
+        allDocs.value = allDocs.value.filter(docItem => {
+          if (docItem.slug.endsWith('-datasets')) {
+            const docCity = docItem.slug.replace('-datasets', '').toLowerCase();
+            return docCity === userCity.toLowerCase();
+          }
+          return true;
+        });
       }
     } else {
       //console.log('allDocs already loaded, just select doc');

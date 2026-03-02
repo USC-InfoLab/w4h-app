@@ -4,23 +4,6 @@
     <div v-if="allRows.length" class="container-fluid">
 
       <div class="row align-items-center mb-0">
-        <div class="col-auto">
-          <select class="form-select form-select-sm" v-model="selectedAccount">
-            <option :value="null">All Accounts</option>
-            <option v-for="acc in uniqueAccounts" :key="acc.id" :value="acc.id">
-              {{ acc.name }}
-            </option>
-          </select>
-        </div>
-
-        <div class="col-auto">
-          <select class="form-select form-select-sm" v-model="selectedCity">
-            <option v-for="city in cities" :key="city.id" :value="city.id">
-              {{ city.name }}
-            </option>
-          </select>
-        </div>
-
         <div class="col-auto ms-auto">
           <button class="btn btn-sm btn-primary my-2" @click="$router.push({ name: 'usersAdd' })">
             <i class="bi bi-plus"></i> Add User
@@ -52,9 +35,9 @@
                 <button class="btn btn-secondary btn-sm" @click="onEditButtonClick(props.row)">Edit</button>
               </span>
               <span v-else-if="props.column.field == 'name'">
-                <div class="fw-bold text-warning">{{ props.row.account }}</div>
                 <div class="fw-bold text-secondary">{{ props.row.name }}</div>
                 <div><a :href="'mailto:' + props.row.email">{{ props.row.email }}</a></div>
+                <div class="small text-muted">{{ props.row.studies || 'No studies assigned' }}</div>
               </span>
               <span v-else>{{ props.formattedRow[props.column.field] }}</span>
             </template>
@@ -64,10 +47,7 @@
 
       <div v-else class="text-center my-5">
         <p class="text-muted">
-          No users found for
-          <strong>
-            {{accounts.find(a => a.id === selectedAccount)?.name || 'this selection'}}
-          </strong>.
+          No users found.
         </p>
       </div>
     </div>
@@ -80,7 +60,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount, computed, watch } from 'vue';
+import { ref, onMounted, onBeforeUnmount, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { api, authHeaders } from '@/utils/api';
 import { useUserStore } from '@/stores/user';
@@ -90,34 +70,12 @@ import 'vue-good-table-next/dist/vue-good-table-next.css';
 const router = useRouter();
 const userStore = useUserStore();
 
-const selectedCity = ref(null);
-
-const selectedAccount = ref(null);
-const accounts = ref([]); // To store raw account data from API
-
-const uniqueAccounts = computed(() => {
-  return [...accounts.value].sort((a, b) =>
-    a.name.localeCompare(b.name)
-  );
-});
-
-// 2. Storage Watcher
-watch(selectedCity, (val) => {
-  if (val === null || val === undefined) {
-    localStorage.removeItem('selected_city_id');
-  } else {
-    localStorage.setItem('selected_city_id', val);
-  }
-});
-
-// 3. Columns
 const columns = [
-  { label: 'Account', field: 'account' },
+  { label: 'Username', field: 'username' },
   { label: 'Name', field: 'name' },
   { label: 'Email', field: 'email' },
   { label: 'Role', field: 'role' },
-  { label: 'City', field: 'city' },
-  { label: 'Can send', field: 'can_send' },
+  { label: 'Studies', field: 'studies' },
   { label: '', field: 'edit', sortable: false }
 ];
 
@@ -128,15 +86,10 @@ const columnsSmall = [
 
 // hold all users, never filtered
 const allRows = ref([]);
-const cities = ref([]);
 
-// computed rows for table - now filters by selectedCity
+// computed rows for table
 const filteredRows = computed(() => {
-  return allRows.value.filter(r => {
-    const matchesCity = selectedCity.value === null || r.city_id === selectedCity.value;
-    const matchesAccount = selectedAccount.value === null || r.account_id === selectedAccount.value;
-    return matchesCity && matchesAccount;
-  });
+  return allRows.value;
 });
 
 const tableTheme = ref('nocturnal bg-dark');
@@ -152,23 +105,20 @@ onMounted(async () => {
   tableTheme.value = mql.matches ? 'nocturnal bg-dark' : '';
 
   try {
-    const [citiesRes, usersRes, accountsRes] = await Promise.all([
-      api.get('datasets/cities', authHeaders()),
-      api.get('users/list', authHeaders()),
-      api.get('users/accounts', authHeaders()),
-    ]);
+    const usersRes = await api.get('users/', authHeaders());
+    const users = Array.isArray(usersRes.data) ? usersRes.data : [];
 
-    cities.value = [{ id: null, name: 'All Cities' }, ...citiesRes.data];
-    accounts.value = accountsRes.data;
-
-    allRows.value = usersRes.data.map(u => ({
+    allRows.value = users.map(u => ({
       ...u,
-      city: citiesRes.data.find(c => c.id === u.city_id)?.name || '',
-      account: accountsRes.data.find(a => a.id === u.account_id)?.name || '',
-      can_send: u.can_send ? 'Yes' : 'No'
+      username: u.username || '',
+      name: u.name || '',
+      email: u.email || '',
+      role: u.role || '',
+      studies: u.studies || ''
     }));
   } catch (e) {
     console.error(e);
+    allRows.value = [];
   }
 });
 

@@ -19,21 +19,19 @@
     </div>
   </div>
 
-  <MdEditor ref="mdEditorRef" v-model="doc.md" language="en-US" :toolbarsExclude="['github']" :toolbars="toolbars" :theme="mdEditorTheme"
-    :preview="false" @onUploadImg="handleImageUpload" @onSave="handleEditorSave" class="editor-fullscreen">
+  <MdEditor ref="mdEditorRef" v-model="doc.md" language="en-US" :toolbarsExclude="['github']" :toolbars="toolbars"
+    :theme="mdEditorTheme" :preview="false" @onUploadImg="handleImageUpload" @onSave="handleEditorSave"
+    class="editor-fullscreen">
     <template #defToolbars>
-      <input
-        v-model="doc.title"
-        type="text"
-        class="form-control form-control-sm ms-2"
-        placeholder="Untitled"
-        style="min-width: 180px"/>
+      <input v-model="doc.title" type="text" class="form-control form-control-sm ms-2" placeholder="Untitled"
+        style="min-width: 180px" />
 
       <button class="btn btn-sm btn-primary ms-2" @click="openSettingsModal">
         <i class="bi bi-gear"></i>
       </button>
 
-      <button class="btn btn-sm btn-primary ms-2 text-nowrap flex-shrink-0" :disabled="!isDirty" @click="handleEditorSave(doc.md)">
+      <button class="btn btn-sm btn-primary ms-2 text-nowrap flex-shrink-0" :disabled="!isDirty"
+        @click="handleEditorSave(doc.md)">
         <i class="bi bi-save"></i>
         Save
       </button>
@@ -56,7 +54,7 @@ import DocsSettingsModal from './DocsSettingsModal.vue';
 import MarkdownIt from 'markdown-it';
 import markdownItAnchor from 'markdown-it-anchor';
 import markdownItAttrs from 'markdown-it-attrs';
-import Shiki from '@shikijs/markdown-it'; 
+import Shiki from '@shikijs/markdown-it';
 import { Modal } from 'bootstrap';
 import { onBeforeRouteLeave } from 'vue-router';
 import { api, authHeaders } from '@/utils/api';
@@ -98,9 +96,9 @@ const doc = ref({
 });
 
 const toolbars = [
-  'bold', 'underline', 'italic', '-', 'title', 'strikeThrough', 'quote', 'unorderedList', 
-  'orderedList', 'task', '-', 'codeRow', 'code', 'link', 'image', 'table', 'mermaid', '-', 
-  'revoke', 'next', '-', 'pageFullscreen', 'fullscreen', 'preview', 'previewOnly', 
+  'bold', 'underline', 'italic', '-', 'title', 'strikeThrough', 'quote', 'unorderedList',
+  'orderedList', 'task', '-', 'codeRow', 'code', 'link', 'image', 'table', 'mermaid', '-',
+  'revoke', 'next', '-', 'pageFullscreen', 'fullscreen', 'preview', 'previewOnly',
   'htmlPreview', 'catalog', '-', 0, 1, '=', 2, 3
 ];
 
@@ -150,8 +148,11 @@ const handleEditorSave = async (markdown) => {
     return; // optionally show UI error
   }
 
+
+  const appUrl = import.meta.env.VITE_APP_URL || window.location.origin;
+
   const processedMarkdown = markdown
-    .replace(/(?<!\\)\{\{APP_URL\}\}/g, window.location.origin)
+    .replace(/(?<!\\)\{\{APP_URL\}\}/g, appUrl)
     .replace(/\\(\{\{APP_URL\}\})/g, '$1');
 
   const finalHtml = md.render(processedMarkdown);
@@ -220,7 +221,7 @@ function handleEditorClose() {
       dirtyCheckModalInstance.value = new Modal(document.getElementById('dirtyCheckModal'));
     }
     // Ensure we don't have a leftover route callback if opened manually
-    dirtyCheckModalInstance.value._nextRoute = null; 
+    dirtyCheckModalInstance.value._nextRoute = null;
     dirtyCheckModalInstance.value.show();
   } else {
     emit('close');
@@ -229,7 +230,7 @@ function handleEditorClose() {
 
 function confirmClose() {
   console.log('Confirming close...');
-  
+
   // 1. Hide the modal via Bootstrap API
   if (dirtyCheckModalInstance.value) {
     dirtyCheckModalInstance.value.hide();
@@ -265,12 +266,12 @@ onBeforeRouteLeave((to, from, next) => {
 
 function slugify(str) {
   return str
-    .normalize('NFKD')                
-    .replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu, '') 
-    .replace(/[^\w\s-]/g, '')         
+    .normalize('NFKD')
+    .replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu, '')
+    .replace(/[^\w\s-]/g, '')
     .trim()
     .toLowerCase()
-    .replace(/\s+/g, '-')            
+    .replace(/\s+/g, '-')
     .replace(/^-+|-+$/g, '');        // trim leading/trailing dashes
 }
 
@@ -285,11 +286,11 @@ onMounted(async () => {
     .use(await Shiki({
       themes: { light: 'github-light', dark: 'github-dark' },
       langs: supportedLanguages,
-      defaultLanguage: 'plaintext', 
+      defaultLanguage: 'plaintext',
     }))
     .use(markdownItAttrs)
     .use(markdownItAnchor, { slugify })
-    .use(MarkdownItTaskLists, { enabled: true, label: true, labelAfter: true, disabled: false});
+    .use(MarkdownItTaskLists, { enabled: true, label: true, labelAfter: true, disabled: false });
 
   // Keep original fence for logic
   const originalFenceRule = md.renderer.rules.fence;
@@ -345,15 +346,17 @@ function updateTheme(prefersDarkTheme) {
   width: 100% !important;
   min-height: calc(100vh - 56px) !important;
 }
+
 .code-block {
   position: relative;
 }
+
 .copy-btn {
   position: absolute;
   top: 5px;
   right: 5px;
   z-index: 10;
-  background: rgba(0,0,0,0.1);
+  background: rgba(0, 0, 0, 0.1);
   border: none;
   border-radius: 4px;
   padding: 2px 6px;

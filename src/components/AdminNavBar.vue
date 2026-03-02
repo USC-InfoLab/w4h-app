@@ -16,24 +16,23 @@
         <div class="d-none d-md-flex flex-grow-1 justify-content-center">
           <ul class="navbar-nav">
             <li class="nav-item">
-              <RouterLink :to="{ name: 'docs' }" class="nav-link" active-class="active">
+              <RouterLink :to="{ name: 'docs', params: { slug: 'home' } }" class="nav-link" active-class="active">
                 <i class="bi bi-book"></i> Docs
               </RouterLink>
             </li>
             <li class="nav-item">
-              <RouterLink :to="{ name: 'accounts' }" class="nav-link" active-class="active"
-                :class="{ active: route.name === 'accounts' || route.name === 'accountsAdd' || route.name === 'accountsEdit' }">
-                <i class="bi bi-building"></i> Accounts
+              <RouterLink :to="{ name: 'adminStudies' }" class="nav-link" active-class="active">
+                <i class="bi bi-beaker"></i> Studies
+              </RouterLink>
+            </li>
+            <li class="nav-item">
+              <RouterLink :to="{ name: 'adminDatabase' }" class="nav-link" active-class="active">
+                <i class="bi bi-hdd-stack"></i> Database
               </RouterLink>
             </li>
             <li class="nav-item">
               <RouterLink :to="{ name: 'users' }" class="nav-link" active-class="active">
                 <i class="bi bi-person"></i> Users
-              </RouterLink>
-            </li>
-            <li class="nav-item">
-              <RouterLink :to="{ name: 'adminDatasets' }" class="nav-link" active-class="active">
-                <i class="bi bi-database"></i> Data
               </RouterLink>
             </li>
           </ul>
@@ -46,13 +45,18 @@
             </RouterLink>
           </li>
           <li class="nav-item">
+            <RouterLink :to="{ name: 'adminDatabase' }" class="nav-link" active-class="active">
+              <i class="bi bi-hdd-stack"></i> Database
+            </RouterLink>
+          </li>
+          <li class="nav-item">
             <RouterLink :to="{ name: 'users' }" class="nav-link" :class="isUsersActive ? 'active' : ''">
               <i class="bi bi-person"></i> Users
             </RouterLink>
           </li>
           <li class="nav-item">
-            <RouterLink :to="{ name: 'adminDatasets' }" class="nav-link" active-class="active">
-              <i class="bi bi-database"></i> Data
+            <RouterLink :to="{ name: 'adminStudies' }" class="nav-link" active-class="active">
+              <i class="bi bi-beaker"></i> Studies
             </RouterLink>
           </li>
         </ul>

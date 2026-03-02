@@ -1,7 +1,7 @@
 <template>
   <div class="d-flex flex-column justify-content-center">
     <div v-if="showDbConfig" class="card w-100 mx-auto" style="max-width: 450px;">
-      <form class="card-body">
+      <div class="card-body">
         <img class="mx-auto d-block mt-2" style="width: 180px" :src="logoSrc" alt="W4H Toolkit logo" />
         <h2 class="text-center mt-3">W4H Setup</h2>
         <p class="text-muted text-center mb-3"></p>
@@ -66,7 +66,7 @@
             <small class="d-block">✓ Check firewall/network connectivity to database host</small>
           </div>
         </div>
-      </form>
+      </div>
     </div>
 
     <div v-else-if="showAdminSetup" class="card w-100 mx-auto" style="max-width: 450px;">

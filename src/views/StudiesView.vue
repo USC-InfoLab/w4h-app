@@ -1,5 +1,5 @@
 <template>
-  <main class="DatasetsView">
+  <main class="StudiesView">
     <h3 class="mb-3">{{ user.study_name }} Data</h3>
 
     <div class="toast-container position-fixed top-0 end-0 p-3">
@@ -325,7 +325,7 @@
   </main>
 </template>
 
-<script setup name="DatasetsView">
+<script setup name="StudiesView">
 import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 const router = useRouter();

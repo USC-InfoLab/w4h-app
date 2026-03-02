@@ -2,8 +2,8 @@
   <div class="p-3">
     <p class="fs-4">Welcome to <strong>W4H Toolkit</strong>!</p>
 
-    <p>If you are not familiar with W4H, you may want to keep reading. If you just want to get going
-      with querying and analysing your wearable and clinical data, head to the
+    <p>If you are not familiar with W4H Toolkit, you may want to keep reading. If you just want to get going
+      with ingesting, and analysing your wearable and clinical data, head to the
       <router-link :to="{ name: 'docs', params: { slug: 'quick-start' } }">⚡️ Quick Start <i
           class="bi bi-box-arrow-up-right"></i></router-link> guide.
     </p>
@@ -14,7 +14,7 @@
 
     <ul>
       <li>
-        <router-link :to="{ name: 'datasets' }" target="_blank"> Data <i
+        <router-link :to="{ name: 'studies' }" target="_blank"> Data <i
             class="bi bi-box-arrow-up-right"></i></router-link> for <router-link
           :to="{ name: 'docs', params: { slug: `sample-dataset` } }" target="_blank">
           Sample datasets <i class="bi bi-box-arrow-up-right"></i></router-link>.
