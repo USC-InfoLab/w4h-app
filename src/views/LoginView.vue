@@ -72,19 +72,10 @@
     <div v-else-if="showAdminSetup" class="card w-100 mx-auto" style="max-width: 450px;">
       <form class="card-body" @submit.prevent="setupInitialAdmin">
         <img class="mx-auto d-block mt-2" style="width: 180px" :src="logoSrc" alt="W4H Toolkit logo" />
-        <h2 class="text-center mt-3">W4H Admin Setup</h2>
-
-        <div class="alert alert-success" role="alert">
-          <div class="mt-1">Create an Admin account to finish setup.</div>
-        </div>
+        <h2 class="text-center mt-3">W4H Admin Setup </h2>
 
         <div class="mb-3">
-          <label class="form-label">Username</label>
-          <input v-model="admin.username" class="form-control" placeholder="admin" required />
-        </div>
-
-        <div class="mb-3">
-          <label class="form-label">Email</label>
+          <label class="form-label">Admin Email (used for login)</label>
           <input type="email" v-model="admin.email" class="form-control" placeholder="admin@example.com" required />
         </div>
 
@@ -149,11 +140,11 @@
 
     <form v-else class="form-signin w-100" @submit.prevent="login()" style="max-width: 360px;">
       <img class="mt-5 mx-auto d-block" style="width: 230px" :src="logoSrc" alt="W4H Toolkit logo" />
-      <div class="logotype mb-4 text-center">W4H Toolkit</div>
+      <div class="logotype mb-4 text-center"> W4H Toolkit</div>
 
       <label for="inputEmail" class="visually-hidden">Email</label>
-      <input id="inputEmail" class="form-control mb-2" placeholder="Email" required autofocus v-model="email"
-        @input="resetMessage" />
+      <input id="inputEmail" class="form-control mb-2" placeholder="Email (used for login)" required autofocus
+        v-model="email" @input="resetMessage" />
 
       <label for="inputPassword" class="visually-hidden">Password</label>
       <input type="password" id="inputPassword" class="form-control mb-3" placeholder="Password" required
@@ -210,12 +201,25 @@ const db = reactive({
 });
 
 const admin = reactive({
-  username: '',
   email: '',
   name: '',
   password: '',
   passwordConfirm: ''
 });
+
+const fetchDatabaseSettings = async () => {
+  try {
+    const res = await api.get('config/database-settings');
+    console.log('Fetched database settings:', res.data);
+    if (res.data.host) db.host = res.data.host;
+    if (res.data.port) db.port = res.data.port;
+    if (res.data.database) db.database = res.data.database;
+    if (res.data.user) db.user = res.data.user;
+  } catch (err) {
+    // Silently fail - just use default values
+    console.log('Could not fetch database settings:', err.message);
+  }
+};
 
 const checkDbStatus = async () => {
 
@@ -225,6 +229,11 @@ const checkDbStatus = async () => {
     showDbConfig.value = !dbConfigured.value;
     showAdminSetup.value = false;
     backendError.value = '';
+
+    // If database config is needed, prefill any existing settings
+    if (!dbConfigured.value) {
+      await fetchDatabaseSettings();
+    }
   } catch (err) {
     // Only treat as "not configured" if status code is 503 (Service Unavailable)
     // Other errors (network, auth, etc.) should not show DB config form
@@ -233,6 +242,7 @@ const checkDbStatus = async () => {
       showDbConfig.value = true;
       showAdminSetup.value = false;
       backendError.value = '';
+      await fetchDatabaseSettings();
     } else {
       console.error('Failed to check database status:', err);
       showDbConfig.value = false;
@@ -244,7 +254,7 @@ const checkDbStatus = async () => {
 const login = async () => {
   try {
     const response = await api.post('users/login', {
-      username: email.value.trim(),
+      email: email.value.trim(),
       password: password.value.trim(),
     });
 
@@ -312,9 +322,9 @@ const setupInitialAdmin = async () => {
   adminLoading.value = true;
   adminError.value = '';
 
-  if (!admin.username || !admin.email || !admin.password || !admin.passwordConfirm) {
+  if (!admin.email || !admin.password || !admin.passwordConfirm) {
     adminLoading.value = false;
-    adminError.value = 'Username, email, password, and confirmation are required.';
+    adminError.value = 'Email, password, and confirmation are required.';
     return;
   }
 
@@ -332,7 +342,6 @@ const setupInitialAdmin = async () => {
 
   try {
     const res = await api.post('config/admin-setup', {
-      username: admin.username,
       email: admin.email,
       name: admin.name,
       password: admin.password

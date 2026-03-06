@@ -90,7 +90,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed } from 'vue';
+import { ref, reactive, computed, onMounted } from 'vue';
 import { api } from '../utils/api';
 import { useRouter } from 'vue-router';
 import { useUIStore } from '../stores/ui';
@@ -111,6 +111,20 @@ const db = reactive({
   database: '',
   user: '',
   password: ''
+});
+
+onMounted(async () => {
+  try {
+    const res = await api.get('config/database-settings');
+    console.log('Fetched database settings:', res.data);
+    if (res.data.host) db.host = res.data.host;
+    if (res.data.port) db.port = res.data.port;
+    if (res.data.database) db.database = res.data.database;
+    if (res.data.user) db.user = res.data.user;
+  } catch (err) {
+    // Silently fail - just use default values
+    console.log('Could not fetch database settings:', err.message);
+  }
 });
 
 const testAndSaveConnection = async () => {

@@ -71,7 +71,6 @@ const router = useRouter();
 const userStore = useUserStore();
 
 const columns = [
-  { label: 'Username', field: 'username' },
   { label: 'Name', field: 'name' },
   { label: 'Email', field: 'email' },
   { label: 'Role', field: 'role' },
@@ -110,7 +109,6 @@ onMounted(async () => {
 
     allRows.value = users.map(u => ({
       ...u,
-      username: u.username || '',
       name: u.name || '',
       email: u.email || '',
       role: u.role || '',

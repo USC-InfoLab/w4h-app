@@ -133,7 +133,7 @@ async function onSave() {
   try {
     const response = await api.post(
       'users/add',
-      { user: { ...user.value, username: user.value.email } },
+      { user: { ...user.value } },
       authHeaders()
     );
 
