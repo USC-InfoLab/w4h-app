@@ -26,8 +26,8 @@
               </RouterLink>
             </li>
             <li class="nav-item">
-              <RouterLink :to="{ name: 'adminDatabase' }" class="nav-link" active-class="active">
-                <i class="bi bi-hdd-stack"></i> Database
+              <RouterLink :to="{ name: 'adminSettings' }" class="nav-link" active-class="active">
+                <i class="bi bi-gear"></i> Settings
               </RouterLink>
             </li>
             <li class="nav-item">
@@ -45,8 +45,8 @@
             </RouterLink>
           </li>
           <li class="nav-item">
-            <RouterLink :to="{ name: 'adminDatabase' }" class="nav-link" active-class="active">
-              <i class="bi bi-hdd-stack"></i> Database
+            <RouterLink :to="{ name: 'adminSettings' }" class="nav-link" active-class="active">
+              <i class="bi bi-gear"></i> Settings
             </RouterLink>
           </li>
           <li class="nav-item">

@@ -43,7 +43,8 @@ const routes = [
   },
   // Admin routes
   { path: '/admin/home', name: 'adminHome', component: () => import('../views/admin/HomeView.vue'), meta: { requiresAuth: true, adminPage: true } },
-  { path: '/admin/database', name: 'adminDatabase', component: () => import('../views/admin/DatabaseView.vue'), meta: { requiresAuth: true, adminPage: true } },
+  { path: '/admin/settings', name: 'adminSettings', component: () => import('../views/admin/SettingsView.vue'), meta: { requiresAuth: true, adminPage: true } },
+  { path: '/admin/database', name: 'adminDatabase', redirect: '/admin/settings' },
   // { path: '/admin/studies', name: 'adminStudies', component: () => import('../views/admin/studies.vue'), meta: { requiresAuth: true, adminPage: true } },
   { path: '/admin/studies', name: 'adminStudies', component: () => import('../views/admin/StudiesView.vue'), meta: { requiresAuth: true, adminPage: true } },
   { path: '/admin/studies/add', name: 'adminStudiesAdd', component: () => import('../views/admin/StudiesAdd.vue'), meta: { requiresAuth: true, adminPage: true } },
