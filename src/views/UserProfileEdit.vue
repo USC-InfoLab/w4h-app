@@ -18,7 +18,7 @@
 
         <h5 class="mb-3 mt-3">
           <i class="bi bi-person me-1"></i>
-          {{ isAdminUI ? 'Edit User' : 'Account Settings' }}
+          {{ isAdminUI ? 'Edit User' : 'Profile Settings' }}
         </h5>
 
         <form @submit.prevent="onSave">
@@ -42,21 +42,6 @@
               letter, one lowercase letter, one number, and one special character.
             </div>
           </div>
-
-          <!-- Admin-only fields -->
-          <template v-if="user.role === 'admin'">
-
-            <!-- Account -->
-            <div class="mb-3">
-              <label class="form-label">Account</label>
-              <select id="account-dropdown" v-model="newUser.account_id" class="form-select">
-                <option v-for="option in accountOptions" :key="option.value" :value="option.value">
-                  {{ option.text }}
-                </option>
-              </select>
-            </div>
-
-          </template>
 
           <!-- Error -->
           <div v-if="message" class="alert alert-danger">
@@ -122,11 +107,6 @@ const dirty = ref(false);
 const message = ref('');
 
 const newUser = ref(null); // separate editable copy
-
-const roleOptions = ref([]);
-const accountOptions = ref([]);
-
-const accounts = ref([]);
 let originalUser = null;
 
 function onDelete() {
@@ -141,8 +121,6 @@ const setUser = () => {
     name: user.value.name,
     role: user.value.role,
     password: '',
-    account_id: user.value.account_id,
-    can_send: user.value.can_send,
   };
   originalUser = { ...newUser.value };
   dirty.value = false;
@@ -157,27 +135,22 @@ onMounted(async () => {
     );
   });
 
-  if (user.value.role === 'admin') {
-    accounts.value = (await api.get('users/accounts', authHeaders())).data;
-    accountOptions.value = accounts.value.map((d) => ({ text: `${d.name} (${d.city_name})`, value: d.id }));
-    accountOptions.value = [{ text: 'Select account', value: null }, ...accountOptions.value];
-
-    const roles = await api.get('users/roles', authHeaders());
-    roleOptions.value = roles.data.map((d) => ({ text: d.name, value: d.id }));
-    roleOptions.value = [{ text: 'Select role', value: null }, ...roleOptions.value];
-  }
 });
 
 async function onSave() {
   try {
     message.value = '';
-    const response = await api.post('users/update', { user: newUser.value }, authHeaders());
+    const updates = {
+      name: newUser.value.name,
+      ...(newUser.value.password ? { password: newUser.value.password } : {})
+    };
+    const response = await api.post('users/profile', { user: updates }, authHeaders());
 
     if (response.data.error) {
       message.value = response.data.error.message;
     } else {
-      const { user: updatedUser, token } = response.data;
-      localStorage.setItem('w4h.user.token', token);
+      const updatedUser = response.data.user;
+      localStorage.setItem('w4h.user.token', updatedUser.token);
       await userStore.setUser(updatedUser); // update store
       setUser(); // reset editable copy
     }
@@ -198,10 +171,6 @@ const isSecurePassword = computed(() => {
 }
 
 .password-column {
-  min-width: 280px;
-}
-
-.account-column {
   min-width: 280px;
 }
 </style>

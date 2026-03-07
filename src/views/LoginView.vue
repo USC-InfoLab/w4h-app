@@ -143,8 +143,8 @@
       <div class="logotype mb-4 text-center"> W4H Toolkit</div>
 
       <label for="inputEmail" class="visually-hidden">Email</label>
-      <input id="inputEmail" class="form-control mb-2" placeholder="Email (used for login)" required autofocus
-        v-model="email" @input="resetMessage" />
+      <input id="inputEmail" class="form-control mb-2" placeholder="Email" required autofocus v-model="email"
+        @input="resetMessage" />
 
       <label for="inputPassword" class="visually-hidden">Password</label>
       <input type="password" id="inputPassword" class="form-control mb-3" placeholder="Password" required

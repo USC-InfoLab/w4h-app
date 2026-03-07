@@ -24,21 +24,24 @@
           </div>
 
           <div class="mb-3">
-            <label class="form-label">Account</label>
-            <select v-model="user.account_id" class="form-select">
-              <option v-for="option in accountOptions" :key="option.value" :value="option.value">
+            <label class="form-label">Studies</label>
+            <select v-if="!isAdminUser" v-model="user.study_ids" class="form-select" multiple>
+              <option v-for="option in studyOptions" :key="option.value" :value="option.value">
                 {{ option.text }}
               </option>
             </select>
+            <div v-if="!isAdminUser" class="form-text">Hold Cmd/Ctrl to select multiple studies.</div>
+            <div v-else class="form-text">Admins are automatically assigned to all studies.</div>
           </div>
 
           <div class="mb-3">
             <label class="form-label">Role</label>
-            <select v-model="user.role" class="form-select">
+            <select v-model="user.role" class="form-select" :disabled="isAdminUser">
               <option v-for="option in roleOptions" :key="option.value" :value="option.value">
                 {{ option.text }}
               </option>
             </select>
+            <div v-if="isAdminUser" class="form-text">Admin role is locked.</div>
           </div>
         </div>
       </div>
@@ -55,8 +58,8 @@
 
           <div class="form-text">Enter a new password to update</div>
           <div v-if="user.password && !isSecurePassword" class="text-danger small mt-2">
-            ❗️ Password must be at least 8 characters, and include uppercase,
-            lowercase, and a number.
+            ❗️ Password must be at least 12 characters and include uppercase,
+            lowercase, number, and special character.
           </div>
         </div>
       </div>
@@ -75,7 +78,7 @@
 
 
       <!-- Danger Zone -->
-      <div class="col-12">
+      <div v-if="!isAdminUser" class="col-12">
         <div class="card border-danger p-3">
           <h5 class="text-danger">Danger Zone</h5>
 
@@ -99,6 +102,7 @@
 <script setup>
 import { ref, onMounted, watch, computed } from 'vue';
 import { api, authHeaders } from '../../utils/api';
+import { validatePassword } from '@/utils/password-validator';
 // import ToastComponent from './Toast.vue';
 
 import { useRoute, useRouter } from 'vue-router';
@@ -112,79 +116,91 @@ const dirty = ref(false);
 
 const user = ref(null);
 let originalUser = null;
+const originalRole = ref('');
 
 const roleOptions = ref([]);
-const accountOptions = ref([]);
-
-let accounts = [];
-let cities = [];
+const studyOptions = ref([]);
 const message = ref('');
+const isAdminUser = computed(() => originalRole.value === 'admin');
 
 function onDelete() {
+  if (isAdminUser.value) {
+    message.value = 'Admin users cannot be deleted.';
+    return;
+  }
   api.delete('users/' + user.value.email, authHeaders()).then(() => {
     router.push('/admin/users');
   });
 }
 
-function getCity(city_id) {
-  const city = cities.find(c => c.id === city_id);
-  if (city) {
-    return `(${city.name})`;
-  }
-  return '';
-}
-
 onMounted(async () => {
-  const data = (await api.get('users/user/' + encodeURIComponent(route.params.email), authHeaders())).data;
-  user.value = {
-    email: data.email,
-    name: data.name,
-    role: data.role,
-    password: '',
-    account_id: data.account_id,
-  };
+  try {
+    const routeEmail = Array.isArray(route.params.email) ? route.params.email[0] : route.params.email;
+    const normalizedEmail = decodeURIComponent(routeEmail || '');
+    const data = (await api.get('users/user/' + encodeURIComponent(normalizedEmail), authHeaders())).data;
 
-  originalUser = JSON.stringify(user.value);
+    if (!data) {
+      message.value = 'User not found.';
+      router.push('/admin/users');
+      return;
+    }
 
-  watch(
-    user,
-    (newVal) => {
-      const hasProfileChanges = JSON.stringify(newVal) !== originalUser;
-      const hasPasswordEntry = user.value.password && user.value.password.length > 0;
+    user.value = {
+      id: data.id,
+      email: data.email,
+      name: data.name,
+      role: data.role,
+      password: '',
+      study_ids: Array.isArray(data.study_ids) ? data.study_ids : [],
+    };
 
-      console.log(user.value.password);
-      console.log(hasProfileChanges)
-      console.log(hasPasswordEntry)
+    originalUser = { ...user.value };
+    originalRole.value = data.role;
 
-      dirty.value = hasProfileChanges || hasPasswordEntry;
-    },
-    { deep: true }
-  );
+    watch(
+      user,
+      (newVal) => {
+        const hasProfileChanges = JSON.stringify(newVal) !== JSON.stringify(originalUser);
+        const hasPasswordEntry = user.value.password && user.value.password.length > 0;
 
-  cities = (await api.get('datasets/cities', authHeaders())).data;
+        dirty.value = hasProfileChanges || hasPasswordEntry;
+      },
+      { deep: true }
+    );
 
-  accounts = (await api.get('users/accounts', authHeaders())).data;
-  accountOptions.value = accounts.map((d) => ({ text: `${d.name} ${getCity(d.city_id)}`, value: d.id }));
-  accountOptions.value = [{ text: 'Select account', value: null }, ...accountOptions.value];
+    const studies = await api.get('datasets/studies', authHeaders());
+    studyOptions.value = studies.data.map(s => ({ text: s.name, value: s.id }));
 
-  const roles = await api.get('users/roles', authHeaders());
-  roleOptions.value = roles.data.map((d) => ({ text: d.name, value: d.id }));
-  roleOptions.value = [{ text: 'Select role', value: null }, ...roleOptions.value];
+    const roles = await api.get('users/roles', authHeaders());
+    roleOptions.value = roles.data.map((r) => ({ text: r, value: r }));
+    roleOptions.value = [{ text: 'Select role', value: null }, ...roleOptions.value];
+  } catch (error) {
+    message.value = error.response?.data?.error || error.message || 'Failed to load user.';
+  }
 });
 
 async function onSave() {
   try {
+    if (!user.value || !originalUser) {
+      message.value = 'User is not loaded yet.';
+      return;
+    }
+
     message.value = '';
 
-    const updates = { email: user.value.email };
-    if (originalUser.name !== user.value.name) updates.name = user.value.name;
-    if (originalUser.role !== user.value.role) updates.role = user.value.role;
-    if (originalUser.password !== user.value.password) updates.password = user.value.password;
-    if (user.value.account_id != '') updates.account_id = user.value.account_id;
+    const updates = {
+      id: user.value.id,
+      original_email: originalUser.email,
+      email: user.value.email,
+      name: user.value.name,
+      role: isAdminUser.value ? 'admin' : user.value.role,
+      study_ids: isAdminUser.value ? [] : user.value.study_ids,
+      ...(user.value.password ? { password: user.value.password } : {})
+    };
 
-    await api.post('users/update', { user: updates }, authHeaders());
+    await api.post('users/set', { user: updates }, authHeaders());
     user.value.password = '';  //in case we changed it
-    originalUser = JSON.stringify(user.value);
+    originalUser = { ...user.value };
 
     dirty.value = false;
   } catch (error) {
@@ -193,11 +209,10 @@ async function onSave() {
 }
 
 const isSecurePassword = computed(() => {
-  const password = user.value.password;
+  const password = user.value?.password;
   if (!password) {
     return true; // Empty password is ok
   }
-  const regex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
-  return regex.test(password);
+  return validatePassword(password);
 });
 </script>

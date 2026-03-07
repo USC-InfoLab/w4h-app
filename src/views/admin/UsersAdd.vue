@@ -13,7 +13,7 @@
       </ol>
     </nav>
 
-    <div class="row gy-3">
+    <form class="row gy-3" @submit.prevent="onSave">
 
       <!-- Profile Card -->
       <div class="col-12 col-md-6">
@@ -22,7 +22,7 @@
 
           <div class="mb-3">
             <label class="form-label">Email</label>
-            <input v-model="user.email" type="email" class="form-control" />
+            <input v-model="user.email" type="email" class="form-control" autocomplete="username" />
             <div v-if="user.email && !isValidEmail" class="text-danger small mt-1">
               Invalid email format
             </div>
@@ -30,16 +30,18 @@
 
           <div class="mb-3">
             <label class="form-label">Name</label>
-            <input v-model="user.name" type="text" class="form-control" />
+            <input v-model="user.name" type="text" class="form-control" autocomplete="name" />
           </div>
 
           <div class="mb-3">
-            <label class="form-label">Account</label>
-            <select v-model="user.account_id" class="form-select">
-              <option v-for="option in accountOptions" :key="option.value" :value="option.value">
+            <label class="form-label">Studies</label>
+            <select v-model="user.study_ids" class="form-select" multiple :disabled="user.role === 'admin'">
+              <option v-for="option in studyOptions" :key="option.value" :value="option.value">
                 {{ option.text }}
               </option>
             </select>
+            <div class="form-text">Hold Cmd/Ctrl to select multiple studies. Admin users are automatically assigned to
+              all studies.</div>
           </div>
 
           <div class="mb-3">
@@ -82,16 +84,16 @@
       <!-- Save Button -->
       <div class="d-flex justify-content-end mb-3">
         <button v-if="!submitted" class="btn btn-primary"
-          :disabled="!user.email || !isValidEmail || !user.password || !isSecurePassword" @click="onSave">
+          :disabled="!user.email || !isValidEmail || !user.password || !isSecurePassword" type="submit">
           Send Invite
         </button>
 
-        <button v-else class="btn btn-secondary" @click="onReset">
+        <button v-else class="btn btn-secondary" type="button" @click="onReset">
           Add another
         </button>
       </div>
 
-    </div>
+    </form>
   </main>
 </template>
 
@@ -104,14 +106,12 @@ const user = ref({
   email: '',
   name: '',
   role: null,
-  account_id: null,
+  study_ids: [],
   password: '',
-  can_send: false,
 });
 
 const roleOptions = ref([]);
-const accountOptions = ref([]);
-let cities = [];
+const studyOptions = ref([]);
 
 const submitMessage = ref('');
 const submitted = ref(false);
@@ -121,9 +121,8 @@ async function onReset() {
     email: '',
     name: '',
     role: null,
-    account_id: null,
+    study_ids: [],
     password: '',
-    can_send: false,
   };
   submitMessage.value = '';
   submitted.value = false;
@@ -151,11 +150,6 @@ async function onSave() {
   }
 }
 
-function getDataset(city_id) {
-  const city = cities.find(c => c.id === city_id);
-  return city ? `(${city.name})` : '';
-}
-
 const isSecurePassword = computed(() => {
   const p = user.value.password;
   return validatePassword(p);
@@ -166,21 +160,13 @@ const isValidEmail = computed(() => {
 });
 
 onMounted(async () => {
-  cities = (await api.get('datasets/cities', authHeaders())).data;
-
-  const accounts = await api.get('users/accounts', authHeaders());
-  accountOptions.value = [
-    { text: 'Select account', value: null },
-    ...accounts.data.map(d => ({
-      text: `${d.name} ${getDataset(d.city_id)}`,
-      value: d.id,
-    })),
-  ];
+  const studies = await api.get('datasets/studies', authHeaders());
+  studyOptions.value = studies.data.map(s => ({ text: s.name, value: s.id }));
 
   const roles = await api.get('users/roles', authHeaders());
   roleOptions.value = [
     { text: 'Select role', value: null },
-    ...roles.data.map(d => ({ text: d.name, value: d.id })),
+    ...roles.data.map(r => ({ text: r, value: r })),
   ];
 });
 </script>

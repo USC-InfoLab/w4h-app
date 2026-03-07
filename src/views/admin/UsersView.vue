@@ -123,9 +123,10 @@ onMounted(async () => {
 // Navigation & Theme helpers
 function onEditButtonClick(row) {
   const isSelf = row.email === userStore.user.email;
+  const isAdmin = userStore.user.role === 'admin';
   router.push({
-    name: isSelf ? 'userProfileEdit' : 'usersEdit',
-    params: isSelf ? {} : { email: encodeURIComponent(row.email).replace(/\./g, '%2E') }
+    name: !isAdmin && isSelf ? 'userProfileEdit' : 'usersEdit',
+    params: !isAdmin && isSelf ? {} : { email: row.email }
   });
 }
 
