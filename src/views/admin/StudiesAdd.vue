@@ -3,26 +3,26 @@
     <nav aria-label="breadcrumb" class="mb-3">
       <ol class="breadcrumb">
         <li class="breadcrumb-item">
-          <router-link to="/admin/studies">Studies</router-link>
+          <router-link to="/admin/studies">Projects</router-link>
         </li>
-        <li class="breadcrumb-item active" aria-current="page">Add Study</li>
+        <li class="breadcrumb-item active" aria-current="page">Add Project</li>
       </ol>
     </nav>
 
     <div class="row justify-content-center">
       <div class="col-12 col-md-8 col-lg-6">
         <div class="card p-3">
-          <h5 class="card-title mb-3">New Study</h5>
+          <h5 class="card-title mb-3">New Project</h5>
 
           <div class="mb-3">
-            <label class="form-label">Study ID</label>
+            <label class="form-label">Project ID</label>
             <input v-model.trim="form.id" class="form-control" placeholder="e.g. w4h-core" />
             <div class="form-text">Unique and immutable identifier.</div>
           </div>
 
           <div class="mb-3">
             <label class="form-label">Name</label>
-            <input v-model.trim="form.name" class="form-control" placeholder="e.g. W4H Core Study" />
+            <input v-model.trim="form.name" class="form-control" placeholder="e.g. W4H Core Project" />
           </div>
 
           <div class="mb-3">
@@ -37,7 +37,7 @@
           <div class="d-flex justify-content-end">
             <button class="btn btn-primary" :disabled="saving || !form.id || !form.name" @click="onSave">
               <span v-if="saving" class="spinner-border spinner-border-sm me-2" />
-              Create Study
+              Create Project
             </button>
           </div>
         </div>
@@ -76,10 +76,10 @@ async function onSave() {
     }, authHeaders());
 
     ok.value = true;
-    message.value = 'Study created.';
+    message.value = 'Project created.';
     router.push({ name: 'adminStudies' });
   } catch (error) {
-    message.value = error.response?.data?.error || error.message || 'Failed to create study.';
+    message.value = error.response?.data?.error || error.message || 'Failed to create project.';
   } finally {
     saving.value = false;
   }

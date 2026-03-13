@@ -37,7 +37,7 @@
               <span v-else-if="props.column.field == 'name'">
                 <div class="fw-bold text-secondary">{{ props.row.name }}</div>
                 <div><a :href="'mailto:' + props.row.email">{{ props.row.email }}</a></div>
-                <div class="small text-muted">{{ props.row.studies || 'No studies assigned' }}</div>
+                <div class="small text-muted">{{ props.row.studies || 'No projects assigned' }}</div>
               </span>
               <span v-else>{{ props.formattedRow[props.column.field] }}</span>
             </template>
@@ -66,6 +66,7 @@ import { api, authHeaders } from '@/utils/api';
 import { useUserStore } from '@/stores/user';
 import { VueGoodTable } from 'vue-good-table-next';
 import 'vue-good-table-next/dist/vue-good-table-next.css';
+import { APP_NAME } from '@/utils/defs';
 
 const router = useRouter();
 const userStore = useUserStore();
@@ -74,7 +75,7 @@ const columns = [
   { label: 'Name', field: 'name' },
   { label: 'Email', field: 'email' },
   { label: 'Role', field: 'role' },
-  { label: 'Studies', field: 'studies' },
+  { label: 'Projects', field: 'studies' },
   { label: '', field: 'edit', sortable: false }
 ];
 
@@ -94,7 +95,7 @@ const filteredRows = computed(() => {
 const tableTheme = ref('nocturnal bg-dark');
 
 onMounted(async () => {
-  document.title = 'Users';
+  document.title = `${APP_NAME} Users`;
 
   const prefersDarkTheme = window.matchMedia('(prefers-color-scheme: dark)');
   prefersDarkTheme.addEventListener('change', updateTheme);

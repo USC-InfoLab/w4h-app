@@ -13,35 +13,33 @@
 
       <div class="collapse navbar-collapse" id="navbarCollapse">
 
-        <div class="d-none d-md-flex flex-grow-1 justify-content-center">
-          <ul class="navbar-nav">
-            <li class="nav-item">
-              <RouterLink :to="{ name: 'docs', params: { slug: 'home' } }" class="nav-link" active-class="active">
-                <i class="bi bi-book"></i> Docs
-              </RouterLink>
-            </li>
-            <li class="nav-item">
-              <RouterLink :to="{ name: 'adminStudies' }" class="nav-link" active-class="active">
-                <i class="bi bi-beaker"></i> Studies
-              </RouterLink>
-            </li>
-            <li class="nav-item">
-              <RouterLink :to="{ name: 'adminSettings' }" class="nav-link" active-class="active">
-                <i class="bi bi-gear"></i> Settings
-              </RouterLink>
-            </li>
-            <li class="nav-item">
-              <RouterLink :to="{ name: 'users' }" class="nav-link" active-class="active">
-                <i class="bi bi-person"></i> Users
-              </RouterLink>
-            </li>
-          </ul>
-        </div>
+        <ul class="navbar-nav d-none d-md-flex">
+          <li class="nav-item">
+            <RouterLink :to="{ name: 'adminSettings' }" class="nav-link" active-class="active">
+              <i class="bi bi-gear"></i> Settings
+            </RouterLink>
+          </li>
+          <li class="nav-item">
+            <RouterLink :to="{ name: 'adminStudies' }" class="nav-link" active-class="active">
+              <i class="bi bi-folder"></i> Projects
+            </RouterLink>
+          </li>
+          <li class="nav-item">
+            <RouterLink :to="{ name: 'users' }" class="nav-link" :class="{ active: isUsersActive }">
+              <i class="bi bi-people"></i> Users
+            </RouterLink>
+          </li>
+          <li class="nav-item">
+            <RouterLink :to="{ name: 'docs', params: { slug: 'home' } }" class="nav-link" active-class="active">
+              <i class="bi bi-question-circle"></i> Help
+            </RouterLink>
+          </li>
+        </ul>
 
         <ul class="navbar-nav d-md-none">
           <li class="nav-item">
             <RouterLink :to="{ name: 'adminHome' }" class="nav-link" active-class="active">
-              <i class="bi bi-person"></i> Home
+              <i class="bi bi-house"></i> Home
             </RouterLink>
           </li>
           <li class="nav-item">
@@ -50,13 +48,18 @@
             </RouterLink>
           </li>
           <li class="nav-item">
-            <RouterLink :to="{ name: 'users' }" class="nav-link" :class="isUsersActive ? 'active' : ''">
-              <i class="bi bi-person"></i> Users
+            <RouterLink :to="{ name: 'adminStudies' }" class="nav-link" active-class="active">
+              <i class="bi bi-folder"></i> Projects
             </RouterLink>
           </li>
           <li class="nav-item">
-            <RouterLink :to="{ name: 'adminStudies' }" class="nav-link" active-class="active">
-              <i class="bi bi-beaker"></i> Studies
+            <RouterLink :to="{ name: 'users' }" class="nav-link" :class="isUsersActive ? 'active' : ''">
+              <i class="bi bi-people"></i> Users
+            </RouterLink>
+          </li>
+          <li class="nav-item">
+            <RouterLink :to="{ name: 'docs', params: { slug: 'home' } }" class="nav-link" active-class="active">
+              <i class="bi bi-question-circle"></i> Help
             </RouterLink>
           </li>
         </ul>
@@ -139,17 +142,17 @@ onMounted(() => {
 }
 
 .w4h-nav {
-  background-color: rgb(99, 0, 0) !important;
-  color: white !important;
+  background-color: #FFCC00 !important;
+  color: rgb(49, 49, 49) !important;
 }
 
 .w4h-dark-nav {
-  background-color: rgb(99, 0, 0) !important;
-  color: white !important;
+  background-color: #FFCC00 !important;
+  color: rgb(49, 49, 49) !important;
 }
 
 .nav-link {
-  color: white !important;
+  color: rgb(49, 49, 49) !important;
 }
 
 .navbar-nav .nav-link {

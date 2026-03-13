@@ -22,13 +22,13 @@
               </RouterLink>
             </li> -->
             <li class="nav-item">
-              <RouterLink :to="{ name: 'docs', params: { slug: 'home' } }" class="nav-link" active-class="active">
-                <i class="bi bi-book"></i> Docs
+              <RouterLink :to="{ name: 'studies' }" class="nav-link" active-class="active">
+                <i class="bi bi-beaker"></i> Projects
               </RouterLink>
             </li>
             <li class="nav-item">
-              <RouterLink :to="{ name: 'studies' }" class="nav-link" active-class="active">
-                <i class="bi bi-beaker"></i> Studies
+              <RouterLink :to="{ name: 'docs', params: { slug: 'home' } }" class="nav-link" active-class="active">
+                <i class="bi bi-question-circle"></i> Help
               </RouterLink>
             </li>
           </ul>
@@ -78,7 +78,7 @@ const { user } = storeToRefs(userStore);
 const uiStore = useUIStore();
 
 const navbarColorClass = computed(() => uiStore.darkMode ? 'w4h-dark-nav' : 'w4h-nav');
-const iconSrc = computed(() => uiStore.darkMode ? '/w4h-dark.svg' : '/w4h-dark.svg');
+const iconSrc = computed(() => uiStore.darkMode ? '/w4h-dark.svg' : '/w4h-light.svg');
 
 onMounted(() => {
   nextTick(() => {
@@ -112,15 +112,15 @@ function onSignOutClick() {
 /* Navbar background */
 .w4h-nav,
 .w4h-dark-nav {
-  background-color: #FFCC00 !important;
-  color: rgb(49, 49, 49) !important;
+  background-color: rgb(99, 0, 0) !important;
+  color: white !important;
   /* dark gray text */
 }
 
 .w4h-dark-nav,
 .navbar-brand,
 .navbar-nav .nav-link {
-  color: rgb(49, 49, 49) !important;
+  color: white !important;
   /* dark gray text */
 }
 
@@ -131,7 +131,7 @@ function onSignOutClick() {
 
 /* Admin entry keeps original dark background with light text */
 .w4h-dark-nav .admin-entry {
-  background-color: #FFCC00 !important;
+  background-color: rgb(99, 0, 0) !important;
   color: whitesmoke !important;
 }
 
@@ -143,8 +143,8 @@ function onSignOutClick() {
 /* Combined rule for both modes */
 .w4h-nav,
 .w4h-dark-nav {
-  background-color: #FFCC00 !important;
-  color: rgb(49, 49, 49) !important;
+  background-color: rgb(99, 0, 0) !important;
+  color: whitesmoke !important;
 }
 
 /* Maintain link colors and active states */

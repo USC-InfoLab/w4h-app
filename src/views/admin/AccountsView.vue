@@ -75,6 +75,7 @@
 import { ref, onMounted, onBeforeUnmount } from 'vue';
 import { useRouter } from 'vue-router';
 import { api, authHeaders } from '../../utils/api';
+import { APP_NAME } from '@/utils/defs';
 import { VueGoodTable } from 'vue-good-table-next';
 import 'vue-good-table-next/dist/vue-good-table-next.css';
 import CopyBox from '@/components/CopyBox.vue';
@@ -96,7 +97,7 @@ const columns = [
 // ];
 
 onMounted(async () => {
-  document.title = 'Foundry Accounts';
+  document.title = `${APP_NAME} Accounts`;
 
   const mql = window.matchMedia('(prefers-color-scheme: dark)');
   updateTheme(mql);

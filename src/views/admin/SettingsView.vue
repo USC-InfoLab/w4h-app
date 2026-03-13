@@ -49,6 +49,15 @@
               <button class="btn btn-primary" :disabled="savingDb" type="submit">Save Database</button>
               <button class="btn btn-outline-secondary" :disabled="testingDb" type="button" @click="testDatabase">Test
                 Connection</button>
+              <button class="btn btn-outline-primary" :disabled="backingUpDocs" type="button" @click="backupDocs">
+                <span v-if="backingUpDocs" class="spinner-border spinner-border-sm me-1" />
+                Backup Docs
+              </button>
+            </div>
+            <div v-if="message"
+              :class="['alert alert-dismissible mt-3 mb-0', messageType === 'success' ? 'alert-success' : 'alert-danger']">
+              {{ message }}
+              <button type="button" class="btn-close" @click="message = ''"></button>
             </div>
           </form>
         </div>
@@ -119,12 +128,6 @@
           </div>
         </div>
       </div>
-
-      <div v-if="message" class="col-12">
-        <div :class="['alert', messageType === 'success' ? 'alert-success' : 'alert-danger']">
-          {{ message }}
-        </div>
-      </div>
     </div>
   </main>
 </template>
@@ -132,6 +135,7 @@
 <script setup>
 import { onMounted, ref } from 'vue';
 import { api, authHeaders } from '@/utils/api';
+import { APP_NAME } from '@/utils/defs';
 
 const message = ref('');
 const messageType = ref('success');
@@ -139,6 +143,7 @@ const dbConfigured = ref(false);
 const mailerConfigured = ref(false);
 const savingDb = ref(false);
 const testingDb = ref(false);
+const backingUpDocs = ref(false);
 const savingMailer = ref(false);
 const testingMailer = ref(false);
 const testRecipient = ref('');
@@ -146,9 +151,13 @@ const testRecipient = ref('');
 const db = ref({ host: '', port: '5432', database: '', user: '', password: '' });
 const mailer = ref({ host: '', port: '587', secure: false, user: '', password: '', from: '', replyTo: '' });
 
+let messageTimer = null;
+
 function setMessage(text, type = 'success') {
   message.value = text;
   messageType.value = type;
+  clearTimeout(messageTimer);
+  messageTimer = setTimeout(() => { message.value = ''; }, 4000);
 }
 
 async function loadSettings() {
@@ -219,6 +228,36 @@ async function testDatabase() {
   }
 }
 
+async function backupDocs() {
+  backingUpDocs.value = true;
+  try {
+    const res = await api.get('config/docs-backup', authHeaders());
+
+    if (res.data?.saved) {
+      setMessage(`Docs backup saved to ${res.data.saved}`, 'success');
+    } else {
+      const filename = res.data?.filename;
+      const sql = res.data?.sql;
+      if (!filename || !sql) throw new Error('Invalid backup response');
+
+      const blob = new Blob([sql], { type: 'application/sql;charset=utf-8' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      setMessage('Docs backup downloaded successfully.', 'success');
+    }
+  } catch (error) {
+    setMessage(error.response?.data?.error || error.message || 'Failed to download docs backup', 'error');
+  } finally {
+    backingUpDocs.value = false;
+  }
+}
+
 async function saveMailerSettings() {
   if (!mailer.value.host || !mailer.value.port || !mailer.value.from) {
     setMessage('SMTP host, port, and from are required.', 'error');
@@ -260,5 +299,8 @@ async function sendTestEmail() {
   }
 }
 
-onMounted(loadSettings);
+onMounted(async () => {
+  document.title = `${APP_NAME} Settings`;
+  await loadSettings();
+});
 </script>

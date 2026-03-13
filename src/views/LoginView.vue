@@ -2,8 +2,8 @@
   <div class="d-flex flex-column justify-content-center">
     <div v-if="showDbConfig" class="card w-100 mx-auto" style="max-width: 450px;">
       <div class="card-body">
-        <img class="mx-auto d-block mt-2" style="width: 180px" :src="logoSrc" alt="W4H Toolkit logo" />
-        <h2 class="text-center mt-3">W4H Setup</h2>
+        <img class="mx-auto d-block mt-2" style="width: 180px" :src="logoSrc" :alt="`${APP_NAME} logo`" />
+        <h2 class="text-center mt-3">{{ APP_NAME }} Setup</h2>
         <p class="text-muted text-center mb-3"></p>
         <div class="alert alert-info" role="alert">
           <div class="mt-1">
@@ -71,8 +71,8 @@
 
     <div v-else-if="showAdminSetup" class="card w-100 mx-auto" style="max-width: 450px;">
       <form class="card-body" @submit.prevent="setupInitialAdmin">
-        <img class="mx-auto d-block mt-2" style="width: 180px" :src="logoSrc" alt="W4H Toolkit logo" />
-        <h2 class="text-center mt-3">W4H Admin Setup </h2>
+        <img class="mx-auto d-block mt-2" style="width: 180px" :src="logoSrc" :alt="`${APP_NAME} logo`" />
+        <h2 class="text-center mt-3">{{ APP_NAME }} Admin Setup</h2>
 
         <div class="mb-3">
           <label class="form-label">Admin Email (used for login)</label>
@@ -94,8 +94,14 @@
           <div class="input-group">
             <input :type="showAdminPassword ? 'text' : 'password'" v-model="admin.password" class="form-control"
               placeholder="Choose a strong password" required />
-            <button type="button" class="btn btn-outline-secondary" @click="showAdminPassword = !showAdminPassword">
-              {{ showAdminPassword ? 'Hide' : 'Show' }}
+            <button type="button" class="btn btn-outline-secondary" @click="showAdminPassword = !showAdminPassword"
+              tabindex="-1">
+              <i :class="showAdminPassword ? 'bi bi-eye-slash' : 'bi bi-eye'"></i>
+            </button>
+          </div>
+          <div class="mt-1">
+            <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none" @click="suggestAdminPassword">
+              <i class="bi bi-key me-1"></i>Suggest password
             </button>
           </div>
         </div>
@@ -106,8 +112,8 @@
             <input :type="showAdminConfirmPassword ? 'text' : 'password'" v-model="admin.passwordConfirm"
               class="form-control" placeholder="Re-enter password" required />
             <button type="button" class="btn btn-outline-secondary"
-              @click="showAdminConfirmPassword = !showAdminConfirmPassword">
-              {{ showAdminConfirmPassword ? 'Hide' : 'Show' }}
+              @click="showAdminConfirmPassword = !showAdminConfirmPassword" tabindex="-1">
+              <i :class="showAdminConfirmPassword ? 'bi bi-eye-slash' : 'bi bi-eye'"></i>
             </button>
           </div>
         </div>
@@ -126,7 +132,7 @@
 
     <div v-else-if="backendError" class="card w-100 mx-auto" style="max-width: 450px;">
       <div class="card-body text-center">
-        <img class="mx-auto d-block mt-2" style="width: 180px" :src="logoSrc" alt="W4H Toolkit logo" />
+        <img class="mx-auto d-block mt-2" style="width: 180px" :src="logoSrc" :alt="`${APP_NAME} logo`" />
         <h2 class="text-center mt-3">Backend Unavailable</h2>
         <div class="alert alert-danger mt-4" role="alert">
           <div class="fw-bold mb-2">⚠️ Cannot Connect to API Server</div>
@@ -139,16 +145,21 @@
     </div>
 
     <form v-else class="form-signin w-100" @submit.prevent="login()" style="max-width: 360px;">
-      <img class="mt-5 mx-auto d-block" style="width: 230px" :src="logoSrc" alt="W4H Toolkit logo" />
-      <div class="logotype mb-4 text-center"> W4H Toolkit</div>
+      <img class="mt-5 mx-auto d-block" style="width: 230px" :src="logoSrc" :alt="`${APP_NAME} logo`" />
+      <div class="logotype mb-4 text-center">{{ APP_NAME }}</div>
 
       <label for="inputEmail" class="visually-hidden">Email</label>
-      <input id="inputEmail" class="form-control mb-2" placeholder="Email" required autofocus v-model="email"
+      <input id="inputEmail" class="form-control" placeholder="Email" required autofocus v-model="email"
         @input="resetMessage" />
 
       <label for="inputPassword" class="visually-hidden">Password</label>
-      <input type="password" id="inputPassword" class="form-control mb-3" placeholder="Password" required
-        v-model="password" @input="resetMessage" autocomplete="on" />
+      <div class="position-relative mb-3">
+        <input :type="showLoginPassword ? 'text' : 'password'" id="inputPassword" class="form-control"
+          placeholder="Password" required v-model="password" @input="resetMessage" autocomplete="on" />
+        <button type="button" class="btn-eye-toggle" @click="showLoginPassword = !showLoginPassword" tabindex="-1">
+          <i :class="showLoginPassword ? 'bi bi-eye-slash' : 'bi bi-eye'"></i>
+        </button>
+      </div>
 
       <button class="w-100 btn btn-lg btn-primary" type="submit">Sign in</button>
 
@@ -167,6 +178,7 @@
 import { ref, reactive, onMounted, computed } from 'vue';
 import { api } from '../utils/api';
 import { validatePassword, PASSWORD_REQUIREMENTS } from '@/utils/password-validator';
+import { APP_NAME } from '@/utils/defs';
 import { useRouter } from 'vue-router';
 const router = useRouter();
 
@@ -188,6 +200,7 @@ const dbError = ref('');
 const adminLoading = ref(false);
 const adminError = ref('');
 const backendError = ref('');
+const showLoginPassword = ref(false);
 const showDbPassword = ref(false);
 const showAdminPassword = ref(false);
 const showAdminConfirmPassword = ref(false);
@@ -206,6 +219,34 @@ const admin = reactive({
   password: '',
   passwordConfirm: ''
 });
+
+function suggestAdminPassword() {
+  const upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+  const lower = 'abcdefghjkmnpqrstuvwxyz';
+  const digits = '23456789';
+  const special = '@$!%*?&#^_+-';
+  const all = upper + lower + digits + special;
+  const arr = new Uint32Array(16);
+  crypto.getRandomValues(arr);
+  let pw = [
+    upper[arr[0] % upper.length],
+    lower[arr[1] % lower.length],
+    digits[arr[2] % digits.length],
+    special[arr[3] % special.length],
+  ];
+  for (let i = 4; i < arr.length; i++) {
+    pw.push(all[arr[i] % all.length]);
+  }
+  for (let i = pw.length - 1; i > 0; i--) {
+    const j = arr[i % arr.length] % (i + 1);
+    [pw[i], pw[j]] = [pw[j], pw[i]];
+  }
+  const generated = pw.join('');
+  admin.password = generated;
+  admin.passwordConfirm = generated;
+  showAdminPassword.value = true;
+  showAdminConfirmPassword.value = true;
+}
 
 const fetchDatabaseSettings = async () => {
   try {
@@ -428,8 +469,8 @@ onMounted(() => {
   border-bottom-left-radius: 0;
 }
 
-.form-signin input[type='password'] {
-  margin-bottom: 10px;
+.form-signin #inputPassword {
+  margin-bottom: 0;
   border-top-left-radius: 0;
   border-top-right-radius: 0;
 }
@@ -438,6 +479,26 @@ onMounted(() => {
   margin: 20px 0;
   font-size: 1.5em;
   font-weight: bolder;
+}
+
+.btn-eye-toggle {
+  position: absolute;
+  right: 10px;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  background: none;
+  border: none;
+  color: #888;
+  cursor: pointer;
+  padding: 0;
+  font-size: 16px;
+  z-index: 3;
+}
+
+.btn-eye-toggle:hover {
+  color: inherit;
 }
 
 #inputEmail {

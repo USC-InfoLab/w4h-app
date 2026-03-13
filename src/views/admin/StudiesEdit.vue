@@ -3,21 +3,21 @@
     <nav aria-label="breadcrumb" class="mb-3">
       <ol class="breadcrumb">
         <li class="breadcrumb-item">
-          <router-link to="/admin/studies">Studies</router-link>
+          <router-link to="/admin/studies">Projects</router-link>
         </li>
-        <li class="breadcrumb-item active" aria-current="page">Edit Study</li>
+        <li class="breadcrumb-item active" aria-current="page">Edit Project</li>
       </ol>
     </nav>
 
     <div class="row justify-content-center">
       <div class="col-12 col-md-8 col-lg-6">
         <div class="card p-3">
-          <h5 class="card-title mb-3">Edit Study</h5>
+          <h5 class="card-title mb-3">Edit Project</h5>
 
           <div class="mb-3">
-            <label class="form-label">Study ID</label>
+            <label class="form-label">Project ID</label>
             <input v-model="form.id" class="form-control" disabled />
-            <div class="form-text">Study ID cannot be changed.</div>
+            <div class="form-text">Project ID cannot be changed.</div>
           </div>
 
           <div class="mb-3">
@@ -73,7 +73,7 @@ onMounted(async () => {
     form.name = data.name || '';
     form.description = data.description || '';
   } catch (error) {
-    message.value = error.response?.data?.error || error.message || 'Failed to load study.';
+    message.value = error.response?.data?.error || error.message || 'Failed to load project.';
   } finally {
     loaded.value = true;
   }
@@ -91,10 +91,10 @@ async function onSave() {
     }, authHeaders());
 
     ok.value = true;
-    message.value = 'Study updated.';
+    message.value = 'Project updated.';
     router.push({ name: 'adminStudies' });
   } catch (error) {
-    message.value = error.response?.data?.error || error.message || 'Failed to save study.';
+    message.value = error.response?.data?.error || error.message || 'Failed to save project.';
   } finally {
     saving.value = false;
   }

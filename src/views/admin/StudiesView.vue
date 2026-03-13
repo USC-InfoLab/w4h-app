@@ -3,7 +3,7 @@
     <div class="row align-items-center mb-2">
       <div class="col-auto ms-auto">
         <button class="btn btn-sm btn-primary my-2" @click="$router.push({ name: 'adminStudiesAdd' })">
-          <i class="bi bi-plus"></i> Add Study
+          <i class="bi bi-plus"></i> Add Project
         </button>
       </div>
     </div>
@@ -14,7 +14,7 @@
 
     <div v-if="loading" class="text-center mt-5">
       <div class="spinner-border text-primary" role="status"></div>
-      <p>Loading studies...</p>
+      <p>Loading projects...</p>
     </div>
 
     <ul v-else-if="studies.length" class="list-group">
@@ -29,7 +29,7 @@
     </ul>
 
     <div v-else class="text-center my-5">
-      <p class="text-muted">No studies found.</p>
+      <p class="text-muted">No projects found.</p>
     </div>
   </main>
 </template>
@@ -45,13 +45,13 @@ const loading = ref(true);
 const errorMessage = ref('');
 
 onMounted(async () => {
-  document.title = 'Studies';
+  document.title = 'Projects';
 
   try {
     const res = await api.get('datasets/studies', authHeaders());
     studies.value = Array.isArray(res.data) ? res.data : [];
   } catch (error) {
-    errorMessage.value = error.response?.data?.error || error.message || 'Failed to load studies.';
+    errorMessage.value = error.response?.data?.error || error.message || 'Failed to load projects.';
     studies.value = [];
   } finally {
     loading.value = false;

@@ -130,6 +130,7 @@
 import { ref, watch, onMounted, computed, onBeforeUnmount, nextTick } from 'vue';
 import Split from 'split.js';
 import { api, authHeaders } from '@/utils/api';
+import { APP_NAME } from '@/utils/defs';
 import { stripHTML } from '../../utils/toc';
 
 import DocsDeleteDocModal from '@/components/DocsDeleteDocModal.vue';
@@ -477,7 +478,7 @@ watch(() => props.isNewDoc, (isNew) => {
 });
 
 onMounted(async () => {
-  document.title = 'Foundry Docs';
+  document.title = `${APP_NAME} Docs`;
 
   handleSlug(route.params.slug);
 

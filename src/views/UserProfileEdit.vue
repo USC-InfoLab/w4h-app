@@ -32,7 +32,19 @@
           <!-- Password -->
           <div class="mb-3">
             <label class="form-label">Password</label>
-            <input v-model="newUser.password" type="text" class="form-control" autocomplete="new-password" />
+            <div class="input-group">
+              <input :type="showPassword ? 'text' : 'password'" v-model="newUser.password" class="form-control"
+                autocomplete="new-password" />
+              <button type="button" class="btn btn-outline-secondary" @click="showPassword = !showPassword"
+                tabindex="-1">
+                <i :class="showPassword ? 'bi bi-eye-slash' : 'bi bi-eye'"></i>
+              </button>
+            </div>
+            <div class="mt-1">
+              <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none" @click="suggestPassword">
+                <i class="bi bi-key me-1"></i>Suggest password
+              </button>
+            </div>
             <small class="text-muted">
               Enter a new password to update
             </small>
@@ -103,6 +115,30 @@ const isAdminUI = computed(() => {
 });
 
 const verifyCode = ref('');
+const showPassword = ref(false);
+
+function suggestPassword() {
+  const upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+  const lower = 'abcdefghjkmnpqrstuvwxyz';
+  const digits = '23456789';
+  const special = '@$!%*?&#^_+-';
+  const all = upper + lower + digits + special;
+  const arr = new Uint32Array(16);
+  crypto.getRandomValues(arr);
+  let pw = [
+    upper[arr[0] % upper.length],
+    lower[arr[1] % lower.length],
+    digits[arr[2] % digits.length],
+    special[arr[3] % special.length],
+  ];
+  for (let i = 4; i < arr.length; i++) pw.push(all[arr[i] % all.length]);
+  for (let i = pw.length - 1; i > 0; i--) {
+    const j = arr[i % arr.length] % (i + 1);
+    [pw[i], pw[j]] = [pw[j], pw[i]];
+  }
+  newUser.value.password = pw.join('');
+  showPassword.value = true;
+}
 const dirty = ref(false);
 const message = ref('');
 

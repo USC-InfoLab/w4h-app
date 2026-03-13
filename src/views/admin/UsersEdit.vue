@@ -23,25 +23,33 @@
             <input v-model="user.name" type="text" class="form-control" />
           </div>
 
-          <div class="mb-3">
-            <label class="form-label">Studies</label>
-            <select v-if="!isAdminUser" v-model="user.study_ids" class="form-select" multiple>
+          <div v-if="!isAdminUser" class="mb-3">
+            <label class="form-label">Projects</label>
+            <select v-model="user.study_ids" class="form-select" multiple>
               <option v-for="option in studyOptions" :key="option.value" :value="option.value">
                 {{ option.text }}
               </option>
             </select>
-            <div v-if="!isAdminUser" class="form-text">Hold Cmd/Ctrl to select multiple studies.</div>
-            <div v-else class="form-text">Admins are automatically assigned to all studies.</div>
+            <div class="form-text">Hold Cmd/Ctrl to select multiple projects.</div>
+          </div>
+          <div v-else class="mb-3">
+            <label class="form-label">Projects</label>
+            <input type="text" class="form-control" value="All Projects" disabled />
+            <div class="form-text">Admin users have access to all projects.</div>
           </div>
 
-          <div class="mb-3">
+          <div v-if="!isAdminUser" class="mb-3">
             <label class="form-label">Role</label>
-            <select v-model="user.role" class="form-select" :disabled="isAdminUser">
+            <select v-model="user.role" class="form-select">
               <option v-for="option in roleOptions" :key="option.value" :value="option.value">
                 {{ option.text }}
               </option>
             </select>
-            <div v-if="isAdminUser" class="form-text">Admin role is locked.</div>
+          </div>
+          <div v-else class="mb-3">
+            <label class="form-label">Role</label>
+            <input type="text" class="form-control" value="Admin" disabled />
+            <div class="form-text">Admin role cannot be re-assigned</div>
           </div>
         </div>
       </div>
@@ -53,7 +61,18 @@
 
           <div class="mb-2">
             <label class="form-label">Password</label>
-            <input v-model="user.password" type="text" class="form-control" autocomplete="new-password" />
+            <div class="position-relative">
+              <input :type="showPassword ? 'text' : 'password'" v-model="user.password" class="form-control"
+                autocomplete="new-password" />
+              <button type="button" class="btn-eye-toggle" @click="showPassword = !showPassword" tabindex="-1">
+                <i :class="showPassword ? 'bi bi-eye-slash' : 'bi bi-eye'"></i>
+              </button>
+            </div>
+            <div class="mt-1">
+              <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none" @click="suggestPassword">
+                <i class="bi bi-key me-1"></i>Suggest password
+              </button>
+            </div>
           </div>
 
           <div class="form-text">Enter a new password to update</div>
@@ -113,6 +132,30 @@ const router = useRouter();
 
 const verifyCode = ref('');
 const dirty = ref(false);
+const showPassword = ref(false);
+
+function suggestPassword() {
+  const upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+  const lower = 'abcdefghjkmnpqrstuvwxyz';
+  const digits = '23456789';
+  const special = '@$!%*?&#^_+-';
+  const all = upper + lower + digits + special;
+  const arr = new Uint32Array(16);
+  crypto.getRandomValues(arr);
+  let pw = [
+    upper[arr[0] % upper.length],
+    lower[arr[1] % lower.length],
+    digits[arr[2] % digits.length],
+    special[arr[3] % special.length],
+  ];
+  for (let i = 4; i < arr.length; i++) pw.push(all[arr[i] % all.length]);
+  for (let i = pw.length - 1; i > 0; i--) {
+    const j = arr[i % arr.length] % (i + 1);
+    [pw[i], pw[j]] = [pw[j], pw[i]];
+  }
+  user.value.password = pw.join('');
+  showPassword.value = true;
+}
 
 const user = ref(null);
 let originalUser = null;
@@ -216,3 +259,25 @@ const isSecurePassword = computed(() => {
   return validatePassword(password);
 });
 </script>
+
+<style scoped>
+.btn-eye-toggle {
+  position: absolute;
+  right: 10px;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  background: none;
+  border: none;
+  color: #888;
+  cursor: pointer;
+  padding: 0;
+  font-size: 16px;
+  z-index: 3;
+}
+
+.btn-eye-toggle:hover {
+  color: inherit;
+}
+</style>

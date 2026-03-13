@@ -34,14 +34,14 @@
           </div>
 
           <div class="mb-3">
-            <label class="form-label">Studies</label>
+            <label class="form-label">Projects</label>
             <select v-model="user.study_ids" class="form-select" multiple :disabled="user.role === 'admin'">
               <option v-for="option in studyOptions" :key="option.value" :value="option.value">
                 {{ option.text }}
               </option>
             </select>
-            <div class="form-text">Hold Cmd/Ctrl to select multiple studies. Admin users are automatically assigned to
-              all studies.</div>
+            <div class="form-text">Hold Cmd/Ctrl to select multiple projects. Admin users are automatically assigned to
+              all projects.</div>
           </div>
 
           <div class="mb-3">
@@ -63,7 +63,19 @@
 
           <div class="mb-2">
             <label class="form-label">Password</label>
-            <input v-model="user.password" type="password" class="form-control" autocomplete="new-password" />
+            <div class="input-group">
+              <input :type="showPassword ? 'text' : 'password'" v-model="user.password" class="form-control"
+                autocomplete="new-password" />
+              <button type="button" class="btn btn-outline-secondary" @click="showPassword = !showPassword"
+                tabindex="-1">
+                <i :class="showPassword ? 'bi bi-eye-slash' : 'bi bi-eye'"></i>
+              </button>
+            </div>
+            <div class="mt-1">
+              <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none" @click="suggestPassword">
+                <i class="bi bi-key me-1"></i>Suggest password
+              </button>
+            </div>
           </div>
 
           <div class="form-text">{{ PASSWORD_REQUIREMENTS }}</div>
@@ -101,6 +113,7 @@
 import { ref, onMounted, computed } from 'vue';
 import { api, authHeaders } from '../../utils/api';
 import { validatePassword, PASSWORD_REQUIREMENTS } from '@/utils/password-validator';
+import { APP_NAME } from '@/utils/defs';
 
 const user = ref({
   email: '',
@@ -115,6 +128,30 @@ const studyOptions = ref([]);
 
 const submitMessage = ref('');
 const submitted = ref(false);
+const showPassword = ref(false);
+
+function suggestPassword() {
+  const upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+  const lower = 'abcdefghjkmnpqrstuvwxyz';
+  const digits = '23456789';
+  const special = '@$!%*?&#^_+-';
+  const all = upper + lower + digits + special;
+  const arr = new Uint32Array(16);
+  crypto.getRandomValues(arr);
+  let pw = [
+    upper[arr[0] % upper.length],
+    lower[arr[1] % lower.length],
+    digits[arr[2] % digits.length],
+    special[arr[3] % special.length],
+  ];
+  for (let i = 4; i < arr.length; i++) pw.push(all[arr[i] % all.length]);
+  for (let i = pw.length - 1; i > 0; i--) {
+    const j = arr[i % arr.length] % (i + 1);
+    [pw[i], pw[j]] = [pw[j], pw[i]];
+  }
+  user.value.password = pw.join('');
+  showPassword.value = true;
+}
 
 async function onReset() {
   user.value = {
@@ -160,6 +197,8 @@ const isValidEmail = computed(() => {
 });
 
 onMounted(async () => {
+  document.title = `${APP_NAME} Add User`;
+
   const studies = await api.get('datasets/studies', authHeaders());
   studyOptions.value = studies.data.map(s => ({ text: s.name, value: s.id }));
 
