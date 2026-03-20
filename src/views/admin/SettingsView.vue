@@ -161,21 +161,28 @@ function setMessage(text, type = 'success') {
 }
 
 async function loadSettings() {
-  try {
-    const [dbRes, mailRes] = await Promise.all([
-      api.get('config/status', authHeaders()),
-      api.get('config/mailer-settings', authHeaders())
-    ]);
+  const [statusResult, dbSettingsResult, mailerResult] = await Promise.allSettled([
+    api.get('config/status', authHeaders()),
+    api.get('config/database-settings', authHeaders()),
+    api.get('config/mailer-settings', authHeaders())
+  ]);
 
-    dbConfigured.value = !!dbRes.data.configured;
-    if (dbRes.data.details) {
-      db.value.host = dbRes.data.details.host || '';
-      db.value.port = String(dbRes.data.details.port || '5432');
-      db.value.database = dbRes.data.details.database || '';
-      db.value.user = dbRes.data.details.user || '';
-    }
+  if (statusResult.status === 'fulfilled') {
+    dbConfigured.value = !!statusResult.value.data?.configured;
+  } else {
+    dbConfigured.value = false;
+  }
 
-    const smtp = mailRes.data || {};
+  if (dbSettingsResult.status === 'fulfilled') {
+    const dbSettings = dbSettingsResult.value.data || {};
+    db.value.host = dbSettings.host || '';
+    db.value.port = String(dbSettings.port || '5432');
+    db.value.database = dbSettings.database || '';
+    db.value.user = dbSettings.user || '';
+  }
+
+  if (mailerResult.status === 'fulfilled') {
+    const smtp = mailerResult.value.data || {};
     mailer.value.host = smtp.host || '';
     mailer.value.port = smtp.port || '587';
     mailer.value.secure = !!smtp.secure;
@@ -184,8 +191,16 @@ async function loadSettings() {
     mailer.value.from = smtp.from || '';
     mailer.value.replyTo = smtp.replyTo || '';
     mailerConfigured.value = !!smtp.configured;
-  } catch (error) {
-    setMessage(error.response?.data?.error || 'Failed to load settings', 'error');
+  } else {
+    mailerConfigured.value = false;
+  }
+
+  if (
+    statusResult.status === 'rejected' &&
+    dbSettingsResult.status === 'rejected' &&
+    mailerResult.status === 'rejected'
+  ) {
+    setMessage('Failed to load settings', 'error');
   }
 }
 
