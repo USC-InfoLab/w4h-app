@@ -52,6 +52,12 @@ This project is built with **Vue 3** and **Vite**.
 - **Editor:** [VS Code](https://code.visualstudio.com/) + [Vue - Official](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (disable Vetur).
 - **Browser Tools:** Install [Vue.js devtools](https://chromewebstore.google.com/detail/vuejs-devtools/nhdogjmejiglipccpnnnanhbledajbpd) and [enable Custom Object Formatters](http://bit.ly/object-formatters).
 
+### Optional environment variables 
+
+Optional keys (`VITE_APP_ADMIN_EMAIL=, VITE_APP_ADMIN_PASSWORD=`) for local **`npm run dev`** are listed at the bottom of **`.env.example`** . Copy `.env.example` to `.env`, then set values there as needed. They prefill **first-time admin setup** and the **Sign in** form in development (`LoginView.vue`). Restart the dev server after changes.
+
+Treat values as sensitive; do not commit real credentials in a tracked `.env`.
+
 ### Project Scripts
 
 ````bash
