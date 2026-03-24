@@ -213,11 +213,12 @@ const db = reactive({
   password: ''
 });
 
+// For dev use email and 
 const admin = reactive({
-  email: '',
-  name: '',
-  password: '',
-  passwordConfirm: ''
+  email: import.meta.env.VITE_APP_ADMIN_EMAIL || '',
+  name: import.meta.env.VITE_APP_ADMIN_NAME || '',  //XXX: needed?
+  password: import.meta.env.VITE_APP_ADMIN_PASSWORD || '',
+  passwordConfirm: import.meta.env.VITE_APP_ADMIN_PASSWORD || ''
 });
 
 function suggestAdminPassword() {
