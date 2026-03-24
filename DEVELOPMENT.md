@@ -1,4 +1,4 @@
-Development Setup
+# w4h-app Development
 
 ## System architecture
 
@@ -53,15 +53,15 @@ flowchart LR
 
 ---
 
-# w4h-app
+## w4h-app Setup
 
 This template should help get you started developing with Vue 3 in Vite.
 
-## Recommended IDE Setup
+### Recommended IDE Setup
 
 [VS Code](https://code.visualstudio.com/) + [Vue (Official)](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
 
-## Recommended Browser Setup
+### Recommended Browser Setup
 
 - Chromium-based browsers (Chrome, Edge, Brave, etc.):
   - [Vue.js devtools](https://chromewebstore.google.com/detail/vuejs-devtools/nhdogjmejiglipccpnnnanhbledajbpd)
@@ -70,11 +70,11 @@ This template should help get you started developing with Vue 3 in Vite.
   - [Vue.js devtools](https://addons.mozilla.org/en-US/firefox/addon/vue-js-devtools/)
   - [Turn on Custom Object Formatter in Firefox DevTools](https://fxdx.dev/firefox-devtools-custom-object-formatters/)
 
-## Customize configuration
+### Customize configuration
 
 See [Vite Configuration Reference](https://vite.dev/config/).
 
-## Project Setup
+### Project Setup
 
 ```sh
 npm install
