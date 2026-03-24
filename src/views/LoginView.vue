@@ -213,7 +213,6 @@ const db = reactive({
   password: ''
 });
 
-// For dev use email and 
 const admin = reactive({
   email: import.meta.env.VITE_APP_ADMIN_EMAIL || '',
   name: import.meta.env.VITE_APP_ADMIN_NAME || '',  //XXX: needed?
@@ -422,8 +421,27 @@ const email = ref('');
 const password = ref('');
 const message = ref('');
 
-onMounted(() => {
-  checkDbStatus();
+/**
+ * Prefill login from `.env` in dev only.
+ * Uses `VITE_APP_LOGIN_EMAIL` / `VITE_APP_LOGIN_PASSWORD`, or falls back to
+ * `VITE_APP_ADMIN_EMAIL` / `VITE_APP_ADMIN_PASSWORD` (same keys as admin setup).
+ */
+function applyDevLoginPrefill() {
+  if (!import.meta.env.DEV) return;
+  if (showDbConfig.value || showAdminSetup.value || backendError.value) return;
+  const devEmail =
+    import.meta.env.VITE_APP_LOGIN_EMAIL?.trim() ||
+    import.meta.env.VITE_APP_ADMIN_EMAIL?.trim();
+  const devPassword =
+    import.meta.env.VITE_APP_LOGIN_PASSWORD?.trim() ||
+    import.meta.env.VITE_APP_ADMIN_PASSWORD?.trim();
+  if (devEmail) email.value = devEmail;
+  if (devPassword) password.value = devPassword;
+}
+
+onMounted(async () => {
+  await checkDbStatus();
+  applyDevLoginPrefill();
 });
 </script>
 
