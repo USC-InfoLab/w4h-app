@@ -1,6 +1,6 @@
 # w4h-app
 
-Vue 3 + Vite SPA for the **W4H Toolkit**. This README is a **user-facing** guide: run the app locally and use it in the browser.
+This README is a **user-facing** guide: run the app locally and use it in the browser.
 
 **Developers:** stack overview, local workflow, Vite / Playwright / ESLint → **[DEVELOPMENT.md](DEVELOPMENT.md)**.
 
