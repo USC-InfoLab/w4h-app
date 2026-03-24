@@ -421,7 +421,7 @@ const email = ref('');
 const password = ref('');
 const message = ref('');
 
-/** Prefill sign-in from `.env.example`` in dev only (`VITE_APP_ADMIN_*`, same as admin setup). */
+/** Prefill sign-in from `.env`` in dev only (`VITE_APP_ADMIN_*`, same as admin setup). */
 function applyDevLoginPrefill() {
   if (!import.meta.env.DEV) return;
   if (showDbConfig.value || showAdminSetup.value || backendError.value) return;
