@@ -58,7 +58,9 @@ This project is built with **Vue 3** and **Vite**.
 # Install dependencies
 npm install
 
+# Create .env from .env.example and configure
 cp .env.example .env
+# To avoid re-entering credentials set VITE_APP_ADMIN_EMAIL, VITE_APP_ADMIN_PASSWORD
 
 # Compile and Hot-Reload for development
 npm run dev
