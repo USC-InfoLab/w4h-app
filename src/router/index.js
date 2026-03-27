@@ -19,6 +19,7 @@ const routes = [
   // { path: '/storyEdit/:id', name: 'storyEdit', component: () => import('../views/StoryEdit.vue'), meta: { requiresAuth: true } },
   // { path: '/storyAdd', name: 'storyAdd', component: () => import('../views/StoryAdd.vue'), meta: { requiresAuth: true } },
   { path: '/datasets', name: 'studies', component: () => import('../views/StudiesView.vue'), meta: { requiresAuth: true } },
+  { path: '/datasets/:id', name: 'projectWorkspace', component: () => import('../views/ProjectWorkspaceView.vue'), props: true, meta: { requiresAuth: true } },
   // { path: '/print/:id', name: 'print', component: () => import('../views/admin/Print.vue'), meta: { requiresAuth: true } },
   { path: '/userProfileEdit', name: 'userProfileEdit', component: () => import('../views/UserProfileEdit.vue'), meta: { requiresAuth: true } },
 
