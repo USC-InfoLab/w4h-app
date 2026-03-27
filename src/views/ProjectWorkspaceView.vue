@@ -190,12 +190,22 @@
                 <table class="table table-sm align-middle mb-0">
                   <thead>
                     <tr>
-                      <th>Name</th>
+                      <th>
+                        <button class="btn btn-link btn-sm p-0 table-sort-btn" type="button" @click="setRunSort('name')">
+                          Name
+                          <i v-if="runSortBy === 'name'" class="bi ms-1" :class="sortIconClass('name')"></i>
+                        </button>
+                      </th>
                       <th>Status</th>
                       <th>Tool</th>
                       <th>Studies</th>
                       <th>Source</th>
-                      <th>Created</th>
+                      <th>
+                        <button class="btn btn-link btn-sm p-0 table-sort-btn" type="button" @click="setRunSort('createdAt')">
+                          Created
+                          <i v-if="runSortBy === 'createdAt'" class="bi ms-1" :class="sortIconClass('createdAt')"></i>
+                        </button>
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
@@ -466,6 +476,8 @@ const selectedRunId = ref('');
 const monitorSearch = ref('');
 const monitorStatus = ref('');
 const monitorTool = ref('');
+const runSortBy = ref('createdAt');
+const runSortDir = ref('desc');
 
 const selectedStudyIds = ref([]);
 const selectedStudyIdsSet = computed(() => new Set(selectedStudyIds.value));
@@ -474,12 +486,15 @@ const selectedRun = computed(() => runs.value.find(r => r.id === selectedRunId.v
 
 const filteredRuns = computed(() => {
   const q = monitorSearch.value.trim().toLowerCase();
-  return runs.value.filter((r) => {
+  const result = runs.value.filter((r) => {
     if (monitorStatus.value && r.status !== monitorStatus.value) return false;
     if (monitorTool.value && r.tool !== monitorTool.value) return false;
     if (q && !String(r.name || '').toLowerCase().includes(q)) return false;
     return true;
   });
+
+  result.sort((a, b) => compareRuns(a, b, runSortBy.value, runSortDir.value));
+  return result;
 });
 
 const selectedRunPayloadPreview = computed(() => {
@@ -546,6 +561,40 @@ function resetMonitorFilters() {
   monitorSearch.value = '';
   monitorStatus.value = '';
   monitorTool.value = '';
+  runSortBy.value = 'createdAt';
+  runSortDir.value = 'desc';
+}
+
+function setRunSort(field) {
+  if (runSortBy.value === field) {
+    runSortDir.value = runSortDir.value === 'asc' ? 'desc' : 'asc';
+    return;
+  }
+  runSortBy.value = field;
+  runSortDir.value = field === 'name' ? 'asc' : 'desc';
+}
+
+function sortIconClass(field) {
+  if (runSortBy.value !== field) return '';
+  return runSortDir.value === 'asc' ? 'bi-caret-up-fill' : 'bi-caret-down-fill';
+}
+
+function compareRuns(a, b, field, dir) {
+  const factor = dir === 'asc' ? 1 : -1;
+
+  if (field === 'name') {
+    const av = String(a?.name || '').toLowerCase();
+    const bv = String(b?.name || '').toLowerCase();
+    return av.localeCompare(bv) * factor;
+  }
+
+  if (field === 'createdAt') {
+    const at = new Date(a?.createdAt || 0).getTime();
+    const bt = new Date(b?.createdAt || 0).getTime();
+    return (at - bt) * factor;
+  }
+
+  return 0;
 }
 
 function toggleStudy(studyId) {
@@ -855,6 +904,16 @@ onMounted(async () => {
 .project-list {
   max-height: 520px;
   overflow: auto;
+}
+
+.table-sort-btn {
+  text-decoration: none;
+  color: inherit;
+  font-weight: 600;
+}
+
+.table-sort-btn:hover {
+  text-decoration: none;
 }
 </style>
 
