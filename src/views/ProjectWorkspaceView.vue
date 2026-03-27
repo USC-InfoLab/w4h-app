@@ -149,6 +149,8 @@
                   <th>Name</th>
                   <th>Status</th>
                   <th>Tool</th>
+                  <th>Studies</th>
+                  <th>Source</th>
                   <th>Created</th>
                 </tr>
               </thead>
@@ -163,6 +165,8 @@
                     </span>
                   </td>
                   <td>{{ r.tool }}</td>
+                  <td>{{ r.studyIds?.length || 0 }}</td>
+                  <td class="text-muted">{{ r.source || 'local' }}</td>
                   <td class="text-muted">{{ formatDateTime(r.createdAt) }}</td>
                 </tr>
               </tbody>
@@ -240,8 +244,13 @@
               <small class="text-muted">This will appear under Monitor.</small>
             </div>
 
+            <div class="alert alert-light border mb-3">
+              <div><strong>Project:</strong> {{ id }}</div>
+              <div><strong>Studies selected:</strong> {{ selectedStudies.length }}</div>
+            </div>
+
             <div class="alert alert-info mb-0">
-              This is a UI-only prototype. Next step is wiring this to a real backend “launch” endpoint.
+              The app will try backend launch first, then fall back to local simulation if the endpoint is unavailable.
             </div>
           </div>
           <div class="modal-footer">
@@ -402,17 +411,43 @@ function createRun() {
   }
 
   const name = (newRun.value.name || '').trim() || `${newRun.value.tool} run`;
-  const run = {
-    id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+  const launchPayload = {
+    projectId: id.value,
     name,
     tool: newRun.value.tool,
+    studyIds: selectedStudies.value.map(s => s.id)
+  };
+
+  closeStartAnalysis();
+  activeTab.value = 'monitor';
+  launchRun(launchPayload);
+}
+
+async function launchRun(payload) {
+  // Try backend first if endpoint exists.
+  try {
+    const res = await api.post(`projects/${encodeURIComponent(payload.projectId)}/runs`, payload, authHeaders());
+    const run = normalizeRunFromApi(res.data, payload);
+    runs.value = [run, ...runs.value];
+    persistRuns();
+    return;
+  } catch (error) {
+    // Fallback to local simulation while backend endpoint is not implemented.
+    console.info('Run launch API unavailable, using local simulation:', error?.response?.status || error.message);
+  }
+
+  const run = {
+    id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    projectId: payload.projectId,
+    name: payload.name,
+    tool: payload.tool,
+    studyIds: payload.studyIds,
     status: 'queued',
-    createdAt: new Date().toISOString()
+    createdAt: new Date().toISOString(),
+    source: 'local'
   };
   runs.value = [run, ...runs.value];
   persistRuns();
-  closeStartAnalysis();
-  activeTab.value = 'monitor';
 
   // UI-only: simulate transitioning to "running" then "done"
   window.setTimeout(() => {
@@ -428,6 +463,20 @@ function createRun() {
     runs.value[idx] = { ...runs.value[idx], status: 'done' };
     persistRuns();
   }, 1800);
+}
+
+function normalizeRunFromApi(apiRun, payload) {
+  const idValue = String(apiRun?.id || `${Date.now()}-${Math.random().toString(16).slice(2)}`);
+  return {
+    id: idValue,
+    projectId: apiRun?.projectId || payload.projectId,
+    name: apiRun?.name || payload.name,
+    tool: apiRun?.tool || payload.tool,
+    studyIds: Array.isArray(apiRun?.studyIds) ? apiRun.studyIds : payload.studyIds,
+    status: apiRun?.status || 'queued',
+    createdAt: apiRun?.createdAt || new Date().toISOString(),
+    source: 'api'
+  };
 }
 
 function clearRuns() {
