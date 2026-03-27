@@ -14,7 +14,12 @@
     <div class="d-flex align-items-start justify-content-between flex-wrap gap-2 mb-3">
       <div>
         <h4 class="mb-0">{{ projectTitle }}</h4>
-        <small class="text-muted">Project workspace</small>
+        <div class="d-flex align-items-center flex-wrap gap-2 mt-1">
+          <small class="text-muted">Project workspace</small>
+          <span class="badge text-bg-secondary">ID: {{ id }}</span>
+          <span class="badge text-bg-secondary">Selected studies: {{ selectedStudies.length }}</span>
+          <span class="badge text-bg-secondary">Runs: {{ runs.length }}</span>
+        </div>
       </div>
 
       <div class="d-flex align-items-center gap-2">
@@ -89,7 +94,12 @@
         <div class="col-12 col-lg-6">
           <div class="card h-100">
             <div class="card-body">
-              <h6 class="mb-2">Selected studies</h6>
+              <div class="d-flex align-items-center justify-content-between mb-2">
+                <h6 class="mb-0">Selected studies</h6>
+                <span class="badge text-bg-secondary">
+                  {{ selectedStudies.length }} / {{ studies.length }}
+                </span>
+              </div>
               <div v-if="selectedStudies.length === 0" class="text-muted">
                 Select one or more studies to start analysis.
               </div>
@@ -249,8 +259,14 @@
       <div class="card">
         <div class="card-body">
           <h6 class="mb-2">Visualize</h6>
-          <div class="text-muted">
-            Placeholder for viewers/dashboards (UKB “Visualize”). We’ll connect this after we have real run outputs.
+          <div class="text-muted mb-2">
+            Placeholder for viewers/dashboards (UKB “Visualize”).
+          </div>
+          <div class="alert alert-light border mb-0">
+            <small>
+              No run outputs available yet. Launch analysis in <strong>Manage</strong>, then use this tab to open notebooks,
+              charts, or report views tied to the selected run.
+            </small>
           </div>
         </div>
       </div>
@@ -280,7 +296,7 @@
             </button>
           </div>
           <small class="text-muted d-block mt-2">
-            Next: store project metadata in backend and allow sharing across users/orgs.
+            Next: persist metadata in backend and support sharing/collaboration.
           </small>
         </div>
       </div>
