@@ -224,7 +224,33 @@
         <div class="col-12 col-xl-4">
           <div class="card h-100">
             <div class="card-body">
-              <h6 class="mb-2">Run details</h6>
+              <div class="d-flex align-items-center justify-content-between mb-2">
+                <h6 class="mb-0">Run details</h6>
+                <div v-if="selectedRun" class="dropdown">
+                  <button ref="runActionsToggleEl" type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle"
+                    data-bs-toggle="dropdown" aria-expanded="false">
+                    Actions
+                  </button>
+                  <ul class="dropdown-menu dropdown-menu-end">
+                    <li>
+                      <button class="dropdown-item" type="button" @click="duplicateRun(selectedRun)">
+                        <i class="bi bi-files me-2"></i>Duplicate
+                      </button>
+                    </li>
+                    <li>
+                      <button class="dropdown-item" type="button" @click="openEditRun(selectedRun)">
+                        <i class="bi bi-pencil me-2"></i>Edit
+                      </button>
+                    </li>
+                    <li><hr class="dropdown-divider" /></li>
+                    <li>
+                      <button class="dropdown-item text-danger" type="button" @click="openDeleteRun(selectedRun)">
+                        <i class="bi bi-trash me-2"></i>Delete
+                      </button>
+                    </li>
+                  </ul>
+                </div>
+              </div>
 
               <div v-if="!selectedRun" class="text-muted">
                 Select a run to inspect details and payload context.
@@ -347,13 +373,69 @@
         </div>
       </div>
     </div>
+
+    <div class="modal fade" tabindex="-1" ref="editRunModalEl" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Edit run</h5>
+            <button type="button" class="btn-close" @click="closeEditRun" aria-label="Close" />
+          </div>
+          <div class="modal-body">
+            <div class="mb-3">
+              <label class="form-label">Run name</label>
+              <input v-model="editRunForm.name" class="form-control" placeholder="Run name" />
+            </div>
+            <div class="mb-2">
+              <label class="form-label">Tool</label>
+              <select v-model="editRunForm.tool" class="form-select">
+                <option value="JupyterLab">JupyterLab</option>
+                <option value="RStudio">RStudio</option>
+                <option value="Script/Docker">Script/Docker</option>
+              </select>
+            </div>
+            <small class="text-muted">Status and study selection are immutable in this phase.</small>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" @click="closeEditRun">Cancel</button>
+            <button type="button" class="btn btn-primary" @click="saveRunEdits" :disabled="!editRunTargetId">
+              Save changes
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal fade" tabindex="-1" ref="deleteRunModalEl" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Delete run</h5>
+            <button type="button" class="btn-close" @click="closeDeleteRun" aria-label="Close" />
+          </div>
+          <div class="modal-body">
+            <p class="mb-2">Are you sure you want to delete this run?</p>
+            <div class="alert alert-light border mb-0">
+              <strong>{{ deleteRunTarget?.name || 'Run' }}</strong>
+              <div class="text-muted small">This cannot be undone.</div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" @click="closeDeleteRun">Cancel</button>
+            <button type="button" class="btn btn-danger" @click="confirmDeleteRun" :disabled="!deleteRunTarget">
+              Delete
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </main>
 </template>
 
 <script setup>
 import { computed, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { Modal } from 'bootstrap';
+import { Dropdown, Modal } from 'bootstrap';
 
 import { api, authHeaders } from '@/utils/api';
 import { APP_NAME } from '@/utils/defs';
@@ -372,6 +454,11 @@ const localProjectName = ref('');
 
 const startModalEl = ref(null);
 let startModal = null;
+const editRunModalEl = ref(null);
+let editRunModal = null;
+const deleteRunModalEl = ref(null);
+let deleteRunModal = null;
+const runActionsToggleEl = ref(null);
 
 const newRun = ref({ tool: 'JupyterLab', name: '' });
 const runs = ref([]);
@@ -405,6 +492,10 @@ const selectedRunPayloadPreview = computed(() => {
   };
   return JSON.stringify(payload, null, 2);
 });
+const editRunTargetId = ref('');
+const editRunForm = ref({ name: '', tool: 'JupyterLab' });
+const deleteRunTargetId = ref('');
+const deleteRunTarget = computed(() => runs.value.find(r => r.id === deleteRunTargetId.value) || null);
 
 const projectTitle = computed(() => localProjectName.value?.trim() || id.value || 'Project');
 
@@ -612,6 +703,119 @@ function clearRuns() {
   persistRuns();
 }
 
+function openEditRun(run) {
+  editRunTargetId.value = run?.id || '';
+  editRunForm.value = {
+    name: run?.name || '',
+    tool: run?.tool || 'JupyterLab'
+  };
+  editRunModal?.show();
+}
+
+function closeEditRun() {
+  editRunModal?.hide();
+}
+
+async function saveRunEdits() {
+  const runId = editRunTargetId.value;
+  if (!runId) return;
+  const nextName = (editRunForm.value.name || '').trim();
+  const nextTool = editRunForm.value.tool || 'JupyterLab';
+
+  if (!nextName) return;
+
+  // Try backend patch first if endpoint exists.
+  try {
+    await api.patch(
+      `projects/${encodeURIComponent(id.value)}/runs/${encodeURIComponent(runId)}`,
+      { name: nextName, tool: nextTool },
+      authHeaders()
+    );
+  } catch (error) {
+    console.info('Run edit API unavailable, applying local edit:', error?.response?.status || error.message);
+  }
+
+  const idx = runs.value.findIndex(r => r.id === runId);
+  if (idx !== -1) {
+    runs.value[idx] = {
+      ...runs.value[idx],
+      name: nextName,
+      tool: nextTool
+    };
+    persistRuns();
+  }
+
+  closeEditRun();
+}
+
+function openDeleteRun(run) {
+  deleteRunTargetId.value = run?.id || '';
+  deleteRunModal?.show();
+}
+
+function closeDeleteRun() {
+  deleteRunModal?.hide();
+}
+
+async function confirmDeleteRun() {
+  const run = deleteRunTarget.value;
+  if (!run) return;
+
+  // Try backend delete first if endpoint exists.
+  try {
+    await api.delete(
+      `projects/${encodeURIComponent(id.value)}/runs/${encodeURIComponent(run.id)}`,
+      authHeaders()
+    );
+  } catch (error) {
+    console.info('Run delete API unavailable, applying local delete:', error?.response?.status || error.message);
+  }
+
+  runs.value = runs.value.filter(r => r.id !== run.id);
+  if (selectedRunId.value === run.id) {
+    selectedRunId.value = runs.value[0]?.id || '';
+  }
+  persistRuns();
+  closeDeleteRun();
+}
+
+async function duplicateRun(run) {
+  if (!run) return;
+
+  // Try backend duplicate first if endpoint exists.
+  try {
+    const res = await api.post(
+      `projects/${encodeURIComponent(id.value)}/runs/${encodeURIComponent(run.id)}/duplicate`,
+      {},
+      authHeaders()
+    );
+    const duplicated = normalizeRunFromApi(res.data, {
+      projectId: run.projectId || id.value,
+      name: `${run.name} (copy)`,
+      tool: run.tool,
+      studyIds: Array.isArray(run.studyIds) ? run.studyIds : []
+    });
+    runs.value = [duplicated, ...runs.value];
+    selectedRunId.value = duplicated.id;
+    persistRuns();
+    return;
+  } catch (error) {
+    console.info('Run duplicate API unavailable, applying local duplicate:', error?.response?.status || error.message);
+  }
+
+  const duplicated = {
+    ...run,
+    id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    name: `${run.name} (copy)`,
+    status: 'queued',
+    createdAt: new Date().toISOString(),
+    source: 'local'
+  };
+  runs.value = [duplicated, ...runs.value];
+  selectedRunId.value = duplicated.id;
+  persistRuns();
+}
+
 function saveLocalProjectName() {
   localStorage.setItem(storageKey('name'), localProjectName.value || '');
 }
@@ -634,6 +838,15 @@ onMounted(async () => {
 
   if (startModalEl.value) {
     startModal = new Modal(startModalEl.value);
+  }
+  if (editRunModalEl.value) {
+    editRunModal = new Modal(editRunModalEl.value);
+  }
+  if (deleteRunModalEl.value) {
+    deleteRunModal = new Modal(deleteRunModalEl.value);
+  }
+  if (runActionsToggleEl.value) {
+    new Dropdown(runActionsToggleEl.value);
   }
 });
 </script>
