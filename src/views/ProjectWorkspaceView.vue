@@ -129,48 +129,117 @@
     </section>
 
     <section v-else-if="activeTab === 'monitor'">
-      <div class="card">
-        <div class="card-body">
-          <div class="d-flex align-items-center justify-content-between mb-2">
-            <h6 class="mb-0">Runs</h6>
-            <button class="btn btn-sm btn-outline-secondary" type="button" @click="clearRuns" :disabled="runs.length === 0">
-              Clear
-            </button>
-          </div>
+      <div class="row g-3">
+        <div class="col-12 col-xl-8">
+          <div class="card h-100">
+            <div class="card-body">
+              <div class="d-flex align-items-center justify-content-between mb-2">
+                <h6 class="mb-0">Runs</h6>
+                <button class="btn btn-sm btn-outline-secondary" type="button" @click="clearRuns" :disabled="runs.length === 0">
+                  Clear
+                </button>
+              </div>
 
-          <div v-if="runs.length === 0" class="text-muted">
-            No runs yet. Click <strong>Start analysis</strong> to create one.
-          </div>
+              <div class="row g-2 mb-3">
+                <div class="col-md-4">
+                  <input v-model="monitorSearch" class="form-control form-control-sm" placeholder="Search run name..." />
+                </div>
+                <div class="col-md-3">
+                  <select v-model="monitorStatus" class="form-select form-select-sm">
+                    <option value="">All status</option>
+                    <option value="queued">Queued</option>
+                    <option value="running">Running</option>
+                    <option value="done">Done</option>
+                    <option value="failed">Failed</option>
+                  </select>
+                </div>
+                <div class="col-md-3">
+                  <select v-model="monitorTool" class="form-select form-select-sm">
+                    <option value="">All tools</option>
+                    <option value="JupyterLab">JupyterLab</option>
+                    <option value="RStudio">RStudio</option>
+                    <option value="Script/Docker">Script/Docker</option>
+                  </select>
+                </div>
+                <div class="col-md-2">
+                  <button class="btn btn-sm btn-outline-secondary w-100" type="button" @click="resetMonitorFilters">
+                    Reset
+                  </button>
+                </div>
+              </div>
 
-          <div v-else class="table-responsive">
-            <table class="table table-sm align-middle mb-0">
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Status</th>
-                  <th>Tool</th>
-                  <th>Studies</th>
-                  <th>Source</th>
-                  <th>Created</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="r in runs" :key="r.id">
-                  <td class="text-truncate" style="max-width: 260px;">
-                    {{ r.name }}
-                  </td>
-                  <td>
-                    <span class="badge" :class="statusBadgeClass(r.status)">
-                      {{ r.status }}
-                    </span>
-                  </td>
-                  <td>{{ r.tool }}</td>
-                  <td>{{ r.studyIds?.length || 0 }}</td>
-                  <td class="text-muted">{{ r.source || 'local' }}</td>
-                  <td class="text-muted">{{ formatDateTime(r.createdAt) }}</td>
-                </tr>
-              </tbody>
-            </table>
+              <div v-if="runs.length === 0" class="text-muted">
+                No runs yet. Click <strong>Start analysis</strong> to create one.
+              </div>
+
+              <div v-else-if="filteredRuns.length === 0" class="text-muted">
+                No runs match the current filters.
+              </div>
+
+              <div v-else class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Status</th>
+                      <th>Tool</th>
+                      <th>Studies</th>
+                      <th>Source</th>
+                      <th>Created</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="r in filteredRuns" :key="r.id" role="button"
+                      :class="{ 'table-active': selectedRun?.id === r.id }" @click="selectRun(r)">
+                      <td class="text-truncate" style="max-width: 260px;">
+                        {{ r.name }}
+                      </td>
+                      <td>
+                        <span class="badge" :class="statusBadgeClass(r.status)">
+                          {{ r.status }}
+                        </span>
+                      </td>
+                      <td>{{ r.tool }}</td>
+                      <td>{{ r.studyIds?.length || 0 }}</td>
+                      <td class="text-muted">{{ r.source || 'local' }}</td>
+                      <td class="text-muted">{{ formatDateTime(r.createdAt) }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-12 col-xl-4">
+          <div class="card h-100">
+            <div class="card-body">
+              <h6 class="mb-2">Run details</h6>
+
+              <div v-if="!selectedRun" class="text-muted">
+                Select a run to inspect details and payload context.
+              </div>
+
+              <div v-else>
+                <div class="small"><strong>Name:</strong> {{ selectedRun.name }}</div>
+                <div class="small"><strong>Status:</strong> {{ selectedRun.status }}</div>
+                <div class="small"><strong>Tool:</strong> {{ selectedRun.tool }}</div>
+                <div class="small"><strong>Project:</strong> {{ selectedRun.projectId || id }}</div>
+                <div class="small"><strong>Created:</strong> {{ formatDateTime(selectedRun.createdAt) }}</div>
+                <div class="small mb-2"><strong>Source:</strong> {{ selectedRun.source || 'local' }}</div>
+
+                <div class="small fw-semibold mb-1">Study IDs</div>
+                <div v-if="!selectedRun.studyIds?.length" class="text-muted small mb-2">
+                  No studies attached.
+                </div>
+                <div v-else class="d-flex flex-wrap gap-1 mb-2">
+                  <span v-for="sid in selectedRun.studyIds" :key="sid" class="badge text-bg-secondary">{{ sid }}</span>
+                </div>
+
+                <div class="small fw-semibold mb-1">Payload preview</div>
+                <pre class="payload-preview mb-0">{{ selectedRunPayloadPreview }}</pre>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -290,10 +359,36 @@ let startModal = null;
 
 const newRun = ref({ tool: 'JupyterLab', name: '' });
 const runs = ref([]);
+const selectedRunId = ref('');
+const monitorSearch = ref('');
+const monitorStatus = ref('');
+const monitorTool = ref('');
 
 const selectedStudyIds = ref([]);
 const selectedStudyIdsSet = computed(() => new Set(selectedStudyIds.value));
 const selectedStudies = computed(() => studies.value.filter(s => selectedStudyIdsSet.value.has(s.id)));
+const selectedRun = computed(() => runs.value.find(r => r.id === selectedRunId.value) || null);
+
+const filteredRuns = computed(() => {
+  const q = monitorSearch.value.trim().toLowerCase();
+  return runs.value.filter((r) => {
+    if (monitorStatus.value && r.status !== monitorStatus.value) return false;
+    if (monitorTool.value && r.tool !== monitorTool.value) return false;
+    if (q && !String(r.name || '').toLowerCase().includes(q)) return false;
+    return true;
+  });
+});
+
+const selectedRunPayloadPreview = computed(() => {
+  if (!selectedRun.value) return '';
+  const payload = {
+    projectId: selectedRun.value.projectId || id.value,
+    name: selectedRun.value.name,
+    tool: selectedRun.value.tool,
+    studyIds: selectedRun.value.studyIds || []
+  };
+  return JSON.stringify(payload, null, 2);
+});
 
 const projectTitle = computed(() => localProjectName.value?.trim() || id.value || 'Project');
 
@@ -319,8 +414,12 @@ function loadLocalState() {
   try {
     const raw = localStorage.getItem(storageKey('runs'));
     runs.value = raw ? JSON.parse(raw) : [];
+    if (runs.value.length > 0) {
+      selectedRunId.value = runs.value[0].id;
+    }
   } catch {
     runs.value = [];
+    selectedRunId.value = '';
   }
 }
 
@@ -330,6 +429,16 @@ function persistSelectedStudies() {
 
 function persistRuns() {
   localStorage.setItem(storageKey('runs'), JSON.stringify(runs.value));
+}
+
+function selectRun(run) {
+  selectedRunId.value = run?.id || '';
+}
+
+function resetMonitorFilters() {
+  monitorSearch.value = '';
+  monitorStatus.value = '';
+  monitorTool.value = '';
 }
 
 function toggleStudy(studyId) {
@@ -429,6 +538,7 @@ async function launchRun(payload) {
     const res = await api.post(`projects/${encodeURIComponent(payload.projectId)}/runs`, payload, authHeaders());
     const run = normalizeRunFromApi(res.data, payload);
     runs.value = [run, ...runs.value];
+    selectedRunId.value = run.id;
     persistRuns();
     return;
   } catch (error) {
@@ -447,6 +557,7 @@ async function launchRun(payload) {
     source: 'local'
   };
   runs.value = [run, ...runs.value];
+  selectedRunId.value = run.id;
   persistRuns();
 
   // UI-only: simulate transitioning to "running" then "done"
@@ -481,6 +592,7 @@ function normalizeRunFromApi(apiRun, payload) {
 
 function clearRuns() {
   runs.value = [];
+  selectedRunId.value = '';
   persistRuns();
 }
 
