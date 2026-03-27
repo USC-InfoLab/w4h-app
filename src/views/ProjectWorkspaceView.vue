@@ -22,7 +22,8 @@
           <span v-if="loading" class="spinner-border spinner-border-sm me-1" />
           Refresh
         </button>
-        <button class="btn btn-sm btn-primary" type="button" @click="openStartAnalysis">
+        <button class="btn btn-sm btn-primary" type="button" @click="openStartAnalysis"
+          :disabled="selectedStudies.length === 0" title="Select at least one study to start analysis">
           <i class="bi bi-play-fill me-1" /> Start analysis
         </button>
       </div>
@@ -220,6 +221,10 @@
             <button type="button" class="btn-close" @click="closeStartAnalysis" aria-label="Close" />
           </div>
           <div class="modal-body">
+            <div v-if="selectedStudies.length === 0" class="alert alert-warning">
+              Select at least one study in the <strong>Manage</strong> tab before starting analysis.
+            </div>
+
             <div class="mb-3">
               <label class="form-label">Tool</label>
               <select v-model="newRun.tool" class="form-select">
@@ -241,7 +246,7 @@
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-outline-secondary" @click="closeStartAnalysis">Cancel</button>
-            <button type="button" class="btn btn-primary" @click="createRun">
+            <button type="button" class="btn btn-primary" @click="createRun" :disabled="selectedStudies.length === 0">
               Start
             </button>
           </div>
@@ -376,6 +381,10 @@ async function loadStudies() {
 }
 
 function openStartAnalysis() {
+  if (selectedStudies.value.length === 0) {
+    activeTab.value = 'manage';
+    return;
+  }
   if (!startModal) return;
   newRun.value = { tool: 'JupyterLab', name: '' };
   startModal.show();
@@ -386,6 +395,12 @@ function closeStartAnalysis() {
 }
 
 function createRun() {
+  if (selectedStudies.value.length === 0) {
+    activeTab.value = 'manage';
+    closeStartAnalysis();
+    return;
+  }
+
   const name = (newRun.value.name || '').trim() || `${newRun.value.tool} run`;
   const run = {
     id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
