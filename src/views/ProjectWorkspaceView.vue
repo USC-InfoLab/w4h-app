@@ -15,56 +15,67 @@
       <div>
         <h4 class="mb-0">{{ projectTitle }}</h4>
         <div class="d-flex align-items-center flex-wrap gap-2 mt-1">
-          <small class="text-muted">Project workspace</small>
+          <small class="text-muted">Prepare runs, track jobs, open outputs</small>
           <span class="badge text-bg-secondary">ID: {{ id }}</span>
           <span class="badge text-bg-secondary">Selected studies: {{ selectedStudies.length }}</span>
-          <span class="badge text-bg-secondary">Runs: {{ runs.length }}</span>
+          <span class="badge text-bg-secondary">Jobs: {{ runs.length }}</span>
           <span class="badge text-bg-secondary">Assets: {{ projectAssets.length }}</span>
           <span v-if="selectedDatasetIds.length" class="badge text-bg-secondary">Datasets: {{ selectedDatasetIds.length }}</span>
         </div>
       </div>
 
       <div class="d-flex align-items-center gap-2">
+        <button class="btn btn-sm btn-outline-secondary" type="button" title="Project settings" @click="openSettingsModal">
+          <i class="bi bi-gear" aria-hidden="true" />
+          <span class="visually-hidden">Settings</span>
+        </button>
         <button class="btn btn-sm btn-outline-secondary" type="button" @click="refreshProject" :disabled="loading">
           <span v-if="loading" class="spinner-border spinner-border-sm me-1" />
           Refresh
         </button>
         <button class="btn btn-sm btn-primary" type="button" @click="openStartAnalysis"
-          :disabled="selectedStudies.length === 0" title="Select at least one study to start analysis">
-          <i class="bi bi-play-fill me-1" /> Start analysis
+          :disabled="selectedStudies.length === 0" title="Select at least one study to start a run">
+          <i class="bi bi-play-fill me-1" /> Start run
         </button>
       </div>
     </div>
 
-    <ul class="nav nav-tabs mb-3">
+    <ul class="nav nav-tabs">
       <li class="nav-item">
-        <button class="nav-link" :class="{ active: activeTab === 'manage' }" title="Notebooks, scripts, and studies"
-          @click="activeTab = 'manage'">
-          Manage
+        <button class="nav-link" :class="{ active: activeTab === 'workbench' }" type="button"
+          @click="activeTab = 'workbench'">
+          Workbench
         </button>
       </li>
       <li class="nav-item">
-        <button class="nav-link" :class="{ active: activeTab === 'monitor' }" @click="activeTab = 'monitor'">
-          Monitor
+        <button class="nav-link" :class="{ active: activeTab === 'jobs' }" type="button" @click="activeTab = 'jobs'">
+          Jobs
         </button>
       </li>
       <li class="nav-item">
-        <button class="nav-link" :class="{ active: activeTab === 'visualize' }" @click="openVisualizeTab">
-          Visualize
-        </button>
-      </li>
-      <li class="nav-item">
-        <button class="nav-link" :class="{ active: activeTab === 'settings' }" @click="activeTab = 'settings'">
-          Settings
+        <button class="nav-link" :class="{ active: activeTab === 'outputs' }" type="button" @click="openOutputsTab">
+          Outputs
         </button>
       </li>
     </ul>
+    <p class="small text-muted mb-3 tab-hint border-start border-3 ps-2 py-1 ms-1 border-primary-subtle">
+      <template v-if="activeTab === 'workbench'">
+        Pick studies and datasets, register notebooks or scripts (path or URL), then start a run — workspace-first, not
+        GitHub-first.
+      </template>
+      <template v-else-if="activeTab === 'jobs'">
+        Each row is one analysis job: status, tool, and the payload sent (or simulated) for this project.
+      </template>
+      <template v-else>
+        When artifact storage exists, open notebooks, tables, and logs from a selected job. Prototype only for now.
+      </template>
+    </p>
 
     <div v-if="errorMessage" class="alert alert-danger">
       {{ errorMessage }}
     </div>
 
-    <section v-if="activeTab === 'manage'">
+    <section v-if="activeTab === 'workbench'">
       <div class="row g-3">
         <div class="col-12 col-lg-3">
           <div class="card h-100">
@@ -203,17 +214,31 @@
               <div v-else-if="datasetsDisplayedList.length === 0" class="text-muted small">
                 No datasets match the current study selection and search.
               </div>
-              <div v-else class="list-group small dataset-list mb-2">
-                <label v-for="d in datasetsDisplayedList" :key="d.id"
-                  class="list-group-item list-group-item-action d-flex align-items-start gap-2 mb-0">
-                  <input class="form-check-input mt-1" type="checkbox" :checked="selectedDatasetIdsSet.has(d.id)"
-                    @change="toggleDatasetSelection(d.id)" />
-                  <span class="flex-grow-1">
-                    <span class="fw-semibold d-block text-truncate">{{ d.name || d.id }}</span>
-                    <span class="text-muted">{{ d.id }}</span>
-                    <span v-if="d.study_id" class="badge text-bg-light ms-1">study {{ d.study_id }}</span>
-                  </span>
-                </label>
+              <div v-else class="table-responsive dataset-table-wrap border rounded mb-2">
+                <table class="table table-sm table-hover align-middle mb-0">
+                  <thead class="table-light">
+                    <tr>
+                      <th class="text-center" style="width: 2.25rem" scope="col"><span class="visually-hidden">Select</span></th>
+                      <th scope="col">Name</th>
+                      <th scope="col">ID</th>
+                      <th scope="col">Study</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="d in datasetsDisplayedList" :key="d.id">
+                      <td class="text-center">
+                        <input class="form-check-input" type="checkbox" :checked="selectedDatasetIdsSet.has(d.id)"
+                          :aria-label="`Select dataset ${d.name || d.id}`" @change="toggleDatasetSelection(d.id)" />
+                      </td>
+                      <td class="text-truncate" style="max-width: 200px">{{ d.name || '—' }}</td>
+                      <td><code class="small text-break d-block" style="max-width: 12rem">{{ d.id }}</code></td>
+                      <td>
+                        <span v-if="d.study_id" class="badge text-bg-light">{{ d.study_id }}</span>
+                        <span v-else class="text-muted">—</span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
               <div class="d-flex flex-wrap gap-2 align-items-center small text-muted mb-3">
                 <span>{{ selectedDatasetIds.length }} dataset(s) pinned for new runs</span>
@@ -223,33 +248,40 @@
                 </button>
               </div>
 
-              <h6 class="mb-2 small text-uppercase text-muted">Data wrangler (preview)</h6>
-              <p class="small text-muted mb-2">Paste a small CSV to inspect columns and rows locally (no upload).</p>
-              <textarea v-model="wranglerRaw" class="form-control form-control-sm font-monospace mb-2" rows="4"
-                placeholder="id,value&#10;a,1&#10;b,2"></textarea>
-              <button type="button" class="btn btn-sm btn-outline-secondary mb-2" @click="parseWranglerCsv">
-                Preview table
+              <button type="button"
+                class="btn btn-sm btn-outline-secondary w-100 d-flex justify-content-between align-items-center text-start"
+                @click="wranglerSectionOpen = !wranglerSectionOpen">
+                <span class="small fw-semibold">Data wrangler <span class="fw-normal text-muted">(optional preview)</span></span>
+                <i class="bi" :class="wranglerSectionOpen ? 'bi-chevron-up' : 'bi-chevron-down'" aria-hidden="true" />
               </button>
-              <button v-if="wranglerPreview" type="button" class="btn btn-sm btn-link text-muted mb-2"
-                @click="clearWranglerPreview">
-                Clear preview
-              </button>
-              <div v-if="wranglerPreview" class="border rounded wrangler-preview">
-                <table class="table table-sm table-striped mb-0">
-                  <thead>
-                    <tr>
-                      <th v-for="h in wranglerPreview.headers" :key="h" class="text-nowrap small">{{ h }}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr v-for="(row, ri) in wranglerPreview.rows" :key="ri">
-                      <td v-for="(cell, ci) in row" :key="ci" class="small text-truncate" style="max-width: 140px;">{{ cell }}</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-              <div v-if="wranglerPreview" class="small text-muted mt-1">
-                Showing up to 10 rows · {{ wranglerPreview.rowCount }} data row(s) detected
+              <div v-show="wranglerSectionOpen" class="mt-2">
+                <p class="small text-muted mb-2">Paste a small CSV to inspect columns locally — no upload, not saved.</p>
+                <textarea v-model="wranglerRaw" class="form-control form-control-sm font-monospace mb-2" rows="4"
+                  placeholder="id,value&#10;a,1&#10;b,2"></textarea>
+                <button type="button" class="btn btn-sm btn-outline-secondary mb-2 me-2" @click="parseWranglerCsv">
+                  Preview table
+                </button>
+                <button v-if="wranglerPreview" type="button" class="btn btn-sm btn-link text-muted mb-2"
+                  @click="clearWranglerPreview">
+                  Clear preview
+                </button>
+                <div v-if="wranglerPreview" class="border rounded wrangler-preview">
+                  <table class="table table-sm table-striped mb-0">
+                    <thead>
+                      <tr>
+                        <th v-for="h in wranglerPreview.headers" :key="h" class="text-nowrap small">{{ h }}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr v-for="(row, ri) in wranglerPreview.rows" :key="ri">
+                        <td v-for="(cell, ci) in row" :key="ci" class="small text-truncate" style="max-width: 140px;">{{ cell }}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div v-if="wranglerPreview" class="small text-muted mt-1">
+                  Showing up to 10 rows · {{ wranglerPreview.rowCount }} data row(s) detected
+                </div>
               </div>
             </div>
           </div>
@@ -285,15 +317,15 @@
       </div>
     </section>
 
-    <section v-else-if="activeTab === 'monitor'">
+    <section v-else-if="activeTab === 'jobs'">
       <div class="row g-3">
         <div class="col-12 col-xl-8">
           <div class="card h-100">
             <div class="card-body">
               <div class="d-flex align-items-center justify-content-between mb-2">
                 <div>
-                  <h6 class="mb-0">Runs</h6>
-                  <small class="text-muted">Job-style runs for this project workspace</small>
+                  <h6 class="mb-0">Jobs</h6>
+                  <small class="text-muted">Runs / analyses for this project (status &amp; payload)</small>
                 </div>
                 <button class="btn btn-sm btn-outline-secondary" type="button" @click="clearRuns" :disabled="runs.length === 0">
                   Clear
@@ -302,7 +334,7 @@
 
               <div class="row g-2 mb-3">
                 <div class="col-md-4">
-                  <input v-model="monitorSearch" class="form-control form-control-sm" placeholder="Search run name..." />
+                  <input v-model="monitorSearch" class="form-control form-control-sm" placeholder="Search job name..." />
                 </div>
                 <div class="col-md-3">
                   <select v-model="monitorStatus" class="form-select form-select-sm">
@@ -329,7 +361,7 @@
               </div>
 
               <div v-if="runs.length === 0" class="text-muted">
-                No runs yet. Click <strong>Start analysis</strong> to create one.
+                No jobs yet. Use <strong>Start run</strong> in the header after selecting studies on Workbench.
               </div>
 
               <div v-else-if="filteredRuns.length === 0" class="text-muted">
@@ -392,7 +424,7 @@
           <div class="card h-100">
             <div class="card-body">
               <div class="d-flex align-items-center justify-content-between mb-2">
-                <h6 class="mb-0">Run details</h6>
+                <h6 class="mb-0">Job details</h6>
                 <div v-if="selectedRun" class="dropdown">
                   <button ref="runActionsToggleEl" type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle"
                     data-bs-toggle="dropdown" aria-expanded="false">
@@ -420,7 +452,7 @@
               </div>
 
               <div v-if="!selectedRun" class="text-muted">
-                Select a run to inspect details and payload context.
+                Select a job to see status, studies, datasets, and payload.
               </div>
 
               <div v-else>
@@ -465,7 +497,7 @@
       </div>
     </section>
 
-    <section v-else-if="activeTab === 'visualize'">
+    <section v-else-if="activeTab === 'outputs'">
       <div class="row g-3">
         <div class="col-12 col-lg-3">
           <div class="card h-100">
@@ -494,22 +526,22 @@
           <div class="card h-100">
             <div class="card-body">
               <div class="d-flex align-items-center justify-content-between mb-2">
-                <h6 class="mb-0">Visualize</h6>
-                <button class="btn btn-sm btn-outline-secondary" type="button" @click="activeTab = 'monitor'">
-                  Open Monitor
+                <h6 class="mb-0">Outputs</h6>
+                <button class="btn btn-sm btn-outline-secondary" type="button" @click="activeTab = 'jobs'">
+                  Open Jobs
                 </button>
               </div>
 
               <div class="mb-3">
-                <label class="form-label">Run output source</label>
+                <label class="form-label">Job to attach outputs to</label>
                 <select v-model="selectedVisualizeRunId" class="form-select form-select-sm">
-                  <option v-if="visualizeRunOptions.length === 0" value="">Select a run...</option>
+                  <option v-if="visualizeRunOptions.length === 0" value="">No jobs yet</option>
                   <option v-for="run in visualizeRunOptions" :key="run.id" :value="run.id">
                     {{ run.name }} ({{ run.status }}) - {{ formatDateTime(run.createdAt) }}
                   </option>
                 </select>
                 <small class="text-muted">
-                  Visualize consumes outputs from a run created in Manage/Monitor.
+                  Same selection as the Jobs tab. Artifact files will list here once the API is wired.
                 </small>
               </div>
 
@@ -533,7 +565,7 @@
 
               <div class="alert alert-light border mb-0">
                 <small>
-                  Output browsing is a frontend prototype right now and is not yet connected to backend artifact storage.
+                  Output browser is a UI placeholder: no artifact listing until backend storage is implemented.
                 </small>
               </div>
             </div>
@@ -542,61 +574,62 @@
       </div>
     </section>
 
-    <section v-else-if="activeTab === 'settings'">
-      <div class="card">
-        <div class="card-body">
-          <h6 class="mb-2">Project settings</h6>
-          <div class="row g-3">
-            <div class="col-md-6">
-              <label class="form-label">Project ID</label>
-              <input class="form-control" :value="id" disabled />
-            </div>
-            <div class="col-md-6">
-              <label class="form-label">Display name (local)</label>
-              <input v-model="localProjectName" class="form-control" placeholder="Optional name just for this browser" />
-            </div>
-            <div class="col-md-6">
-              <label class="form-label">Default launch tool</label>
-              <select v-model="workspaceSettings.defaultTool" class="form-select">
-                <option value="JupyterLab">JupyterLab</option>
-                <option value="RStudio">RStudio</option>
-                <option value="Script/Docker">Script/Docker</option>
-              </select>
-            </div>
-            <div class="col-md-6">
-              <label class="form-label">Run name prefix (optional)</label>
-              <input v-model="workspaceSettings.runNamePrefix" class="form-control" placeholder="e.g. cohort-" />
-            </div>
-            <div class="col-12">
-              <label class="form-label">Default external Jupyter base URL (optional)</label>
-              <input v-model="workspaceSettings.defaultExternalJupyterUrl" class="form-control font-monospace"
-                placeholder="https://your-jupyter.example.org" />
-              <small class="text-muted">Prefills the start-run modal when the environment is Jupyter.</small>
-            </div>
-            <div class="col-12">
-              <div class="form-check">
-                <input id="autoOpenMonitorOnStart" v-model="workspaceSettings.autoOpenMonitorOnStart" class="form-check-input"
-                  type="checkbox" />
-                <label for="autoOpenMonitorOnStart" class="form-check-label">
-                  Auto-open Monitor after starting analysis
-                </label>
+    <div class="modal fade" tabindex="-1" ref="settingsModalEl" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-scrollable modal-lg">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Project settings</h5>
+            <button type="button" class="btn-close" @click="closeSettingsModal" aria-label="Close" />
+          </div>
+          <div class="modal-body">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label">Project ID</label>
+                <input class="form-control" :value="id" disabled />
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Display name (local)</label>
+                <input v-model="localProjectName" class="form-control" placeholder="Optional name just for this browser" />
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Default launch tool</label>
+                <select v-model="workspaceSettings.defaultTool" class="form-select">
+                  <option value="JupyterLab">JupyterLab</option>
+                  <option value="RStudio">RStudio</option>
+                  <option value="Script/Docker">Script/Docker</option>
+                </select>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Run name prefix (optional)</label>
+                <input v-model="workspaceSettings.runNamePrefix" class="form-control" placeholder="e.g. cohort-" />
+              </div>
+              <div class="col-12">
+                <label class="form-label">Default external Jupyter base URL (optional)</label>
+                <input v-model="workspaceSettings.defaultExternalJupyterUrl" class="form-control font-monospace"
+                  placeholder="https://your-jupyter.example.org" />
+                <small class="text-muted">Prefills the start-run modal when the environment is Jupyter.</small>
+              </div>
+              <div class="col-12">
+                <div class="form-check">
+                  <input id="settings-autoOpenJobs" v-model="workspaceSettings.autoOpenMonitorOnStart"
+                    class="form-check-input" type="checkbox" />
+                  <label for="settings-autoOpenJobs" class="form-check-label">
+                    Auto-open Jobs tab after starting a run
+                  </label>
+                </div>
               </div>
             </div>
+            <small class="text-muted d-block mt-3">
+              Stored in this browser for this project until the API persists workspace metadata.
+            </small>
           </div>
-          <div class="mt-3">
-            <button class="btn btn-sm btn-primary" type="button" @click="saveSettings">
-              Save settings
-            </button>
-            <button class="btn btn-sm btn-outline-secondary ms-2" type="button" @click="resetSettings">
-              Reset
-            </button>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" @click="resetSettings">Reset</button>
+            <button type="button" class="btn btn-primary" @click="saveSettings">Save</button>
           </div>
-          <small class="text-muted d-block mt-2">
-            Next: persist metadata in backend and support sharing/collaboration.
-          </small>
         </div>
       </div>
-    </section>
+    </div>
 
     <div class="modal fade" tabindex="-1" ref="startModalEl" aria-hidden="true">
       <div class="modal-dialog">
@@ -607,7 +640,7 @@
           </div>
           <div class="modal-body">
             <div v-if="selectedStudies.length === 0" class="alert alert-warning">
-              Select at least one study in <strong>Manage</strong> before starting a run.
+              Select at least one study on <strong>Workbench</strong> before starting a run.
             </div>
 
             <p class="small text-muted mb-3">
@@ -632,7 +665,7 @@
                   {{ a.name }} ({{ assetKindLabel(a.kind) }})
                 </option>
               </select>
-              <small class="text-muted">Register assets under <strong>Manage</strong> (samples, file path, or URL).</small>
+              <small class="text-muted">Register assets on <strong>Workbench</strong> (samples, file path, or URL).</small>
             </div>
 
             <div v-if="newRun.tool === 'JupyterLab'" class="mb-3">
@@ -645,13 +678,13 @@
             <div class="mb-3">
               <label class="form-label">Run name</label>
               <input v-model="newRun.name" class="form-control" placeholder="e.g. cohort-selection" />
-              <small class="text-muted">Shown in Monitor; a default is used if empty.</small>
+              <small class="text-muted">Shown in Jobs; a default is used if empty.</small>
             </div>
 
             <div class="alert alert-light border mb-3">
               <div><strong>Project:</strong> {{ id }}</div>
               <div><strong>Studies selected:</strong> {{ selectedStudies.length }}</div>
-              <div><strong>Datasets pinned:</strong> {{ selectedDatasetIds.length }} (from Manage)</div>
+              <div><strong>Datasets pinned:</strong> {{ selectedDatasetIds.length }} (from Workbench)</div>
             </div>
 
             <div class="alert alert-info mb-0 small">
@@ -672,13 +705,13 @@
       <div class="modal-dialog">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title">Edit run</h5>
+            <h5 class="modal-title">Edit job</h5>
             <button type="button" class="btn-close" @click="closeEditRun" aria-label="Close" />
           </div>
           <div class="modal-body">
             <div class="mb-3">
-              <label class="form-label">Run name</label>
-              <input v-model="editRunForm.name" class="form-control" placeholder="Run name" />
+              <label class="form-label">Job name</label>
+              <input v-model="editRunForm.name" class="form-control" placeholder="Job name" />
             </div>
             <div class="mb-2">
               <label class="form-label">Tool</label>
@@ -704,13 +737,13 @@
       <div class="modal-dialog">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title">Delete run</h5>
+            <h5 class="modal-title">Delete job</h5>
             <button type="button" class="btn-close" @click="closeDeleteRun" aria-label="Close" />
           </div>
           <div class="modal-body">
-            <p class="mb-2">Are you sure you want to delete this run?</p>
+            <p class="mb-2">Are you sure you want to delete this job?</p>
             <div class="alert alert-light border mb-0">
-              <strong>{{ deleteRunTarget?.name || 'Run' }}</strong>
+              <strong>{{ deleteRunTarget?.name || 'Job' }}</strong>
               <div class="text-muted small">This cannot be undone.</div>
             </div>
           </div>
@@ -772,11 +805,14 @@ const datasetSearch = ref('');
 const selectedDatasetIds = ref([]);
 const wranglerRaw = ref('');
 const wranglerPreview = ref(null);
-const activeTab = ref('manage');
+const wranglerSectionOpen = ref(false);
+const activeTab = ref('workbench');
 const studySearch = ref('');
 
 const localProjectName = ref('');
 
+const settingsModalEl = ref(null);
+let settingsModal = null;
 const startModalEl = ref(null);
 let startModal = null;
 const editRunModalEl = ref(null);
@@ -1146,8 +1182,8 @@ function selectAsset(assetId) {
   selectedAssetId.value = assetId;
 }
 
-function openVisualizeTab() {
-  activeTab.value = 'visualize';
+function openOutputsTab() {
+  activeTab.value = 'outputs';
   if (!selectedVisualizeRunId.value && selectedRunId.value) {
     selectedVisualizeRunId.value = selectedRunId.value;
     return;
@@ -1155,6 +1191,14 @@ function openVisualizeTab() {
   if (!selectedVisualizeRunId.value && runs.value.length > 0) {
     selectedVisualizeRunId.value = runs.value[0].id;
   }
+}
+
+function openSettingsModal() {
+  settingsModal?.show();
+}
+
+function closeSettingsModal() {
+  settingsModal?.hide();
 }
 
 function setRunSort(field) {
@@ -1264,7 +1308,7 @@ async function loadStudies() {
 
 function openStartAnalysis() {
   if (selectedStudies.value.length === 0) {
-    activeTab.value = 'manage';
+    activeTab.value = 'workbench';
     return;
   }
   if (!startModal) return;
@@ -1283,7 +1327,7 @@ function closeStartAnalysis() {
 
 function createRun() {
   if (selectedStudies.value.length === 0) {
-    activeTab.value = 'manage';
+    activeTab.value = 'workbench';
     closeStartAnalysis();
     return;
   }
@@ -1315,7 +1359,7 @@ function createRun() {
   if (ds.length) launchPayload.datasetIds = ds;
 
   closeStartAnalysis();
-  activeTab.value = workspaceSettings.value.autoOpenMonitorOnStart ? 'monitor' : activeTab.value;
+  activeTab.value = workspaceSettings.value.autoOpenMonitorOnStart ? 'jobs' : activeTab.value;
   launchRun(launchPayload);
 }
 
@@ -1548,6 +1592,7 @@ function resetLocalProjectName() {
 function saveSettings() {
   saveLocalProjectName();
   localStorage.setItem(storageKey('settings'), JSON.stringify(workspaceSettings.value));
+  closeSettingsModal();
 }
 
 function resetSettings() {
@@ -1573,6 +1618,9 @@ onMounted(async () => {
   await loadStudies();
   await loadProjectDatasets();
 
+  if (settingsModalEl.value) {
+    settingsModal = new Modal(settingsModalEl.value);
+  }
   if (startModalEl.value) {
     startModal = new Modal(startModalEl.value);
   }
@@ -1593,12 +1641,13 @@ watch(id, async (newId, oldId) => {
   if (newId === oldId) return;
   wranglerRaw.value = '';
   wranglerPreview.value = null;
+  wranglerSectionOpen.value = false;
   loadLocalState();
   await loadStudies();
   await loadProjectDatasets();
 });
 
-// Keep Monitor and Visualize selections fully linked.
+// Keep Jobs and Outputs run selection in sync.
 watch(
   () => selectedRunId.value,
   (next) => {
@@ -1634,9 +1683,15 @@ watch(
   text-decoration: none;
 }
 
-.dataset-list {
+.dataset-table-wrap {
   max-height: 280px;
   overflow: auto;
+}
+
+.payload-preview {
+  max-height: 240px;
+  overflow: auto;
+  font-size: 0.75rem;
 }
 
 .wrangler-preview {
