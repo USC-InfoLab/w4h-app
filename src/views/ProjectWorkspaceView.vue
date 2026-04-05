@@ -20,6 +20,7 @@
           <span class="badge text-bg-secondary">Selected studies: {{ selectedStudies.length }}</span>
           <span class="badge text-bg-secondary">Runs: {{ runs.length }}</span>
           <span class="badge text-bg-secondary">Assets: {{ projectAssets.length }}</span>
+          <span v-if="selectedDatasetIds.length" class="badge text-bg-secondary">Datasets: {{ selectedDatasetIds.length }}</span>
         </div>
       </div>
 
@@ -69,7 +70,7 @@
           <div class="card h-100">
             <div class="card-body">
               <div class="d-flex align-items-center justify-content-between mb-2">
-                <h6 class="mb-0">Project items</h6>
+                <h6 class="mb-0">Studies</h6>
                 <span class="badge text-bg-secondary">{{ selectedStudies.length }}</span>
               </div>
               <div class="input-group input-group-sm mb-2">
@@ -186,8 +187,69 @@
               <hr class="my-3" />
 
               <h6 class="mb-2 small text-uppercase text-muted">Datasets</h6>
-              <div class="text-muted small">
-                Next: datasets filtered by selected studies and multi-study configuration.
+              <p class="small text-muted mb-2">
+                Datasets you can access (from the API). With studies selected, the list is scoped to those studies when
+                possible.
+              </p>
+              <div class="input-group input-group-sm mb-2">
+                <span class="input-group-text">Search</span>
+                <input v-model="datasetSearch" class="form-control" placeholder="Filter by name or id..." />
+              </div>
+              <div v-if="datasetsLoading" class="text-muted small">Loading datasets…</div>
+              <div v-else-if="datasetsLoadError" class="alert alert-warning py-2 small mb-2">{{ datasetsLoadError }}</div>
+              <div v-else-if="projectDatasets.length === 0" class="text-muted small">
+                No datasets returned for your account.
+              </div>
+              <div v-else-if="datasetsDisplayedList.length === 0" class="text-muted small">
+                No datasets match the current study selection and search.
+              </div>
+              <div v-else class="list-group small dataset-list mb-2">
+                <label v-for="d in datasetsDisplayedList" :key="d.id"
+                  class="list-group-item list-group-item-action d-flex align-items-start gap-2 mb-0">
+                  <input class="form-check-input mt-1" type="checkbox" :checked="selectedDatasetIdsSet.has(d.id)"
+                    @change="toggleDatasetSelection(d.id)" />
+                  <span class="flex-grow-1">
+                    <span class="fw-semibold d-block text-truncate">{{ d.name || d.id }}</span>
+                    <span class="text-muted">{{ d.id }}</span>
+                    <span v-if="d.study_id" class="badge text-bg-light ms-1">study {{ d.study_id }}</span>
+                  </span>
+                </label>
+              </div>
+              <div class="d-flex flex-wrap gap-2 align-items-center small text-muted mb-3">
+                <span>{{ selectedDatasetIds.length }} dataset(s) pinned for new runs</span>
+                <button v-if="selectedDatasetIds.length" type="button" class="btn btn-link btn-sm p-0"
+                  @click="clearDatasetSelection">
+                  Clear selection
+                </button>
+              </div>
+
+              <h6 class="mb-2 small text-uppercase text-muted">Data wrangler (preview)</h6>
+              <p class="small text-muted mb-2">Paste a small CSV to inspect columns and rows locally (no upload).</p>
+              <textarea v-model="wranglerRaw" class="form-control form-control-sm font-monospace mb-2" rows="4"
+                placeholder="id,value&#10;a,1&#10;b,2"></textarea>
+              <button type="button" class="btn btn-sm btn-outline-secondary mb-2" @click="parseWranglerCsv">
+                Preview table
+              </button>
+              <button v-if="wranglerPreview" type="button" class="btn btn-sm btn-link text-muted mb-2"
+                @click="clearWranglerPreview">
+                Clear preview
+              </button>
+              <div v-if="wranglerPreview" class="border rounded wrangler-preview">
+                <table class="table table-sm table-striped mb-0">
+                  <thead>
+                    <tr>
+                      <th v-for="h in wranglerPreview.headers" :key="h" class="text-nowrap small">{{ h }}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="(row, ri) in wranglerPreview.rows" :key="ri">
+                      <td v-for="(cell, ci) in row" :key="ci" class="small text-truncate" style="max-width: 140px;">{{ cell }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <div v-if="wranglerPreview" class="small text-muted mt-1">
+                Showing up to 10 rows · {{ wranglerPreview.rowCount }} data row(s) detected
               </div>
             </div>
           </div>
@@ -229,7 +291,10 @@
           <div class="card h-100">
             <div class="card-body">
               <div class="d-flex align-items-center justify-content-between mb-2">
-                <h6 class="mb-0">Runs</h6>
+                <div>
+                  <h6 class="mb-0">Runs</h6>
+                  <small class="text-muted">Job-style runs for this project workspace</small>
+                </div>
                 <button class="btn btn-sm btn-outline-secondary" type="button" @click="clearRuns" :disabled="runs.length === 0">
                   Clear
                 </button>
@@ -284,6 +349,7 @@
                       <th>Status</th>
                       <th>Tool</th>
                       <th>Asset</th>
+                      <th>Datasets</th>
                       <th>Studies</th>
                       <th>Source</th>
                       <th>
@@ -310,6 +376,7 @@
                         :title="r.notebookName || r.notebookUri || ''">
                         {{ r.notebookName || '—' }}
                       </td>
+                      <td class="text-muted">{{ r.datasetIds?.length ? r.datasetIds.length : '—' }}</td>
                       <td>{{ r.studyIds?.length || 0 }}</td>
                       <td class="text-muted">{{ r.source || 'local' }}</td>
                       <td class="text-muted">{{ formatDateTime(r.createdAt) }}</td>
@@ -371,6 +438,13 @@
                   <div v-if="selectedRun.notebookUri" class="text-break"><code class="small">{{ selectedRun.notebookUri }}</code></div>
                   <div v-if="selectedRun.externalJupyterUrl" class="mt-1 text-muted">
                     External Jupyter: {{ selectedRun.externalJupyterUrl }}
+                  </div>
+                </div>
+
+                <div v-if="selectedRun.datasetIds?.length" class="small mb-2">
+                  <div class="fw-semibold mb-1">Dataset IDs</div>
+                  <div class="d-flex flex-wrap gap-1">
+                    <span v-for="did in selectedRun.datasetIds" :key="did" class="badge text-bg-secondary">{{ did }}</span>
                   </div>
                 </div>
 
@@ -494,6 +568,12 @@
               <input v-model="workspaceSettings.runNamePrefix" class="form-control" placeholder="e.g. cohort-" />
             </div>
             <div class="col-12">
+              <label class="form-label">Default external Jupyter base URL (optional)</label>
+              <input v-model="workspaceSettings.defaultExternalJupyterUrl" class="form-control font-monospace"
+                placeholder="https://your-jupyter.example.org" />
+              <small class="text-muted">Prefills the start-run modal when the environment is Jupyter.</small>
+            </div>
+            <div class="col-12">
               <div class="form-check">
                 <input id="autoOpenMonitorOnStart" v-model="workspaceSettings.autoOpenMonitorOnStart" class="form-check-input"
                   type="checkbox" />
@@ -571,6 +651,7 @@
             <div class="alert alert-light border mb-3">
               <div><strong>Project:</strong> {{ id }}</div>
               <div><strong>Studies selected:</strong> {{ selectedStudies.length }}</div>
+              <div><strong>Datasets pinned:</strong> {{ selectedDatasetIds.length }} (from Manage)</div>
             </div>
 
             <div class="alert alert-info mb-0 small">
@@ -684,6 +765,13 @@ const id = computed(() => String(route.params.id || ''));
 const loading = ref(false);
 const errorMessage = ref('');
 const studies = ref([]);
+const projectDatasets = ref([]);
+const datasetsLoading = ref(false);
+const datasetsLoadError = ref('');
+const datasetSearch = ref('');
+const selectedDatasetIds = ref([]);
+const wranglerRaw = ref('');
+const wranglerPreview = ref(null);
 const activeTab = ref('manage');
 const studySearch = ref('');
 
@@ -744,12 +832,28 @@ const selectedVisualizeRunId = ref('');
 const workspaceSettings = ref({
   defaultTool: 'JupyterLab',
   runNamePrefix: '',
+  defaultExternalJupyterUrl: '',
   autoOpenMonitorOnStart: true
 });
 
 const selectedStudyIds = ref([]);
 const selectedStudyIdsSet = computed(() => new Set(selectedStudyIds.value));
+const selectedDatasetIdsSet = computed(() => new Set(selectedDatasetIds.value));
 const selectedStudies = computed(() => studies.value.filter(s => selectedStudyIdsSet.value.has(s.id)));
+const datasetsDisplayedList = computed(() => {
+  const q = datasetSearch.value.trim().toLowerCase();
+  let list = projectDatasets.value;
+  if (selectedStudyIds.value.length > 0) {
+    list = list.filter(d => selectedStudyIdsSet.value.has(d.study_id));
+  }
+  if (!q) return list;
+  return list.filter(
+    d =>
+      String(d.name || '')
+        .toLowerCase()
+        .includes(q) || String(d.id || '').toLowerCase().includes(q)
+  );
+});
 const selectedRun = computed(() => runs.value.find(r => r.id === selectedRunId.value) || null);
 const selectedAsset = computed(() => projectAssets.value.find(a => a.id === selectedAssetId.value) || null);
 const canAddUserAsset = computed(() => {
@@ -785,6 +889,7 @@ const selectedRunPayloadPreview = computed(() => {
   if (r.notebookKind) payload.notebookKind = r.notebookKind;
   if (r.notebookName) payload.notebookName = r.notebookName;
   if (r.externalJupyterUrl) payload.externalJupyterUrl = r.externalJupyterUrl;
+  if (Array.isArray(r.datasetIds) && r.datasetIds.length) payload.datasetIds = r.datasetIds;
   return JSON.stringify(payload, null, 2);
 });
 const selectedViewer = computed(() => viewers.value.find(v => v.id === selectedViewerId.value) || null);
@@ -899,6 +1004,9 @@ function loadLocalState() {
     if (runs.value.length > 0) {
       selectedRunId.value = runs.value[0].id;
       selectedVisualizeRunId.value = runs.value[0].id;
+    } else {
+      selectedRunId.value = '';
+      selectedVisualizeRunId.value = '';
     }
   } catch {
     runs.value = [];
@@ -912,12 +1020,14 @@ function loadLocalState() {
     workspaceSettings.value = {
       defaultTool: parsed.defaultTool || 'JupyterLab',
       runNamePrefix: parsed.runNamePrefix || '',
+      defaultExternalJupyterUrl: String(parsed.defaultExternalJupyterUrl || '').trim(),
       autoOpenMonitorOnStart: parsed.autoOpenMonitorOnStart !== false
     };
   } catch {
     workspaceSettings.value = {
       defaultTool: 'JupyterLab',
       runNamePrefix: '',
+      defaultExternalJupyterUrl: '',
       autoOpenMonitorOnStart: true
     };
   }
@@ -934,6 +1044,14 @@ function loadLocalState() {
     projectAssets.value = [];
     selectedAssetId.value = '';
   }
+
+  try {
+    const raw = localStorage.getItem(storageKey('selectedDatasets'));
+    const parsed = raw ? JSON.parse(raw) : [];
+    selectedDatasetIds.value = Array.isArray(parsed) ? parsed.map(String) : [];
+  } catch {
+    selectedDatasetIds.value = [];
+  }
 }
 
 function persistSelectedStudies() {
@@ -942,6 +1060,70 @@ function persistSelectedStudies() {
 
 function persistRuns() {
   localStorage.setItem(storageKey('runs'), JSON.stringify(runs.value));
+}
+
+function persistSelectedDatasets() {
+  localStorage.setItem(storageKey('selectedDatasets'), JSON.stringify(selectedDatasetIds.value));
+}
+
+function toggleDatasetSelection(datasetId) {
+  const sid = String(datasetId || '');
+  if (!sid) return;
+  const next = new Set(selectedDatasetIds.value);
+  if (next.has(sid)) next.delete(sid);
+  else next.add(sid);
+  selectedDatasetIds.value = Array.from(next);
+  persistSelectedDatasets();
+}
+
+function clearDatasetSelection() {
+  selectedDatasetIds.value = [];
+  persistSelectedDatasets();
+}
+
+function parseWranglerLine(line) {
+  const out = [];
+  let cur = '';
+  let inQ = false;
+  for (let i = 0; i < line.length; i += 1) {
+    const c = line[i];
+    if (c === '"') {
+      inQ = !inQ;
+      continue;
+    }
+    if (!inQ && c === ',') {
+      out.push(cur.trim());
+      cur = '';
+      continue;
+    }
+    cur += c;
+  }
+  out.push(cur.trim());
+  return out;
+}
+
+function clearWranglerPreview() {
+  wranglerPreview.value = null;
+}
+
+function parseWranglerCsv() {
+  const text = (wranglerRaw.value || '').trim();
+  if (!text) {
+    wranglerPreview.value = null;
+    return;
+  }
+  const lines = text.split(/\r?\n/).filter(l => l.trim());
+  if (lines.length === 0) {
+    wranglerPreview.value = null;
+    return;
+  }
+  const headers = parseWranglerLine(lines[0]);
+  const rows = lines.slice(1, 11).map(parseWranglerLine);
+  wranglerPreview.value = {
+    headers,
+    rows,
+    rowCount: Math.max(0, lines.length - 1)
+  };
 }
 
 function selectRun(run) {
@@ -1048,6 +1230,22 @@ function formatDateTime(value) {
 
 async function refreshProject() {
   await loadStudies();
+  await loadProjectDatasets();
+}
+
+async function loadProjectDatasets() {
+  datasetsLoading.value = true;
+  datasetsLoadError.value = '';
+  try {
+    const res = await api.get('datasets', authHeaders());
+    projectDatasets.value = Array.isArray(res.data) ? res.data : [];
+  } catch (error) {
+    projectDatasets.value = [];
+    datasetsLoadError.value =
+      error.response?.data?.error || error.message || 'Failed to load datasets.';
+  } finally {
+    datasetsLoading.value = false;
+  }
 }
 
 async function loadStudies() {
@@ -1074,7 +1272,7 @@ function openStartAnalysis() {
     tool: workspaceSettings.value.defaultTool || 'JupyterLab',
     name: '',
     notebookAssetId: selectedAssetId.value || '',
-    externalJupyterUrl: ''
+    externalJupyterUrl: String(workspaceSettings.value.defaultExternalJupyterUrl || '').trim()
   };
   startModal.show();
 }
@@ -1113,6 +1311,8 @@ function createRun() {
     launchPayload.notebookName = asset.name;
   }
   if (extUrl) launchPayload.externalJupyterUrl = extUrl;
+  const ds = selectedDatasetIds.value.map(String).filter(Boolean);
+  if (ds.length) launchPayload.datasetIds = ds;
 
   closeStartAnalysis();
   activeTab.value = workspaceSettings.value.autoOpenMonitorOnStart ? 'monitor' : activeTab.value;
@@ -1151,7 +1351,8 @@ async function launchRun(payload) {
           notebookName: payload.notebookName
         }
       : {}),
-    ...(payload.externalJupyterUrl ? { externalJupyterUrl: payload.externalJupyterUrl } : {})
+    ...(payload.externalJupyterUrl ? { externalJupyterUrl: payload.externalJupyterUrl } : {}),
+    ...(Array.isArray(payload.datasetIds) && payload.datasetIds.length ? { datasetIds: payload.datasetIds } : {})
   };
   runs.value = [run, ...runs.value];
   selectedRunId.value = run.id;
@@ -1181,7 +1382,8 @@ function normalizeRunFromApi(apiRun, payload) {
     notebookUri: apiRun?.notebookUri ?? payload?.notebookUri,
     notebookKind: apiRun?.notebookKind ?? payload?.notebookKind,
     notebookName: apiRun?.notebookName ?? payload?.notebookName,
-    externalJupyterUrl: apiRun?.externalJupyterUrl ?? payload?.externalJupyterUrl
+    externalJupyterUrl: apiRun?.externalJupyterUrl ?? payload?.externalJupyterUrl,
+    datasetIds: apiRun?.datasetIds ?? payload?.datasetIds
   };
   const base = {
     id: idValue,
@@ -1199,6 +1401,7 @@ function normalizeRunFromApi(apiRun, payload) {
   if (nb.notebookKind) extras.notebookKind = nb.notebookKind;
   if (nb.notebookName) extras.notebookName = nb.notebookName;
   if (nb.externalJupyterUrl) extras.externalJupyterUrl = nb.externalJupyterUrl;
+  if (Array.isArray(nb.datasetIds) && nb.datasetIds.length) extras.datasetIds = nb.datasetIds.map(String);
   return { ...base, ...extras };
 }
 
@@ -1302,7 +1505,13 @@ async function duplicateRun(run) {
       projectId: run.projectId || id.value,
       name: `${run.name} (copy)`,
       tool: run.tool,
-      studyIds: Array.isArray(run.studyIds) ? run.studyIds : []
+      studyIds: Array.isArray(run.studyIds) ? run.studyIds : [],
+      notebookAssetId: run.notebookAssetId,
+      notebookUri: run.notebookUri,
+      notebookKind: run.notebookKind,
+      notebookName: run.notebookName,
+      externalJupyterUrl: run.externalJupyterUrl,
+      datasetIds: Array.isArray(run.datasetIds) ? run.datasetIds : undefined
     });
     runs.value = [duplicated, ...runs.value];
     selectedRunId.value = duplicated.id;
@@ -1346,6 +1555,7 @@ function resetSettings() {
   workspaceSettings.value = {
     defaultTool: 'JupyterLab',
     runNamePrefix: '',
+    defaultExternalJupyterUrl: '',
     autoOpenMonitorOnStart: true
   };
   localStorage.removeItem(storageKey('settings'));
@@ -1361,6 +1571,7 @@ onMounted(async () => {
 
   loadLocalState();
   await loadStudies();
+  await loadProjectDatasets();
 
   if (startModalEl.value) {
     startModal = new Modal(startModalEl.value);
@@ -1374,6 +1585,17 @@ onMounted(async () => {
   if (runActionsToggleEl.value) {
     new Dropdown(runActionsToggleEl.value);
   }
+});
+
+watch(id, async (newId, oldId) => {
+  if (!newId) return;
+  if (oldId === undefined) return;
+  if (newId === oldId) return;
+  wranglerRaw.value = '';
+  wranglerPreview.value = null;
+  loadLocalState();
+  await loadStudies();
+  await loadProjectDatasets();
 });
 
 // Keep Monitor and Visualize selections fully linked.
@@ -1410,6 +1632,16 @@ watch(
 
 .table-sort-btn:hover {
   text-decoration: none;
+}
+
+.dataset-list {
+  max-height: 280px;
+  overflow: auto;
+}
+
+.wrangler-preview {
+  max-height: 240px;
+  overflow: auto;
 }
 </style>
 
