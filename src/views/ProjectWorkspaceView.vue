@@ -46,7 +46,7 @@
         </button>
       </li>
       <li class="nav-item">
-        <button class="nav-link" :class="{ active: activeTab === 'visualize' }" @click="activeTab = 'visualize'">
+        <button class="nav-link" :class="{ active: activeTab === 'visualize' }" @click="openVisualizeTab">
           Visualize
         </button>
       </li>
@@ -292,17 +292,77 @@
     </section>
 
     <section v-else-if="activeTab === 'visualize'">
-      <div class="card">
-        <div class="card-body">
-          <h6 class="mb-2">Visualize</h6>
-          <div class="text-muted mb-2">
-            Placeholder for viewers/dashboards (UKB “Visualize”).
+      <div class="row g-3">
+        <div class="col-12 col-lg-3">
+          <div class="card h-100">
+            <div class="card-body">
+              <h6 class="mb-2">Workspace viewers</h6>
+
+              <div class="list-group small">
+                <button v-for="viewer in viewers" :key="viewer.id" type="button"
+                  class="list-group-item list-group-item-action d-flex justify-content-between align-items-center"
+                  :class="{ active: selectedViewer?.id === viewer.id }" @click="selectViewer(viewer.id)">
+                  <span class="text-truncate">{{ viewer.name }}</span>
+                  <i class="bi bi-chevron-right"></i>
+                </button>
+              </div>
+
+              <div class="alert alert-light border mt-3 mb-0">
+                <small>
+                  Only run trusted viewers on validated outputs.
+                </small>
+              </div>
+            </div>
           </div>
-          <div class="alert alert-light border mb-0">
-            <small>
-              No run outputs available yet. Launch analysis in <strong>Manage</strong>, then use this tab to open notebooks,
-              charts, or report views tied to the selected run.
-            </small>
+        </div>
+
+        <div class="col-12 col-lg-9">
+          <div class="card h-100">
+            <div class="card-body">
+              <div class="d-flex align-items-center justify-content-between mb-2">
+                <h6 class="mb-0">Visualize</h6>
+                <button class="btn btn-sm btn-outline-secondary" type="button" @click="activeTab = 'monitor'">
+                  Open Monitor
+                </button>
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label">Run output source</label>
+                <select v-model="selectedVisualizeRunId" class="form-select form-select-sm">
+                  <option v-if="visualizeRunOptions.length === 0" value="">Select a run...</option>
+                  <option v-for="run in visualizeRunOptions" :key="run.id" :value="run.id">
+                    {{ run.name }} ({{ run.status }}) - {{ formatDateTime(run.createdAt) }}
+                  </option>
+                </select>
+                <small class="text-muted">
+                  Visualize consumes outputs from a run created in Manage/Monitor.
+                </small>
+              </div>
+
+              <div v-if="selectedViewer" class="border rounded p-3 mb-3">
+                <div class="d-flex align-items-start justify-content-between gap-2">
+                  <div>
+                    <div class="fw-semibold">{{ selectedViewer.name }}</div>
+                    <div class="text-muted small">{{ selectedViewer.description }}</div>
+                    <div class="text-muted small mt-1">
+                      Supported: {{ selectedViewer.supported }}
+                    </div>
+                    <div class="text-muted small mt-1">
+                      Run: {{ selectedVisualizeRun?.name || 'none selected' }}
+                    </div>
+                  </div>
+                  <button class="btn btn-sm btn-primary" type="button" disabled title="Coming soon">
+                    Select run output (coming soon)
+                  </button>
+                </div>
+              </div>
+
+              <div class="alert alert-light border mb-0">
+                <small>
+                  Output browsing is a frontend prototype right now and is not yet connected to backend artifact storage.
+                </small>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -321,13 +381,33 @@
               <label class="form-label">Display name (local)</label>
               <input v-model="localProjectName" class="form-control" placeholder="Optional name just for this browser" />
             </div>
+            <div class="col-md-6">
+              <label class="form-label">Default launch tool</label>
+              <select v-model="workspaceSettings.defaultTool" class="form-select">
+                <option value="JupyterLab">JupyterLab</option>
+                <option value="RStudio">RStudio</option>
+                <option value="Script/Docker">Script/Docker</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Run name prefix (optional)</label>
+              <input v-model="workspaceSettings.runNamePrefix" class="form-control" placeholder="e.g. cohort-" />
+            </div>
+            <div class="col-12">
+              <div class="form-check">
+                <input id="autoOpenMonitorOnStart" v-model="workspaceSettings.autoOpenMonitorOnStart" class="form-check-input"
+                  type="checkbox" />
+                <label for="autoOpenMonitorOnStart" class="form-check-label">
+                  Auto-open Monitor after starting analysis
+                </label>
+              </div>
+            </div>
           </div>
           <div class="mt-3">
-            <button class="btn btn-sm btn-primary" type="button" @click="saveLocalProjectName">
-              Save
+            <button class="btn btn-sm btn-primary" type="button" @click="saveSettings">
+              Save settings
             </button>
-            <button class="btn btn-sm btn-outline-secondary ms-2" type="button" @click="resetLocalProjectName"
-              :disabled="!localProjectName">
+            <button class="btn btn-sm btn-outline-secondary ms-2" type="button" @click="resetSettings">
               Reset
             </button>
           </div>
@@ -443,7 +523,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { Dropdown, Modal } from 'bootstrap';
 
@@ -478,6 +558,33 @@ const monitorStatus = ref('');
 const monitorTool = ref('');
 const runSortBy = ref('createdAt');
 const runSortDir = ref('desc');
+const viewers = ref([
+  {
+    id: 'notebook',
+    name: 'Jupyter Notebook Preview',
+    description: 'Open and preview notebook outputs linked to a run.',
+    supported: '.ipynb'
+  },
+  {
+    id: 'table',
+    name: 'Table/Data Preview',
+    description: 'Preview CSV/TSV/parquet style tabular outputs.',
+    supported: '.csv, .tsv, .parquet'
+  },
+  {
+    id: 'file',
+    name: 'General File Viewer',
+    description: 'Inspect logs and text outputs from analyses.',
+    supported: '.txt, .log, .json'
+  }
+]);
+const selectedViewerId = ref('notebook');
+const selectedVisualizeRunId = ref('');
+const workspaceSettings = ref({
+  defaultTool: 'JupyterLab',
+  runNamePrefix: '',
+  autoOpenMonitorOnStart: true
+});
 
 const selectedStudyIds = ref([]);
 const selectedStudyIdsSet = computed(() => new Set(selectedStudyIds.value));
@@ -507,6 +614,13 @@ const selectedRunPayloadPreview = computed(() => {
   };
   return JSON.stringify(payload, null, 2);
 });
+const selectedViewer = computed(() => viewers.value.find(v => v.id === selectedViewerId.value) || null);
+const visualizeRunOptions = computed(() =>
+  [...runs.value].sort((a, b) => compareRuns(a, b, 'createdAt', 'desc'))
+);
+const selectedVisualizeRun = computed(() =>
+  runs.value.find(r => r.id === selectedVisualizeRunId.value) || null
+);
 const editRunTargetId = ref('');
 const editRunForm = ref({ name: '', tool: 'JupyterLab' });
 const deleteRunTargetId = ref('');
@@ -538,10 +652,28 @@ function loadLocalState() {
     runs.value = raw ? JSON.parse(raw) : [];
     if (runs.value.length > 0) {
       selectedRunId.value = runs.value[0].id;
+      selectedVisualizeRunId.value = runs.value[0].id;
     }
   } catch {
     runs.value = [];
     selectedRunId.value = '';
+    selectedVisualizeRunId.value = '';
+  }
+
+  try {
+    const raw = localStorage.getItem(storageKey('settings'));
+    const parsed = raw ? JSON.parse(raw) : {};
+    workspaceSettings.value = {
+      defaultTool: parsed.defaultTool || 'JupyterLab',
+      runNamePrefix: parsed.runNamePrefix || '',
+      autoOpenMonitorOnStart: parsed.autoOpenMonitorOnStart !== false
+    };
+  } catch {
+    workspaceSettings.value = {
+      defaultTool: 'JupyterLab',
+      runNamePrefix: '',
+      autoOpenMonitorOnStart: true
+    };
   }
 }
 
@@ -563,6 +695,21 @@ function resetMonitorFilters() {
   monitorTool.value = '';
   runSortBy.value = 'createdAt';
   runSortDir.value = 'desc';
+}
+
+function selectViewer(viewerId) {
+  selectedViewerId.value = viewerId;
+}
+
+function openVisualizeTab() {
+  activeTab.value = 'visualize';
+  if (!selectedVisualizeRunId.value && selectedRunId.value) {
+    selectedVisualizeRunId.value = selectedRunId.value;
+    return;
+  }
+  if (!selectedVisualizeRunId.value && runs.value.length > 0) {
+    selectedVisualizeRunId.value = runs.value[0].id;
+  }
 }
 
 function setRunSort(field) {
@@ -660,7 +807,7 @@ function openStartAnalysis() {
     return;
   }
   if (!startModal) return;
-  newRun.value = { tool: 'JupyterLab', name: '' };
+  newRun.value = { tool: workspaceSettings.value.defaultTool || 'JupyterLab', name: '' };
   startModal.show();
 }
 
@@ -675,7 +822,11 @@ function createRun() {
     return;
   }
 
-  const name = (newRun.value.name || '').trim() || `${newRun.value.tool} run`;
+  const customName = (newRun.value.name || '').trim();
+  const prefix = (workspaceSettings.value.runNamePrefix || '').trim();
+  const fallbackName = `${newRun.value.tool} run`;
+  const baseName = customName || fallbackName;
+  const name = prefix ? `${prefix}${baseName}` : baseName;
   const launchPayload = {
     projectId: id.value,
     name,
@@ -684,7 +835,7 @@ function createRun() {
   };
 
   closeStartAnalysis();
-  activeTab.value = 'monitor';
+  activeTab.value = workspaceSettings.value.autoOpenMonitorOnStart ? 'monitor' : activeTab.value;
   launchRun(launchPayload);
 }
 
@@ -695,6 +846,7 @@ async function launchRun(payload) {
     const run = normalizeRunFromApi(res.data, payload);
     runs.value = [run, ...runs.value];
     selectedRunId.value = run.id;
+    selectedVisualizeRunId.value = run.id;
     persistRuns();
     return;
   } catch (error) {
@@ -714,6 +866,7 @@ async function launchRun(payload) {
   };
   runs.value = [run, ...runs.value];
   selectedRunId.value = run.id;
+  selectedVisualizeRunId.value = run.id;
   persistRuns();
 
   // UI-only: simulate transitioning to "running" then "done"
@@ -749,6 +902,7 @@ function normalizeRunFromApi(apiRun, payload) {
 function clearRuns() {
   runs.value = [];
   selectedRunId.value = '';
+  selectedVisualizeRunId.value = '';
   persistRuns();
 }
 
@@ -824,6 +978,9 @@ async function confirmDeleteRun() {
   if (selectedRunId.value === run.id) {
     selectedRunId.value = runs.value[0]?.id || '';
   }
+  if (selectedVisualizeRunId.value === run.id) {
+    selectedVisualizeRunId.value = runs.value[0]?.id || '';
+  }
   persistRuns();
   closeDeleteRun();
 }
@@ -846,6 +1003,7 @@ async function duplicateRun(run) {
     });
     runs.value = [duplicated, ...runs.value];
     selectedRunId.value = duplicated.id;
+    selectedVisualizeRunId.value = duplicated.id;
     persistRuns();
     return;
   } catch (error) {
@@ -862,6 +1020,7 @@ async function duplicateRun(run) {
   };
   runs.value = [duplicated, ...runs.value];
   selectedRunId.value = duplicated.id;
+  selectedVisualizeRunId.value = duplicated.id;
   persistRuns();
 }
 
@@ -872,6 +1031,21 @@ function saveLocalProjectName() {
 function resetLocalProjectName() {
   localProjectName.value = '';
   localStorage.removeItem(storageKey('name'));
+}
+
+function saveSettings() {
+  saveLocalProjectName();
+  localStorage.setItem(storageKey('settings'), JSON.stringify(workspaceSettings.value));
+}
+
+function resetSettings() {
+  resetLocalProjectName();
+  workspaceSettings.value = {
+    defaultTool: 'JupyterLab',
+    runNamePrefix: '',
+    autoOpenMonitorOnStart: true
+  };
+  localStorage.removeItem(storageKey('settings'));
 }
 
 onMounted(async () => {
@@ -898,6 +1072,25 @@ onMounted(async () => {
     new Dropdown(runActionsToggleEl.value);
   }
 });
+
+// Keep Monitor and Visualize selections fully linked.
+watch(
+  () => selectedRunId.value,
+  (next) => {
+    if (selectedVisualizeRunId.value !== next) {
+      selectedVisualizeRunId.value = next || '';
+    }
+  }
+);
+
+watch(
+  () => selectedVisualizeRunId.value,
+  (next) => {
+    if (selectedRunId.value !== next) {
+      selectedRunId.value = next || '';
+    }
+  }
+);
 </script>
 
 <style scoped>
