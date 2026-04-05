@@ -19,6 +19,7 @@
           <span class="badge text-bg-secondary">ID: {{ id }}</span>
           <span class="badge text-bg-secondary">Selected studies: {{ selectedStudies.length }}</span>
           <span class="badge text-bg-secondary">Runs: {{ runs.length }}</span>
+          <span class="badge text-bg-secondary">Assets: {{ projectAssets.length }}</span>
         </div>
       </div>
 
@@ -36,7 +37,8 @@
 
     <ul class="nav nav-tabs mb-3">
       <li class="nav-item">
-        <button class="nav-link" :class="{ active: activeTab === 'manage' }" @click="activeTab = 'manage'">
+        <button class="nav-link" :class="{ active: activeTab === 'manage' }" title="Notebooks, scripts, and studies"
+          @click="activeTab = 'manage'">
           Manage
         </button>
       </li>
@@ -94,14 +96,20 @@
         <div class="col-12 col-lg-6">
           <div class="card h-100">
             <div class="card-body">
+              <div class="mb-3">
+                <h6 class="mb-0">Notebooks &amp; scripts</h6>
+                <small class="text-muted">Workspace entrypoints (notebook, R, or shell) as file path or URL — not
+                  GitHub-first.</small>
+              </div>
+
               <div class="d-flex align-items-center justify-content-between mb-2">
-                <h6 class="mb-0">Selected studies</h6>
+                <h6 class="mb-0 small text-uppercase text-muted">Selected studies</h6>
                 <span class="badge text-bg-secondary">
                   {{ selectedStudies.length }} / {{ studies.length }}
                 </span>
               </div>
-              <div v-if="selectedStudies.length === 0" class="text-muted">
-                Select one or more studies to start analysis.
+              <div v-if="selectedStudies.length === 0" class="text-muted small">
+                Select one or more studies before starting a run.
               </div>
               <div v-else class="d-flex flex-wrap gap-2">
                 <span v-for="s in selectedStudies" :key="s.id" class="badge rounded-pill text-bg-primary">
@@ -113,9 +121,73 @@
 
               <hr class="my-3" />
 
-              <h6 class="mb-2">Datasets (placeholder)</h6>
-              <div class="text-muted">
-                Next: show datasets filtered by selected studies and allow multi-study analysis configuration.
+              <h6 class="mb-2 small text-uppercase text-muted">Sample templates</h6>
+              <p class="small text-muted mb-2">Add a starter asset to your project (placeholders until backend templates
+                exist).</p>
+              <div class="vstack gap-2 mb-3">
+                <div v-for="tpl in sampleAssetTemplates" :key="tpl.templateId"
+                  class="d-flex justify-content-between gap-2 align-items-start border rounded p-2">
+                  <div class="small">
+                    <div class="fw-semibold">{{ tpl.name }}</div>
+                    <div class="text-muted">{{ tpl.description }}</div>
+                  </div>
+                  <button type="button" class="btn btn-sm btn-outline-primary text-nowrap flex-shrink-0"
+                    @click="addSampleAsset(tpl)">
+                    Add
+                  </button>
+                </div>
+              </div>
+
+              <h6 class="mb-2 small text-uppercase text-muted">Your project assets</h6>
+              <div v-if="projectAssets.length === 0" class="text-muted small mb-2">
+                No assets yet. Add a sample above or register a file path / URL below.
+              </div>
+              <div v-else class="list-group small mb-3">
+                <button v-for="a in projectAssets" :key="a.id" type="button"
+                  class="list-group-item list-group-item-action d-flex justify-content-between align-items-center"
+                  :class="{ active: selectedAssetId === a.id }" @click="selectAsset(a.id)">
+                  <span class="text-truncate">{{ a.name }}</span>
+                  <span class="badge text-bg-light ms-1">{{ assetKindLabel(a.kind) }}</span>
+                </button>
+              </div>
+
+              <h6 class="mb-2 small text-uppercase text-muted">Register file or URL</h6>
+              <div class="row g-2">
+                <div class="col-12">
+                  <input v-model="newAssetForm.name" class="form-control form-control-sm" placeholder="Display name" />
+                </div>
+                <div class="col-6">
+                  <select v-model="newAssetForm.kind" class="form-select form-select-sm">
+                    <option value="notebook">Notebook</option>
+                    <option value="r">R script</option>
+                    <option value="shell">Shell script</option>
+                  </select>
+                </div>
+                <div class="col-6">
+                  <select v-model="newAssetForm.sourceType" class="form-select form-select-sm">
+                    <option value="url">URL</option>
+                    <option value="file">File path</option>
+                  </select>
+                </div>
+                <div class="col-12">
+                  <input v-model="newAssetForm.uri" class="form-control form-control-sm font-monospace"
+                    placeholder="https://… or /path/to/notebook.ipynb" />
+                </div>
+                <div class="col-12">
+                  <input v-model="newAssetForm.notes" class="form-control form-control-sm" placeholder="Notes (optional)" />
+                </div>
+                <div class="col-12">
+                  <button type="button" class="btn btn-sm btn-primary" :disabled="!canAddUserAsset" @click="addUserAsset">
+                    Add asset
+                  </button>
+                </div>
+              </div>
+
+              <hr class="my-3" />
+
+              <h6 class="mb-2 small text-uppercase text-muted">Datasets</h6>
+              <div class="text-muted small">
+                Next: datasets filtered by selected studies and multi-study configuration.
               </div>
             </div>
           </div>
@@ -124,13 +196,26 @@
         <div class="col-12 col-lg-3">
           <div class="card h-100">
             <div class="card-body">
-              <h6 class="mb-2">Details</h6>
-              <div class="text-muted">
-                No item selected.
+              <h6 class="mb-2">Asset details</h6>
+              <div v-if="!selectedAsset" class="text-muted small">
+                Select a notebook or script in the list, or add one from samples.
+              </div>
+              <div v-else>
+                <div class="small mb-2"><strong>Name:</strong> {{ selectedAsset.name }}</div>
+                <div class="small mb-2"><strong>Kind:</strong> {{ assetKindLabel(selectedAsset.kind) }}</div>
+                <div class="small mb-2"><strong>Source:</strong> {{ selectedAsset.sourceType === 'url' ? 'URL' : 'File path' }}
+                </div>
+                <div class="small mb-2 text-break">
+                  <strong>URI:</strong> <code class="small user-select-all">{{ selectedAsset.uri }}</code>
+                </div>
+                <div v-if="selectedAsset.notes" class="small mb-2 text-muted">{{ selectedAsset.notes }}</div>
+                <button type="button" class="btn btn-sm btn-outline-danger" @click="removeAsset(selectedAsset.id)">
+                  Remove from project
+                </button>
               </div>
               <hr class="my-3" />
               <small class="text-muted d-block">
-                This panel mirrors the UKB “details” side panel. We’ll populate it as we add real workspace items.
+                Asset metadata is stored in this browser until the API persists it.
               </small>
             </div>
           </div>
@@ -198,6 +283,7 @@
                       </th>
                       <th>Status</th>
                       <th>Tool</th>
+                      <th>Asset</th>
                       <th>Studies</th>
                       <th>Source</th>
                       <th>
@@ -220,6 +306,10 @@
                         </span>
                       </td>
                       <td>{{ r.tool }}</td>
+                      <td class="text-muted text-truncate" style="max-width: 140px;"
+                        :title="r.notebookName || r.notebookUri || ''">
+                        {{ r.notebookName || '—' }}
+                      </td>
                       <td>{{ r.studyIds?.length || 0 }}</td>
                       <td class="text-muted">{{ r.source || 'local' }}</td>
                       <td class="text-muted">{{ formatDateTime(r.createdAt) }}</td>
@@ -273,6 +363,16 @@
                 <div class="small"><strong>Project:</strong> {{ selectedRun.projectId || id }}</div>
                 <div class="small"><strong>Created:</strong> {{ formatDateTime(selectedRun.createdAt) }}</div>
                 <div class="small mb-2"><strong>Source:</strong> {{ selectedRun.source || 'local' }}</div>
+
+                <div v-if="selectedRun.notebookName || selectedRun.notebookUri" class="small mb-2">
+                  <div class="fw-semibold mb-1">Notebook / script</div>
+                  <div v-if="selectedRun.notebookName"><strong>Name:</strong> {{ selectedRun.notebookName }}</div>
+                  <div v-if="selectedRun.notebookKind" class="text-muted">Kind: {{ assetKindLabel(selectedRun.notebookKind) }}</div>
+                  <div v-if="selectedRun.notebookUri" class="text-break"><code class="small">{{ selectedRun.notebookUri }}</code></div>
+                  <div v-if="selectedRun.externalJupyterUrl" class="mt-1 text-muted">
+                    External Jupyter: {{ selectedRun.externalJupyterUrl }}
+                  </div>
+                </div>
 
                 <div class="small fw-semibold mb-1">Study IDs</div>
                 <div v-if="!selectedRun.studyIds?.length" class="text-muted small mb-2">
@@ -422,27 +522,50 @@
       <div class="modal-dialog">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title">Start analysis</h5>
+            <h5 class="modal-title">Start analysis run</h5>
             <button type="button" class="btn-close" @click="closeStartAnalysis" aria-label="Close" />
           </div>
           <div class="modal-body">
             <div v-if="selectedStudies.length === 0" class="alert alert-warning">
-              Select at least one study in the <strong>Manage</strong> tab before starting analysis.
+              Select at least one study in <strong>Manage</strong> before starting a run.
+            </div>
+
+            <p class="small text-muted mb-3">
+              Choose how this job runs: Jupyter notebook, RStudio, or a shell script. Optionally bind a registered asset
+              (file path or URL).
+            </p>
+
+            <div class="mb-3">
+              <label class="form-label">Environment</label>
+              <select v-model="newRun.tool" class="form-select">
+                <option value="JupyterLab">Jupyter notebook (JupyterLab)</option>
+                <option value="RStudio">R (RStudio)</option>
+                <option value="Script/Docker">Shell script</option>
+              </select>
             </div>
 
             <div class="mb-3">
-              <label class="form-label">Tool</label>
-              <select v-model="newRun.tool" class="form-select">
-                <option value="JupyterLab">JupyterLab</option>
-                <option value="RStudio">RStudio</option>
-                <option value="Script/Docker">Script/Docker</option>
+              <label class="form-label">Notebook / script (optional)</label>
+              <select v-model="newRun.notebookAssetId" class="form-select">
+                <option value="">None — no asset bound to this run</option>
+                <option v-for="a in projectAssets" :key="a.id" :value="a.id">
+                  {{ a.name }} ({{ assetKindLabel(a.kind) }})
+                </option>
               </select>
+              <small class="text-muted">Register assets under <strong>Manage</strong> (samples, file path, or URL).</small>
+            </div>
+
+            <div v-if="newRun.tool === 'JupyterLab'" class="mb-3">
+              <label class="form-label">External Jupyter base URL (optional)</label>
+              <input v-model="newRun.externalJupyterUrl" class="form-control font-monospace"
+                placeholder="https://your-jupyter.example.org" />
+              <small class="text-muted">Use when the notebook runs on an external hub; stored on this run for tracking.</small>
             </div>
 
             <div class="mb-3">
               <label class="form-label">Run name</label>
               <input v-model="newRun.name" class="form-control" placeholder="e.g. cohort-selection" />
-              <small class="text-muted">This will appear under Monitor.</small>
+              <small class="text-muted">Shown in Monitor; a default is used if empty.</small>
             </div>
 
             <div class="alert alert-light border mb-3">
@@ -450,14 +573,14 @@
               <div><strong>Studies selected:</strong> {{ selectedStudies.length }}</div>
             </div>
 
-            <div class="alert alert-info mb-0">
-              The app will try backend launch first, then fall back to local simulation if the endpoint is unavailable.
+            <div class="alert alert-info mb-0 small">
+              The app calls the backend launch API when available; otherwise it simulates a run locally.
             </div>
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-outline-secondary" @click="closeStartAnalysis">Cancel</button>
             <button type="button" class="btn btn-primary" @click="createRun" :disabled="selectedStudies.length === 0">
-              Start
+              Start run
             </button>
           </div>
         </div>
@@ -530,6 +653,30 @@ import { Dropdown, Modal } from 'bootstrap';
 import { api, authHeaders } from '@/utils/api';
 import { APP_NAME } from '@/utils/defs';
 
+const sampleAssetTemplates = [
+  {
+    templateId: 'sample-ukb-qc',
+    name: 'QC overview (sample)',
+    kind: 'notebook',
+    description: 'Row counts, missingness, and key fields.',
+    uri: 'https://example.org/w4h/samples/ukb-qc-overview.ipynb'
+  },
+  {
+    templateId: 'sample-cohort',
+    name: 'Cohort selection (sample)',
+    kind: 'notebook',
+    description: 'Inclusion / exclusion from phenotypes.',
+    uri: 'https://example.org/w4h/samples/cohort-selection.ipynb'
+  },
+  {
+    templateId: 'sample-r-describe',
+    name: 'R summary table (sample)',
+    kind: 'r',
+    description: 'Descriptive statistics starter script.',
+    uri: 'https://example.org/w4h/samples/describe.R'
+  }
+];
+
 const router = useRouter();
 const route = useRoute();
 const id = computed(() => String(route.params.id || ''));
@@ -550,8 +697,22 @@ const deleteRunModalEl = ref(null);
 let deleteRunModal = null;
 const runActionsToggleEl = ref(null);
 
-const newRun = ref({ tool: 'JupyterLab', name: '' });
+const newRun = ref({
+  tool: 'JupyterLab',
+  name: '',
+  notebookAssetId: '',
+  externalJupyterUrl: ''
+});
 const runs = ref([]);
+const projectAssets = ref([]);
+const selectedAssetId = ref('');
+const newAssetForm = ref({
+  name: '',
+  kind: 'notebook',
+  sourceType: 'url',
+  uri: '',
+  notes: ''
+});
 const selectedRunId = ref('');
 const monitorSearch = ref('');
 const monitorStatus = ref('');
@@ -590,6 +751,12 @@ const selectedStudyIds = ref([]);
 const selectedStudyIdsSet = computed(() => new Set(selectedStudyIds.value));
 const selectedStudies = computed(() => studies.value.filter(s => selectedStudyIdsSet.value.has(s.id)));
 const selectedRun = computed(() => runs.value.find(r => r.id === selectedRunId.value) || null);
+const selectedAsset = computed(() => projectAssets.value.find(a => a.id === selectedAssetId.value) || null);
+const canAddUserAsset = computed(() => {
+  const name = (newAssetForm.value.name || '').trim();
+  const uri = (newAssetForm.value.uri || '').trim();
+  return Boolean(name && uri);
+});
 
 const filteredRuns = computed(() => {
   const q = monitorSearch.value.trim().toLowerCase();
@@ -606,12 +773,18 @@ const filteredRuns = computed(() => {
 
 const selectedRunPayloadPreview = computed(() => {
   if (!selectedRun.value) return '';
+  const r = selectedRun.value;
   const payload = {
-    projectId: selectedRun.value.projectId || id.value,
-    name: selectedRun.value.name,
-    tool: selectedRun.value.tool,
-    studyIds: selectedRun.value.studyIds || []
+    projectId: r.projectId || id.value,
+    name: r.name,
+    tool: r.tool,
+    studyIds: r.studyIds || []
   };
+  if (r.notebookAssetId) payload.notebookAssetId = r.notebookAssetId;
+  if (r.notebookUri) payload.notebookUri = r.notebookUri;
+  if (r.notebookKind) payload.notebookKind = r.notebookKind;
+  if (r.notebookName) payload.notebookName = r.notebookName;
+  if (r.externalJupyterUrl) payload.externalJupyterUrl = r.externalJupyterUrl;
   return JSON.stringify(payload, null, 2);
 });
 const selectedViewer = computed(() => viewers.value.find(v => v.id === selectedViewerId.value) || null);
@@ -630,6 +803,79 @@ const projectTitle = computed(() => localProjectName.value?.trim() || id.value |
 
 function storageKey(suffix) {
   return `w4h.project.${id.value}.${suffix}`;
+}
+
+function newAssetId() {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function sanitizeLoadedAsset(row) {
+  if (!row || typeof row !== 'object') return null;
+  const aid = String(row.id || '').trim();
+  const uri = String(row.uri || '').trim();
+  if (!aid || !uri) return null;
+  return {
+    id: aid,
+    name: String(row.name || 'Untitled').slice(0, 200),
+    kind: ['notebook', 'r', 'shell'].includes(row.kind) ? row.kind : 'notebook',
+    sourceType: row.sourceType === 'file' ? 'file' : 'url',
+    uri: uri.slice(0, 2000),
+    notes: String(row.notes || '').slice(0, 500),
+    sampleTemplateId: row.sampleTemplateId || undefined
+  };
+}
+
+function assetKindLabel(kind) {
+  if (kind === 'notebook') return 'Notebook';
+  if (kind === 'r') return 'R';
+  if (kind === 'shell') return 'Shell';
+  return String(kind || '');
+}
+
+function persistAssets() {
+  localStorage.setItem(storageKey('assets'), JSON.stringify(projectAssets.value));
+}
+
+function addSampleAsset(tpl) {
+  projectAssets.value = [
+    ...projectAssets.value,
+    {
+      id: newAssetId(),
+      name: tpl.name,
+      kind: tpl.kind,
+      sourceType: 'url',
+      uri: tpl.uri,
+      notes: tpl.description,
+      sampleTemplateId: tpl.templateId
+    }
+  ];
+  persistAssets();
+}
+
+function removeAsset(assetId) {
+  projectAssets.value = projectAssets.value.filter(a => a.id !== assetId);
+  if (selectedAssetId.value === assetId) selectedAssetId.value = '';
+  persistAssets();
+}
+
+function addUserAsset() {
+  if (!canAddUserAsset.value) return;
+  const name = (newAssetForm.value.name || '').trim();
+  const uri = (newAssetForm.value.uri || '').trim();
+  projectAssets.value = [
+    ...projectAssets.value,
+    {
+      id: newAssetId(),
+      name,
+      kind: newAssetForm.value.kind,
+      sourceType: newAssetForm.value.sourceType,
+      uri,
+      notes: (newAssetForm.value.notes || '').trim()
+    }
+  ];
+  newAssetForm.value = { name: '', kind: 'notebook', sourceType: 'url', uri: '', notes: '' };
+  persistAssets();
 }
 
 function loadLocalState() {
@@ -675,6 +921,19 @@ function loadLocalState() {
       autoOpenMonitorOnStart: true
     };
   }
+
+  try {
+    const raw = localStorage.getItem(storageKey('assets'));
+    const parsed = raw ? JSON.parse(raw) : [];
+    const list = Array.isArray(parsed) ? parsed.map(sanitizeLoadedAsset).filter(Boolean) : [];
+    projectAssets.value = list;
+    if (selectedAssetId.value && !list.some(a => a.id === selectedAssetId.value)) {
+      selectedAssetId.value = '';
+    }
+  } catch {
+    projectAssets.value = [];
+    selectedAssetId.value = '';
+  }
 }
 
 function persistSelectedStudies() {
@@ -699,6 +958,10 @@ function resetMonitorFilters() {
 
 function selectViewer(viewerId) {
   selectedViewerId.value = viewerId;
+}
+
+function selectAsset(assetId) {
+  selectedAssetId.value = assetId;
 }
 
 function openVisualizeTab() {
@@ -807,7 +1070,12 @@ function openStartAnalysis() {
     return;
   }
   if (!startModal) return;
-  newRun.value = { tool: workspaceSettings.value.defaultTool || 'JupyterLab', name: '' };
+  newRun.value = {
+    tool: workspaceSettings.value.defaultTool || 'JupyterLab',
+    name: '',
+    notebookAssetId: selectedAssetId.value || '',
+    externalJupyterUrl: ''
+  };
   startModal.show();
 }
 
@@ -827,12 +1095,24 @@ function createRun() {
   const fallbackName = `${newRun.value.tool} run`;
   const baseName = customName || fallbackName;
   const name = prefix ? `${prefix}${baseName}` : baseName;
+  const asset = newRun.value.notebookAssetId
+    ? projectAssets.value.find(a => a.id === newRun.value.notebookAssetId)
+    : null;
+  const extUrl = (newRun.value.externalJupyterUrl || '').trim();
+
   const launchPayload = {
     projectId: id.value,
     name,
     tool: newRun.value.tool,
     studyIds: selectedStudies.value.map(s => s.id)
   };
+  if (asset) {
+    launchPayload.notebookAssetId = asset.id;
+    launchPayload.notebookUri = asset.uri;
+    launchPayload.notebookKind = asset.kind;
+    launchPayload.notebookName = asset.name;
+  }
+  if (extUrl) launchPayload.externalJupyterUrl = extUrl;
 
   closeStartAnalysis();
   activeTab.value = workspaceSettings.value.autoOpenMonitorOnStart ? 'monitor' : activeTab.value;
@@ -862,7 +1142,16 @@ async function launchRun(payload) {
     studyIds: payload.studyIds,
     status: 'queued',
     createdAt: new Date().toISOString(),
-    source: 'local'
+    source: 'local',
+    ...(payload.notebookAssetId
+      ? {
+          notebookAssetId: payload.notebookAssetId,
+          notebookUri: payload.notebookUri,
+          notebookKind: payload.notebookKind,
+          notebookName: payload.notebookName
+        }
+      : {}),
+    ...(payload.externalJupyterUrl ? { externalJupyterUrl: payload.externalJupyterUrl } : {})
   };
   runs.value = [run, ...runs.value];
   selectedRunId.value = run.id;
@@ -887,7 +1176,14 @@ async function launchRun(payload) {
 
 function normalizeRunFromApi(apiRun, payload) {
   const idValue = String(apiRun?.id || `${Date.now()}-${Math.random().toString(16).slice(2)}`);
-  return {
+  const nb = {
+    notebookAssetId: apiRun?.notebookAssetId ?? payload?.notebookAssetId,
+    notebookUri: apiRun?.notebookUri ?? payload?.notebookUri,
+    notebookKind: apiRun?.notebookKind ?? payload?.notebookKind,
+    notebookName: apiRun?.notebookName ?? payload?.notebookName,
+    externalJupyterUrl: apiRun?.externalJupyterUrl ?? payload?.externalJupyterUrl
+  };
+  const base = {
     id: idValue,
     projectId: apiRun?.projectId || payload.projectId,
     name: apiRun?.name || payload.name,
@@ -897,6 +1193,13 @@ function normalizeRunFromApi(apiRun, payload) {
     createdAt: apiRun?.createdAt || new Date().toISOString(),
     source: 'api'
   };
+  const extras = {};
+  if (nb.notebookAssetId) extras.notebookAssetId = nb.notebookAssetId;
+  if (nb.notebookUri) extras.notebookUri = nb.notebookUri;
+  if (nb.notebookKind) extras.notebookKind = nb.notebookKind;
+  if (nb.notebookName) extras.notebookName = nb.notebookName;
+  if (nb.externalJupyterUrl) extras.externalJupyterUrl = nb.externalJupyterUrl;
+  return { ...base, ...extras };
 }
 
 function clearRuns() {
