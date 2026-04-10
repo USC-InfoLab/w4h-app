@@ -21,6 +21,7 @@
           <span class="badge text-bg-secondary">Jobs: {{ runs.length }}</span>
           <span class="badge text-bg-secondary">Assets: {{ projectAssets.length }}</span>
           <span v-if="selectedDatasetIds.length" class="badge text-bg-secondary">Datasets: {{ selectedDatasetIds.length }}</span>
+          <span v-if="user?.role" class="badge text-bg-secondary text-capitalize">Role: {{ user.role }}</span>
         </div>
       </div>
 
@@ -33,11 +34,20 @@
           <span v-if="loading" class="spinner-border spinner-border-sm me-1" />
           Refresh
         </button>
+        <button class="btn btn-sm btn-outline-primary" type="button" title="Open Jupyter or IDE URL from settings"
+          @click="openIdeLaunch">
+          <i class="bi bi-box-arrow-up-right me-1" /> Open IDE
+        </button>
         <button class="btn btn-sm btn-primary" type="button" @click="openStartAnalysis"
-          :disabled="selectedStudies.length === 0" title="Select at least one study to start a run">
+          :disabled="selectedStudies.length === 0 || !canRunJobs" :title="startRunButtonTitle">
           <i class="bi bi-play-fill me-1" /> Start run
         </button>
       </div>
+    </div>
+
+    <div v-if="user?.role && !canRunJobs" class="alert alert-warning py-2 small mb-3">
+      Your account role (<span class="text-capitalize">{{ user.role }}</span>) does not include launching analysis jobs.
+      Access is grouped by <strong>role</strong> (admin, researcher, clinician). Contact an administrator if you need access.
     </div>
 
     <ul class="nav nav-tabs">
@@ -220,6 +230,7 @@
                     <tr>
                       <th class="text-center" style="width: 2.25rem" scope="col"><span class="visually-hidden">Select</span></th>
                       <th scope="col">Name</th>
+                      <th scope="col">Description</th>
                       <th scope="col">ID</th>
                       <th scope="col">Study</th>
                     </tr>
@@ -231,6 +242,9 @@
                           :aria-label="`Select dataset ${d.name || d.id}`" @change="toggleDatasetSelection(d.id)" />
                       </td>
                       <td class="text-truncate" style="max-width: 200px">{{ d.name || '—' }}</td>
+                      <td class="small text-muted text-truncate" style="max-width: 220px" :title="d.description || ''">
+                        {{ d.description || '—' }}
+                      </td>
                       <td><code class="small text-break d-block" style="max-width: 12rem">{{ d.id }}</code></td>
                       <td>
                         <span v-if="d.study_id" class="badge text-bg-light">{{ d.study_id }}</span>
@@ -332,11 +346,11 @@
                 </button>
               </div>
 
-              <div class="row g-2 mb-3">
+              <div class="row g-2 mb-2">
                 <div class="col-md-4">
                   <input v-model="monitorSearch" class="form-control form-control-sm" placeholder="Search job name..." />
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-2">
                   <select v-model="monitorStatus" class="form-select form-select-sm">
                     <option value="">All status</option>
                     <option value="queued">Queued</option>
@@ -345,12 +359,20 @@
                     <option value="failed">Failed</option>
                   </select>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-2">
                   <select v-model="monitorTool" class="form-select form-select-sm">
                     <option value="">All tools</option>
                     <option value="JupyterLab">JupyterLab</option>
                     <option value="RStudio">RStudio</option>
                     <option value="Script/Docker">Script/Docker</option>
+                  </select>
+                </div>
+                <div class="col-md-2">
+                  <select v-model="monitorCompute" class="form-select form-select-sm">
+                    <option value="">All compute</option>
+                    <option value="local">Local</option>
+                    <option value="spark">Spark</option>
+                    <option value="databricks">Databricks</option>
                   </select>
                 </div>
                 <div class="col-md-2">
@@ -380,6 +402,7 @@
                       </th>
                       <th>Status</th>
                       <th>Tool</th>
+                      <th>Compute</th>
                       <th>Asset</th>
                       <th>Datasets</th>
                       <th>Studies</th>
@@ -404,6 +427,7 @@
                         </span>
                       </td>
                       <td>{{ r.tool }}</td>
+                      <td class="text-muted small">{{ computeTargetLabel(r.computeTarget) }}</td>
                       <td class="text-muted text-truncate" style="max-width: 140px;"
                         :title="r.notebookName || r.notebookUri || ''">
                         {{ r.notebookName || '—' }}
@@ -459,6 +483,7 @@
                 <div class="small"><strong>Name:</strong> {{ selectedRun.name }}</div>
                 <div class="small"><strong>Status:</strong> {{ selectedRun.status }}</div>
                 <div class="small"><strong>Tool:</strong> {{ selectedRun.tool }}</div>
+                <div class="small"><strong>Compute:</strong> {{ computeTargetLabel(selectedRun.computeTarget) }}</div>
                 <div class="small"><strong>Project:</strong> {{ selectedRun.projectId || id }}</div>
                 <div class="small"><strong>Created:</strong> {{ formatDateTime(selectedRun.createdAt) }}</div>
                 <div class="small mb-2"><strong>Source:</strong> {{ selectedRun.source || 'local' }}</div>
@@ -603,11 +628,29 @@
                 <label class="form-label">Run name prefix (optional)</label>
                 <input v-model="workspaceSettings.runNamePrefix" class="form-control" placeholder="e.g. cohort-" />
               </div>
+              <div class="col-md-6">
+                <label class="form-label">Default compute target</label>
+                <select v-model="workspaceSettings.defaultComputeTarget" class="form-select">
+                  <option value="local">Local</option>
+                  <option value="spark">Apache Spark</option>
+                  <option value="databricks">Databricks</option>
+                </select>
+                <small class="text-muted">Sent on each job payload; execution is wired up by the backend.</small>
+              </div>
               <div class="col-12">
                 <label class="form-label">Default external Jupyter base URL (optional)</label>
                 <input v-model="workspaceSettings.defaultExternalJupyterUrl" class="form-control font-monospace"
                   placeholder="https://your-jupyter.example.org" />
-                <small class="text-muted">Prefills the start-run modal when the environment is Jupyter.</small>
+                <small class="text-muted">Prefills the start-run modal; <strong>Open IDE</strong> uses this URL.</small>
+              </div>
+              <div class="col-12">
+                <label class="form-label">Preferred API key scope (team default)</label>
+                <select v-model="workspaceSettings.apiKeyScope" class="form-select">
+                  <option value="project">Project-scoped API key</option>
+                  <option value="user">User-scoped API key</option>
+                </select>
+                <small class="text-muted">Backend will issue short-lived DB credentials after validating the key; this preference is
+                  stored locally until the API supports it.</small>
               </div>
               <div class="col-12">
                 <div class="form-check">
@@ -619,6 +662,23 @@
                 </div>
               </div>
             </div>
+
+            <hr class="my-4" />
+            <h6 class="text-muted text-uppercase small mb-2">Privacy &amp; metadata (platform direction)</h6>
+            <ul class="small text-muted mb-3">
+              <li>Do not paste identifiable patient data into the wrangler or notebook URLs. This UI stores some workspace state in
+                the browser for prototyping.</li>
+              <li>Production access uses <strong>roles</strong> as permission groups; dataset access is enforced server-side and
+                mapped to database ACLs.</li>
+              <li>Dataset and column documentation will live in <strong>Postgres metadata</strong> (including COMMENTs) and surface
+                through the API.</li>
+            </ul>
+            <div class="alert alert-light border small mb-0">
+              <strong>API → database:</strong> client uses an API key → backend validates → issues <strong>short-lived</strong>
+              credentials → app connects with the Postgres driver. Exact key scope (user vs project) is a backend decision; the
+              preference above matches team discussion.
+            </div>
+
             <small class="text-muted d-block mt-3">
               Stored in this browser for this project until the API persists workspace metadata.
             </small>
@@ -655,6 +715,16 @@
                 <option value="RStudio">R (RStudio)</option>
                 <option value="Script/Docker">Shell script</option>
               </select>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">Compute target</label>
+              <select v-model="newRun.computeTarget" class="form-select">
+                <option value="local">Local</option>
+                <option value="spark">Apache Spark</option>
+                <option value="databricks">Databricks</option>
+              </select>
+              <small class="text-muted">Where heavy processing runs; backend orchestration to be connected.</small>
             </div>
 
             <div class="mb-3">
@@ -721,6 +791,14 @@
                 <option value="Script/Docker">Script/Docker</option>
               </select>
             </div>
+            <div class="mb-2">
+              <label class="form-label">Compute target</label>
+              <select v-model="editRunForm.computeTarget" class="form-select">
+                <option value="local">Local</option>
+                <option value="spark">Apache Spark</option>
+                <option value="databricks">Databricks</option>
+              </select>
+            </div>
             <small class="text-muted">Status and study selection are immutable in this phase.</small>
           </div>
           <div class="modal-footer">
@@ -764,8 +842,15 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { Dropdown, Modal } from 'bootstrap';
 
+import { storeToRefs } from 'pinia';
+import { useUserStore } from '@/stores/user';
 import { api, authHeaders } from '@/utils/api';
 import { APP_NAME } from '@/utils/defs';
+
+const RUN_JOB_ROLES = new Set(['admin', 'researcher', 'clinician']);
+
+const userStore = useUserStore();
+const { user } = storeToRefs(userStore);
 
 const sampleAssetTemplates = [
   {
@@ -825,7 +910,8 @@ const newRun = ref({
   tool: 'JupyterLab',
   name: '',
   notebookAssetId: '',
-  externalJupyterUrl: ''
+  externalJupyterUrl: '',
+  computeTarget: 'local'
 });
 const runs = ref([]);
 const projectAssets = ref([]);
@@ -841,6 +927,7 @@ const selectedRunId = ref('');
 const monitorSearch = ref('');
 const monitorStatus = ref('');
 const monitorTool = ref('');
+const monitorCompute = ref('');
 const runSortBy = ref('createdAt');
 const runSortDir = ref('desc');
 const viewers = ref([
@@ -869,6 +956,9 @@ const workspaceSettings = ref({
   defaultTool: 'JupyterLab',
   runNamePrefix: '',
   defaultExternalJupyterUrl: '',
+  defaultComputeTarget: 'local',
+  /** Preferred API key scope for automation (backend TBD): user-scoped vs project-scoped */
+  apiKeyScope: 'project',
   autoOpenMonitorOnStart: true
 });
 
@@ -903,6 +993,10 @@ const filteredRuns = computed(() => {
   const result = runs.value.filter((r) => {
     if (monitorStatus.value && r.status !== monitorStatus.value) return false;
     if (monitorTool.value && r.tool !== monitorTool.value) return false;
+    if (monitorCompute.value) {
+      const ct = r.computeTarget || 'local';
+      if (ct !== monitorCompute.value) return false;
+    }
     if (q && !String(r.name || '').toLowerCase().includes(q)) return false;
     return true;
   });
@@ -926,6 +1020,7 @@ const selectedRunPayloadPreview = computed(() => {
   if (r.notebookName) payload.notebookName = r.notebookName;
   if (r.externalJupyterUrl) payload.externalJupyterUrl = r.externalJupyterUrl;
   if (Array.isArray(r.datasetIds) && r.datasetIds.length) payload.datasetIds = r.datasetIds;
+  if (r.computeTarget) payload.computeTarget = r.computeTarget;
   return JSON.stringify(payload, null, 2);
 });
 const selectedViewer = computed(() => viewers.value.find(v => v.id === selectedViewerId.value) || null);
@@ -936,11 +1031,41 @@ const selectedVisualizeRun = computed(() =>
   runs.value.find(r => r.id === selectedVisualizeRunId.value) || null
 );
 const editRunTargetId = ref('');
-const editRunForm = ref({ name: '', tool: 'JupyterLab' });
+const editRunForm = ref({ name: '', tool: 'JupyterLab', computeTarget: 'local' });
 const deleteRunTargetId = ref('');
 const deleteRunTarget = computed(() => runs.value.find(r => r.id === deleteRunTargetId.value) || null);
 
 const projectTitle = computed(() => localProjectName.value?.trim() || id.value || 'Project');
+
+const canRunJobs = computed(() => {
+  const r = user.value?.role;
+  if (!r) return true;
+  return RUN_JOB_ROLES.has(r);
+});
+
+const ideLaunchUrl = computed(() => String(workspaceSettings.value.defaultExternalJupyterUrl || '').trim());
+
+const startRunButtonTitle = computed(() => {
+  if (!canRunJobs.value) return 'Your role cannot start analysis jobs';
+  if (selectedStudies.value.length === 0) return 'Select at least one study';
+  return 'Start a new analysis job';
+});
+
+function computeTargetLabel(value) {
+  const v = value || 'local';
+  if (v === 'spark') return 'Spark';
+  if (v === 'databricks') return 'Databricks';
+  return 'Local';
+}
+
+function openIdeLaunch() {
+  const url = ideLaunchUrl.value;
+  if (!url) {
+    openSettingsModal();
+    return;
+  }
+  window.open(url, '_blank', 'noopener,noreferrer');
+}
 
 function storageKey(suffix) {
   return `w4h.project.${id.value}.${suffix}`;
@@ -1057,6 +1182,10 @@ function loadLocalState() {
       defaultTool: parsed.defaultTool || 'JupyterLab',
       runNamePrefix: parsed.runNamePrefix || '',
       defaultExternalJupyterUrl: String(parsed.defaultExternalJupyterUrl || '').trim(),
+      defaultComputeTarget: ['local', 'spark', 'databricks'].includes(parsed.defaultComputeTarget)
+        ? parsed.defaultComputeTarget
+        : 'local',
+      apiKeyScope: parsed.apiKeyScope === 'user' ? 'user' : 'project',
       autoOpenMonitorOnStart: parsed.autoOpenMonitorOnStart !== false
     };
   } catch {
@@ -1064,6 +1193,8 @@ function loadLocalState() {
       defaultTool: 'JupyterLab',
       runNamePrefix: '',
       defaultExternalJupyterUrl: '',
+      defaultComputeTarget: 'local',
+      apiKeyScope: 'project',
       autoOpenMonitorOnStart: true
     };
   }
@@ -1170,6 +1301,7 @@ function resetMonitorFilters() {
   monitorSearch.value = '';
   monitorStatus.value = '';
   monitorTool.value = '';
+  monitorCompute.value = '';
   runSortBy.value = 'createdAt';
   runSortDir.value = 'desc';
 }
@@ -1311,12 +1443,14 @@ function openStartAnalysis() {
     activeTab.value = 'workbench';
     return;
   }
+  if (!canRunJobs.value) return;
   if (!startModal) return;
   newRun.value = {
     tool: workspaceSettings.value.defaultTool || 'JupyterLab',
     name: '',
     notebookAssetId: selectedAssetId.value || '',
-    externalJupyterUrl: String(workspaceSettings.value.defaultExternalJupyterUrl || '').trim()
+    externalJupyterUrl: String(workspaceSettings.value.defaultExternalJupyterUrl || '').trim(),
+    computeTarget: workspaceSettings.value.defaultComputeTarget || 'local'
   };
   startModal.show();
 }
@@ -1328,6 +1462,10 @@ function closeStartAnalysis() {
 function createRun() {
   if (selectedStudies.value.length === 0) {
     activeTab.value = 'workbench';
+    closeStartAnalysis();
+    return;
+  }
+  if (!canRunJobs.value) {
     closeStartAnalysis();
     return;
   }
@@ -1357,6 +1495,8 @@ function createRun() {
   if (extUrl) launchPayload.externalJupyterUrl = extUrl;
   const ds = selectedDatasetIds.value.map(String).filter(Boolean);
   if (ds.length) launchPayload.datasetIds = ds;
+  const ct = newRun.value.computeTarget || 'local';
+  launchPayload.computeTarget = ct;
 
   closeStartAnalysis();
   activeTab.value = workspaceSettings.value.autoOpenMonitorOnStart ? 'jobs' : activeTab.value;
@@ -1396,7 +1536,8 @@ async function launchRun(payload) {
         }
       : {}),
     ...(payload.externalJupyterUrl ? { externalJupyterUrl: payload.externalJupyterUrl } : {}),
-    ...(Array.isArray(payload.datasetIds) && payload.datasetIds.length ? { datasetIds: payload.datasetIds } : {})
+    ...(Array.isArray(payload.datasetIds) && payload.datasetIds.length ? { datasetIds: payload.datasetIds } : {}),
+    ...(payload.computeTarget ? { computeTarget: payload.computeTarget } : { computeTarget: 'local' })
   };
   runs.value = [run, ...runs.value];
   selectedRunId.value = run.id;
@@ -1427,7 +1568,8 @@ function normalizeRunFromApi(apiRun, payload) {
     notebookKind: apiRun?.notebookKind ?? payload?.notebookKind,
     notebookName: apiRun?.notebookName ?? payload?.notebookName,
     externalJupyterUrl: apiRun?.externalJupyterUrl ?? payload?.externalJupyterUrl,
-    datasetIds: apiRun?.datasetIds ?? payload?.datasetIds
+    datasetIds: apiRun?.datasetIds ?? payload?.datasetIds,
+    computeTarget: apiRun?.computeTarget ?? payload?.computeTarget
   };
   const base = {
     id: idValue,
@@ -1446,6 +1588,8 @@ function normalizeRunFromApi(apiRun, payload) {
   if (nb.notebookName) extras.notebookName = nb.notebookName;
   if (nb.externalJupyterUrl) extras.externalJupyterUrl = nb.externalJupyterUrl;
   if (Array.isArray(nb.datasetIds) && nb.datasetIds.length) extras.datasetIds = nb.datasetIds.map(String);
+  const ctv = nb.computeTarget || 'local';
+  extras.computeTarget = ctv;
   return { ...base, ...extras };
 }
 
@@ -1460,7 +1604,8 @@ function openEditRun(run) {
   editRunTargetId.value = run?.id || '';
   editRunForm.value = {
     name: run?.name || '',
-    tool: run?.tool || 'JupyterLab'
+    tool: run?.tool || 'JupyterLab',
+    computeTarget: run?.computeTarget || 'local'
   };
   editRunModal?.show();
 }
@@ -1474,6 +1619,7 @@ async function saveRunEdits() {
   if (!runId) return;
   const nextName = (editRunForm.value.name || '').trim();
   const nextTool = editRunForm.value.tool || 'JupyterLab';
+  const nextCompute = editRunForm.value.computeTarget || 'local';
 
   if (!nextName) return;
 
@@ -1481,7 +1627,7 @@ async function saveRunEdits() {
   try {
     await api.patch(
       `projects/${encodeURIComponent(id.value)}/runs/${encodeURIComponent(runId)}`,
-      { name: nextName, tool: nextTool },
+      { name: nextName, tool: nextTool, computeTarget: nextCompute },
       authHeaders()
     );
   } catch (error) {
@@ -1493,7 +1639,8 @@ async function saveRunEdits() {
     runs.value[idx] = {
       ...runs.value[idx],
       name: nextName,
-      tool: nextTool
+      tool: nextTool,
+      computeTarget: nextCompute
     };
     persistRuns();
   }
@@ -1555,7 +1702,8 @@ async function duplicateRun(run) {
       notebookKind: run.notebookKind,
       notebookName: run.notebookName,
       externalJupyterUrl: run.externalJupyterUrl,
-      datasetIds: Array.isArray(run.datasetIds) ? run.datasetIds : undefined
+      datasetIds: Array.isArray(run.datasetIds) ? run.datasetIds : undefined,
+      computeTarget: run.computeTarget || 'local'
     });
     runs.value = [duplicated, ...runs.value];
     selectedRunId.value = duplicated.id;
@@ -1601,6 +1749,8 @@ function resetSettings() {
     defaultTool: 'JupyterLab',
     runNamePrefix: '',
     defaultExternalJupyterUrl: '',
+    defaultComputeTarget: 'local',
+    apiKeyScope: 'project',
     autoOpenMonitorOnStart: true
   };
   localStorage.removeItem(storageKey('settings'));
