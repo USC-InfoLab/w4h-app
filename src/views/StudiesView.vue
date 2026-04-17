@@ -44,8 +44,12 @@ onMounted(async () => {
   document.title = `${APP_NAME} Projects`;
 
   try {
-    const res = await api.get('datasets/studies', authHeaders());
+    const res = await api.get('projects', authHeaders());
     studies.value = Array.isArray(res.data) ? res.data : [];
+    if (!studies.value.length) {
+      const fallback = await api.get('datasets/studies', authHeaders());
+      studies.value = Array.isArray(fallback.data) ? fallback.data : [];
+    }
   } catch (error) {
     studies.value = [];
     errorMessage.value = error.response?.data?.error || error.message || 'Failed to load projects.';
