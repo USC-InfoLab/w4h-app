@@ -22,8 +22,22 @@
         </div>
 
         <div class="d-flex gap-2">
-          <button class="btn btn-outline-secondary" type="button" @click="openProjectModal">Edit project</button>
-          <button class="btn btn-primary" type="button" @click="openNotebookModal">+ Add notebook</button>
+          <button
+            v-if="capabilities.can_manage"
+            class="btn btn-outline-secondary"
+            type="button"
+            @click="openProjectModal"
+          >
+            Edit project
+          </button>
+          <button
+            v-if="capabilities.can_manage"
+            class="btn btn-primary"
+            type="button"
+            @click="openNotebookModal"
+          >
+            + Add notebook
+          </button>
         </div>
       </div>
     </header>
@@ -66,7 +80,14 @@
               </div>
             </div>
 
-            <button class="btn btn-link px-0" type="button" @click="openNotebookModal">+ Add notebook</button>
+            <button
+              v-if="capabilities.can_manage"
+              class="btn btn-link px-0"
+              type="button"
+              @click="openNotebookModal"
+            >
+              + Add notebook
+            </button>
           </div>
         </section>
 
@@ -74,7 +95,14 @@
           <div class="card-body">
             <div class="d-flex align-items-center justify-content-between mb-2">
               <h6 class="mb-0">Project documentation</h6>
-              <button class="btn btn-sm btn-outline-secondary" type="button" @click="addDoc">+ New page</button>
+              <button
+                v-if="capabilities.can_manage"
+                class="btn btn-sm btn-outline-secondary"
+                type="button"
+                @click="addDoc"
+              >
+                + New page
+              </button>
             </div>
 
             <div v-if="project.docs.length === 0" class="text-muted small">No docs yet.</div>
@@ -107,13 +135,75 @@
 
         <section class="card mb-3">
           <div class="card-body">
-            <h6 class="mb-2">Members</h6>
+            <div class="d-flex align-items-center justify-content-between mb-2">
+              <h6 class="mb-0">Members</h6>
+              <button
+                v-if="capabilities.can_manage"
+                type="button"
+                class="btn btn-sm btn-outline-secondary"
+                @click="openMembersModal"
+              >
+                Manage
+              </button>
+            </div>
             <div v-for="m in project.members" :key="m.id" class="d-flex justify-content-between align-items-center mb-2">
               <div>
                 <div class="fw-semibold">{{ m.name }}</div>
-                <small class="text-muted">{{ m.org }}</small>
+                <small class="text-muted">{{ m.email || m.org }}</small>
               </div>
               <span class="badge text-bg-secondary">{{ m.role }}</span>
+            </div>
+          </div>
+        </section>
+
+        <section v-if="capabilities.can_issue_db_token || capabilities.can_manage" class="card mb-3">
+          <div class="card-body">
+            <h6 class="mb-2">Database access (Python / APIs)</h6>
+            <p class="small text-muted mb-2">
+              Short-lived project tokens avoid putting Postgres passwords in notebooks. Use the token header on
+              <code class="small">GET /projects/:id</code> — see <code class="small">docs/PYTHON_PROJECT_DB_TOKEN.md</code>.
+            </p>
+            <div v-if="lastIssuedToken" class="alert alert-warning small py-2 mb-2">
+              <div class="fw-semibold mb-1">Copy this token now (shown once)</div>
+              <code class="user-select-all d-block text-break">{{ lastIssuedToken }}</code>
+              <button type="button" class="btn btn-sm btn-outline-dark mt-2" @click="copyText(lastIssuedToken)">Copy</button>
+            </div>
+            <div class="d-flex flex-wrap gap-2 mb-3">
+              <button
+                v-if="capabilities.can_issue_db_token"
+                type="button"
+                class="btn btn-sm btn-outline-primary"
+                :disabled="tokenIssuing"
+                @click="issueDbToken"
+              >
+                {{ tokenIssuing ? 'Issuing…' : 'Issue project token' }}
+              </button>
+            </div>
+            <div v-if="capabilities.can_manage && dbTokens.length">
+              <div class="small text-muted mb-1">Active &amp; past tokens</div>
+              <ul class="list-group list-group-flush small">
+                <li
+                  v-for="t in dbTokens"
+                  :key="t.id"
+                  class="list-group-item px-0 d-flex justify-content-between align-items-start gap-2"
+                >
+                  <div>
+                    <div>{{ t.email || t.name || 'User ' + t.user_id }}</div>
+                    <div class="text-muted">
+                      expires {{ formatShortDate(t.expires_at) }}
+                      <span v-if="t.revoked_at"> · revoked</span>
+                    </div>
+                  </div>
+                  <button
+                    v-if="!t.revoked_at"
+                    type="button"
+                    class="btn btn-sm btn-outline-danger"
+                    @click="revokeDbToken(t.id)"
+                  >
+                    Revoke
+                  </button>
+                </li>
+              </ul>
             </div>
           </div>
         </section>
@@ -122,7 +212,14 @@
           <div class="card-body">
             <div class="d-flex align-items-center justify-content-between mb-2">
               <h6 class="mb-0">Datasets</h6>
-              <button class="btn btn-sm btn-outline-secondary" type="button" @click="openProjectModal">Edit links</button>
+              <button
+                v-if="capabilities.can_manage"
+                class="btn btn-sm btn-outline-secondary"
+                type="button"
+                @click="openProjectModal"
+              >
+                Edit links
+              </button>
             </div>
 
             <div v-if="linkedDatasets.length === 0" class="text-muted small">No datasets linked to this project.</div>
@@ -276,6 +373,47 @@
         </div>
       </div>
     </div>
+
+    <div class="modal fade" tabindex="-1" ref="membersModalEl" aria-hidden="true">
+      <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Project members</h5>
+            <button type="button" class="btn-close" @click="closeMembersModal" aria-label="Close" />
+          </div>
+          <div class="modal-body">
+            <p class="small text-muted">
+              At least one <strong>owner</strong> is required. Use account email addresses from your organization.
+            </p>
+            <div v-for="(row, idx) in memberRows" :key="idx" class="row g-2 align-items-end mb-2">
+              <div class="col-md-6">
+                <label class="form-label small mb-0">Email</label>
+                <input v-model="row.email" type="email" class="form-control form-control-sm" placeholder="name@institution.org" />
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small mb-0">Role</label>
+                <select v-model="row.role" class="form-select form-select-sm">
+                  <option value="owner">owner</option>
+                  <option value="admin">admin</option>
+                  <option value="editor">editor</option>
+                  <option value="viewer">viewer</option>
+                </select>
+              </div>
+              <div class="col-md-2">
+                <button type="button" class="btn btn-sm btn-outline-danger w-100" @click="removeMemberRow(idx)">Remove</button>
+              </div>
+            </div>
+            <button type="button" class="btn btn-sm btn-outline-secondary" @click="addMemberRow">+ Add member</button>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" @click="closeMembersModal">Cancel</button>
+            <button type="button" class="btn btn-primary" :disabled="membersSaving" @click="saveMembers">
+              {{ membersSaving ? 'Saving…' : 'Save members' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </main>
 </template>
 
@@ -292,6 +430,21 @@ const router = useRouter();
 
 const id = computed(() => String(route.params.id || ''));
 const availableDatasets = ref([]);
+
+const capabilities = ref({
+  can_manage: false,
+  can_issue_db_token: false,
+  auth_via_project_token: false
+});
+
+const dbTokens = ref([]);
+const lastIssuedToken = ref('');
+const tokenIssuing = ref(false);
+
+const memberRows = ref([]);
+const membersSaving = ref(false);
+const membersModalEl = ref(null);
+let membersModal = null;
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -374,7 +527,7 @@ function seedProject() {
       { id: `${Date.now()}-doc-1`, title: 'Project overview & objectives', slug: 'home', updatedAt: new Date().toISOString() }
     ],
     members: [
-      { id: 'me', name: 'Current User', role: 'owner', org: 'Local workspace' }
+      { id: 'me', name: 'Current User', email: '', role: 'owner', org: 'Local workspace' }
     ],
     organizations: [],
     linkedDatasetIds: [],
@@ -421,6 +574,7 @@ function mapOverviewToProject(overview) {
       ? overview.members.map(m => ({
           id: m.user_id,
           name: m.name || m.email || String(m.user_id),
+          email: m.email || '',
           role: m.role || 'viewer',
           org: m.user_role || ''
         }))
@@ -465,18 +619,44 @@ function loadProjectLocal() {
     const raw = localStorage.getItem(storageKey('hub'));
     const parsed = raw ? JSON.parse(raw) : null;
     project.value = normalizeProject(parsed);
+    capabilities.value = {
+      can_manage: true,
+      can_issue_db_token: true,
+      auth_via_project_token: false
+    };
   } catch {
     project.value = seedProject();
+    capabilities.value = {
+      can_manage: true,
+      can_issue_db_token: true,
+      auth_via_project_token: false
+    };
   }
 }
 
 async function loadProject() {
   try {
     const res = await api.get(`projects/${encodeURIComponent(id.value)}`, authHeaders());
+    const caps = res.data?.capabilities;
+    capabilities.value = {
+      can_manage: Boolean(caps?.can_manage),
+      can_issue_db_token: Boolean(caps?.can_issue_db_token),
+      auth_via_project_token: Boolean(caps?.auth_via_project_token)
+    };
     project.value = mapOverviewToProject(res.data);
     persistProjectLocal();
+    if (capabilities.value.can_manage) {
+      await loadDbTokens();
+    } else {
+      dbTokens.value = [];
+    }
     return;
   } catch {
+    capabilities.value = {
+      can_manage: true,
+      can_issue_db_token: true,
+      auth_via_project_token: false
+    };
     loadProjectLocal();
   }
 }
@@ -558,6 +738,96 @@ function launchNotebook(launcher, notebook) {
   }
 
   if (url) window.open(url, '_blank', 'noopener,noreferrer');
+}
+
+async function loadDbTokens() {
+  if (!isUuid(id.value)) return;
+  try {
+    const res = await api.get(`projects/${encodeURIComponent(id.value)}/db-tokens`, authHeaders());
+    dbTokens.value = Array.isArray(res.data) ? res.data : [];
+  } catch {
+    dbTokens.value = [];
+  }
+}
+
+async function issueDbToken() {
+  if (!isUuid(id.value)) return;
+  tokenIssuing.value = true;
+  lastIssuedToken.value = '';
+  try {
+    const res = await api.post(`projects/${encodeURIComponent(id.value)}/db-token`, { days: 2 }, authHeaders());
+    lastIssuedToken.value = res.data?.token || '';
+    await loadDbTokens();
+  } catch (e) {
+    console.error(e);
+    window.alert(e.response?.data?.error || e.message || 'Could not issue token');
+  } finally {
+    tokenIssuing.value = false;
+  }
+}
+
+async function revokeDbToken(tokenId) {
+  if (!isUuid(id.value) || !tokenId) return;
+  if (!window.confirm('Revoke this token? Jobs using it will lose access.')) return;
+  try {
+    await api.delete(
+      `projects/${encodeURIComponent(id.value)}/db-tokens/${encodeURIComponent(tokenId)}`,
+      authHeaders()
+    );
+    await loadDbTokens();
+  } catch (e) {
+    window.alert(e.response?.data?.error || e.message || 'Revoke failed');
+  }
+}
+
+function copyText(text) {
+  if (!text || !navigator.clipboard) return;
+  navigator.clipboard.writeText(text).catch(() => {});
+}
+
+function openMembersModal() {
+  memberRows.value = (project.value.members || []).map((m) => ({
+    email: m.email || '',
+    role: m.role || 'viewer'
+  }));
+  if (!memberRows.value.length) {
+    memberRows.value.push({ email: '', role: 'viewer' });
+  }
+  membersModal?.show();
+}
+
+function closeMembersModal() {
+  membersModal?.hide();
+}
+
+function addMemberRow() {
+  memberRows.value.push({ email: '', role: 'viewer' });
+}
+
+function removeMemberRow(idx) {
+  memberRows.value.splice(idx, 1);
+}
+
+async function saveMembers() {
+  if (!isUuid(id.value)) return;
+  membersSaving.value = true;
+  try {
+    await api.put(
+      `projects/${encodeURIComponent(id.value)}/members`,
+      {
+        members: memberRows.value
+          .filter((r) => String(r.email || '').trim())
+          .map((r) => ({ email: String(r.email).trim(), role: r.role }))
+      },
+      authHeaders()
+    );
+    await loadProject();
+    closeMembersModal();
+  } catch (e) {
+    window.alert(e.response?.data?.error || e.message || 'Failed to save members');
+  } finally {
+    membersSaving.value = false;
+  }
 }
 
 function openProjectModal() {
@@ -723,6 +993,7 @@ onMounted(async () => {
 
   if (projectModalEl.value) projectModal = new Modal(projectModalEl.value);
   if (notebookModalEl.value) notebookModal = new Modal(notebookModalEl.value);
+  if (membersModalEl.value) membersModal = new Modal(membersModalEl.value);
 });
 </script>
 
