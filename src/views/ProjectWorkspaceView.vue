@@ -214,60 +214,77 @@
             <p class="small text-muted mb-2">
               Optional rules on top of member roles. Empty list means only membership + roles apply.
             </p>
-            <div class="table-responsive acl-editor small mb-2">
-              <table class="table table-sm table-borderless mb-0">
-                <thead>
-                  <tr class="text-muted">
-                    <th>Subject</th>
-                    <th>Key</th>
-                    <th>Resource</th>
-                    <th>Key</th>
-                    <th>Permission</th>
-                    <th>Effect</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="(rule, ridx) in aclRules" :key="ridx">
-                    <td>
-                      <select v-model="rule.subject_type" class="form-select form-select-sm">
-                        <option value="role">role</option>
-                        <option value="user">user</option>
-                      </select>
-                    </td>
-                    <td><input v-model="rule.subject_key" class="form-control form-control-sm" placeholder="viewer" /></td>
-                    <td>
-                      <select v-model="rule.resource_type" class="form-select form-select-sm">
-                        <option value="project">project</option>
-                        <option value="dataset">dataset</option>
-                        <option value="doc">doc</option>
-                        <option value="notebook">notebook</option>
-                        <option value="derived_table">derived_table</option>
-                      </select>
-                    </td>
-                    <td><input v-model="rule.resource_key" class="form-control form-control-sm" placeholder="optional id" /></td>
-                    <td>
-                      <select v-model="rule.permission" class="form-select form-select-sm">
-                        <option value="view">view</option>
-                        <option value="edit">edit</option>
-                        <option value="manage_members">manage_members</option>
-                        <option value="link_dataset">link_dataset</option>
-                        <option value="create_derived">create_derived</option>
-                        <option value="launch_notebook">launch_notebook</option>
-                      </select>
-                    </td>
-                    <td style="min-width: 5rem">
-                      <select v-model="rule.effect" class="form-select form-select-sm">
-                        <option value="allow">allow</option>
-                        <option value="deny">deny</option>
-                      </select>
-                    </td>
-                    <td style="width: 2.5rem">
-                      <button type="button" class="btn btn-sm btn-outline-danger" @click="removeAclRow(ridx)">×</button>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+            <div class="acl-editor small mb-2">
+              <div v-if="aclRules.length === 0" class="text-muted small">No ACL rules yet.</div>
+              <div v-for="(rule, ridx) in aclRules" :key="ridx" class="acl-rule-card border rounded p-2 mb-2">
+                <div class="row g-2">
+                  <div class="col-6 col-md-3">
+                    <label class="form-label small mb-0">Subject</label>
+                    <select
+                      v-model="rule.subject_type"
+                      class="form-select form-select-sm"
+                      @change="normalizeAclRuleSubject(rule)"
+                    >
+                      <option value="role">role</option>
+                      <option value="user">user</option>
+                    </select>
+                  </div>
+                  <div class="col-6 col-md-3">
+                    <label class="form-label small mb-0">Subject key</label>
+                    <select
+                      v-if="rule.subject_type === 'role'"
+                      v-model="rule.subject_key"
+                      class="form-select form-select-sm"
+                    >
+                      <option value="owner">owner</option>
+                      <option value="admin">admin</option>
+                      <option value="editor">editor</option>
+                      <option value="viewer">viewer</option>
+                    </select>
+                    <input
+                      v-else
+                      v-model="rule.subject_key"
+                      class="form-control form-control-sm"
+                      placeholder="user email"
+                    />
+                  </div>
+                  <div class="col-6 col-md-3">
+                    <label class="form-label small mb-0">Resource</label>
+                    <select v-model="rule.resource_type" class="form-select form-select-sm">
+                      <option value="project">project</option>
+                      <option value="dataset">dataset</option>
+                      <option value="doc">doc</option>
+                      <option value="notebook">notebook</option>
+                      <option value="derived_table">derived_table</option>
+                    </select>
+                  </div>
+                  <div class="col-6 col-md-3">
+                    <label class="form-label small mb-0">Resource key</label>
+                    <input v-model="rule.resource_key" class="form-control form-control-sm" placeholder="optional id" />
+                  </div>
+                  <div class="col-6 col-md-4">
+                    <label class="form-label small mb-0">Permission</label>
+                    <select v-model="rule.permission" class="form-select form-select-sm">
+                      <option value="view">view</option>
+                      <option value="edit">edit</option>
+                      <option value="manage_members">manage_members</option>
+                      <option value="link_dataset">link_dataset</option>
+                      <option value="create_derived">create_derived</option>
+                      <option value="launch_notebook">launch_notebook</option>
+                    </select>
+                  </div>
+                  <div class="col-6 col-md-3">
+                    <label class="form-label small mb-0">Effect</label>
+                    <select v-model="rule.effect" class="form-select form-select-sm">
+                      <option value="allow">allow</option>
+                      <option value="deny">deny</option>
+                    </select>
+                  </div>
+                  <div class="col-12 col-md-5 d-flex align-items-end justify-content-end">
+                    <button type="button" class="btn btn-sm btn-outline-danger" @click="removeAclRow(ridx)">Remove</button>
+                  </div>
+                </div>
+              </div>
             </div>
             <div class="d-flex flex-wrap gap-2">
               <button type="button" class="btn btn-sm btn-outline-secondary" @click="addAclRow">+ Rule</button>
@@ -816,6 +833,20 @@ function addAclRow() {
   });
 }
 
+function normalizeAclRuleSubject(rule) {
+  if (!rule || typeof rule !== 'object') return;
+  if (rule.subject_type === 'role') {
+    const allowed = new Set(['owner', 'admin', 'editor', 'viewer']);
+    if (!allowed.has(String(rule.subject_key || ''))) {
+      rule.subject_key = 'viewer';
+    }
+  } else if (rule.subject_type === 'user') {
+    if (['owner', 'admin', 'editor', 'viewer'].includes(String(rule.subject_key || ''))) {
+      rule.subject_key = '';
+    }
+  }
+}
+
 function removeAclRow(idx) {
   aclRules.value.splice(idx, 1);
 }
@@ -949,6 +980,10 @@ onMounted(async () => {
 .acl-editor {
   max-height: 280px;
   overflow: auto;
+}
+
+.acl-rule-card {
+  background: rgba(0, 0, 0, 0.02);
 }
 
 @media (max-width: 1199.98px) {
