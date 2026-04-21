@@ -12,7 +12,10 @@
     <header class="mb-3">
       <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
         <div>
-          <div class="small text-muted">{{ id }}</div>
+          <div class="small text-muted">
+            <span>Slug/route: {{ id }}</span>
+            <span v-if="project.id"> · ID: {{ project.id }}</span>
+          </div>
           <h3 class="mb-1">{{ project.name }}</h3>
           <div class="small text-muted">
             {{ project.status }} · {{ visibilityLabel(project.visibility) }}
@@ -24,14 +27,6 @@
         <div class="d-flex gap-2">
           <button
             v-if="capabilities.can_manage"
-            class="btn btn-outline-secondary"
-            type="button"
-            @click="openProjectModal"
-          >
-            Edit project
-          </button>
-          <button
-            v-if="capabilities.can_manage"
             class="btn btn-primary"
             type="button"
             @click="openNotebookModal"
@@ -41,6 +36,10 @@
         </div>
       </div>
     </header>
+
+    <div v-if="loadError" class="alert alert-danger py-2 small" role="alert">
+      {{ loadError }}
+    </div>
 
     <div class="row g-3">
       <div class="col-12 col-xl-7">
@@ -138,7 +137,7 @@
             <div class="d-flex align-items-center justify-content-between mb-2">
               <h6 class="mb-0">Members</h6>
               <button
-                v-if="capabilities.can_manage"
+                v-if="false"
                 type="button"
                 class="btn btn-sm btn-outline-secondary"
                 @click="openMembersModal"
@@ -160,8 +159,9 @@
           <div class="card-body">
             <h6 class="mb-2">Database access (Python / APIs)</h6>
             <p class="small text-muted mb-2">
-              Short-lived project tokens avoid putting Postgres passwords in notebooks. Use the token header on
-              <code class="small">GET /projects/:id</code> — see <code class="small">docs/PYTHON_PROJECT_DB_TOKEN.md</code>.
+              Issue a temporary access token for this project so scripts and notebooks can access project data
+              without storing your database password.
+              <span class="ms-1"><code class="small">Tokens expire after 2 days.</code></span>
             </p>
             <div v-if="lastIssuedToken" class="alert alert-warning small py-2 mb-2">
               <div class="fw-semibold mb-1">Copy this token now (shown once)</div>
@@ -208,18 +208,80 @@
           </div>
         </section>
 
+        <section v-if="capabilities.can_manage" class="card mb-3">
+          <div class="card-body">
+            <h6 class="mb-2">Fine-grained ACL</h6>
+            <p class="small text-muted mb-2">
+              Optional rules on top of member roles. Empty list means only membership + roles apply.
+            </p>
+            <div class="table-responsive acl-editor small mb-2">
+              <table class="table table-sm table-borderless mb-0">
+                <thead>
+                  <tr class="text-muted">
+                    <th>Subject</th>
+                    <th>Key</th>
+                    <th>Resource</th>
+                    <th>Key</th>
+                    <th>Permission</th>
+                    <th>Effect</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="(rule, ridx) in aclRules" :key="ridx">
+                    <td>
+                      <select v-model="rule.subject_type" class="form-select form-select-sm">
+                        <option value="role">role</option>
+                        <option value="user">user</option>
+                      </select>
+                    </td>
+                    <td><input v-model="rule.subject_key" class="form-control form-control-sm" placeholder="viewer" /></td>
+                    <td>
+                      <select v-model="rule.resource_type" class="form-select form-select-sm">
+                        <option value="project">project</option>
+                        <option value="dataset">dataset</option>
+                        <option value="doc">doc</option>
+                        <option value="notebook">notebook</option>
+                        <option value="derived_table">derived_table</option>
+                      </select>
+                    </td>
+                    <td><input v-model="rule.resource_key" class="form-control form-control-sm" placeholder="optional id" /></td>
+                    <td>
+                      <select v-model="rule.permission" class="form-select form-select-sm">
+                        <option value="view">view</option>
+                        <option value="edit">edit</option>
+                        <option value="manage_members">manage_members</option>
+                        <option value="link_dataset">link_dataset</option>
+                        <option value="create_derived">create_derived</option>
+                        <option value="launch_notebook">launch_notebook</option>
+                      </select>
+                    </td>
+                    <td style="min-width: 5rem">
+                      <select v-model="rule.effect" class="form-select form-select-sm">
+                        <option value="allow">allow</option>
+                        <option value="deny">deny</option>
+                      </select>
+                    </td>
+                    <td style="width: 2.5rem">
+                      <button type="button" class="btn btn-sm btn-outline-danger" @click="removeAclRow(ridx)">×</button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="d-flex flex-wrap gap-2">
+              <button type="button" class="btn btn-sm btn-outline-secondary" @click="addAclRow">+ Rule</button>
+              <button type="button" class="btn btn-sm btn-primary" :disabled="aclSaving" @click="saveAclRules">
+                {{ aclSaving ? 'Saving…' : 'Save ACL rules' }}
+              </button>
+            </div>
+          </div>
+        </section>
+
         <section class="card">
           <div class="card-body">
             <div class="d-flex align-items-center justify-content-between mb-2">
               <h6 class="mb-0">Datasets</h6>
-              <button
-                v-if="capabilities.can_manage"
-                class="btn btn-sm btn-outline-secondary"
-                type="button"
-                @click="openProjectModal"
-              >
-                Edit links
-              </button>
             </div>
 
             <div v-if="linkedDatasets.length === 0" class="text-muted small">No datasets linked to this project.</div>
@@ -232,89 +294,6 @@
           </div>
         </section>
       </aside>
-    </div>
-
-    <div class="modal fade" tabindex="-1" ref="projectModalEl" aria-hidden="true">
-      <div class="modal-dialog modal-lg modal-dialog-scrollable">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title">Project settings</h5>
-            <button type="button" class="btn-close" @click="closeProjectModal" aria-label="Close" />
-          </div>
-          <div class="modal-body">
-            <div class="row g-3">
-              <div class="col-md-6">
-                <label class="form-label">Project name</label>
-                <input v-model="project.name" class="form-control" />
-              </div>
-              <div class="col-md-6">
-                <label class="form-label">Status</label>
-                <select v-model="project.status" class="form-select">
-                  <option value="active">active</option>
-                  <option value="archived">archived</option>
-                </select>
-              </div>
-              <div class="col-12">
-                <label class="form-label">Description</label>
-                <textarea v-model="project.description" class="form-control" rows="2" placeholder="Short summary for collaborators" />
-              </div>
-              <div class="col-md-6">
-                <label class="form-label">IRB protocol</label>
-                <input v-model="project.irbProtocolId" class="form-control" placeholder="IRB-2024-112" />
-              </div>
-              <div class="col-md-6">
-                <label class="form-label">IRB expiry</label>
-                <input v-model="project.irbExpiryDate" type="date" class="form-control" />
-              </div>
-              <div class="col-12">
-                <label class="form-label">Visibility</label>
-                <select v-model="project.visibility" class="form-select">
-                  <option value="org-private">Organization-private</option>
-                  <option value="project-private">Project-private</option>
-                  <option value="internal">Internal</option>
-                </select>
-              </div>
-            </div>
-
-            <hr class="my-3" />
-
-            <h6>Launcher configuration</h6>
-            <div class="row g-3">
-              <div class="col-12">
-                <label class="form-label">Jupyter base URL</label>
-                <input v-model="project.launchers.jupyterBaseUrl" class="form-control font-monospace" placeholder="https://jupyter.example.org" />
-              </div>
-              <div class="col-12">
-                <label class="form-label">RStudio base URL</label>
-                <input v-model="project.launchers.rstudioBaseUrl" class="form-control font-monospace" placeholder="https://rstudio.example.org" />
-              </div>
-              <div class="col-12">
-                <label class="form-label">VSCode URL template</label>
-                <input v-model="project.launchers.vscodeTemplate" class="form-control font-monospace" placeholder="vscode://file/{path}" />
-                <small class="text-muted">Variables: {'{path}'}, {'{repo_url}'}, {'{repo_ref}'}</small>
-              </div>
-            </div>
-
-            <hr class="my-3" />
-
-            <h6>Linked datasets (project-level)</h6>
-            <div v-if="availableDatasets.length === 0" class="text-muted small">No datasets available for your account.</div>
-            <div v-else class="dataset-picker border rounded p-2">
-              <label v-for="d in availableDatasets" :key="d.id" class="d-flex align-items-start gap-2 mb-2 small">
-                <input type="checkbox" class="form-check-input mt-1" :checked="linkedDatasetSet.has(d.id)" @change="toggleDatasetLink(d.id)" />
-                <span>
-                  <strong>{{ d.name || d.id }}</strong>
-                  <span class="text-muted ms-1">{{ d.id }}</span>
-                </span>
-              </label>
-            </div>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-outline-secondary" @click="closeProjectModal">Cancel</button>
-            <button type="button" class="btn btn-primary" @click="saveProject">Save</button>
-          </div>
-        </div>
-      </div>
     </div>
 
     <div class="modal fade" tabindex="-1" ref="notebookModalEl" aria-hidden="true">
@@ -436,6 +415,7 @@ const capabilities = ref({
   can_issue_db_token: false,
   auth_via_project_token: false
 });
+const loadError = ref('');
 
 const dbTokens = ref([]);
 const lastIssuedToken = ref('');
@@ -446,10 +426,15 @@ const membersSaving = ref(false);
 const membersModalEl = ref(null);
 let membersModal = null;
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const aclRules = ref([]);
+const aclSaving = ref(false);
 
-function isUuid(value) {
-  return UUID_RE.test(String(value || ''));
+function requireBackendProject(actionLabel) {
+  if (id.value) return true;
+  window.alert(
+    `${actionLabel} requires a valid project id or slug. Open a project from the Projects list first.`
+  );
+  return false;
 }
 
 const project = ref({
@@ -474,12 +459,9 @@ const project = ref({
 
 const notebookForm = ref(newNotebookForm());
 
-const projectModalEl = ref(null);
 const notebookModalEl = ref(null);
-let projectModal = null;
 let notebookModal = null;
 
-const linkedDatasetSet = computed(() => new Set(project.value.linkedDatasetIds || []));
 const linkedDatasets = computed(() => {
   const lookup = new Map(availableDatasets.value.map(d => [String(d.id), d]));
   return (project.value.linkedDatasetIds || []).map((datasetId) => lookup.get(String(datasetId)) || {
@@ -506,10 +488,6 @@ function newNotebookForm() {
     notebookPath: '',
     launchers: ['jupyter', 'vscode']
   };
-}
-
-function storageKey(suffix) {
-  return `w4h.project.${id.value}.${suffix}`;
 }
 
 function seedProject() {
@@ -610,28 +588,24 @@ function mapOverviewToProject(overview) {
           slug: d.slug || 'home',
           updatedAt: d.updated_at || d.linked_at || new Date().toISOString()
         }))
-      : base.docs
+      : base.docs,
+    launchers: {
+      ...base.launchers,
+      ...(typeof p.launchers === 'object' && p.launchers && !Array.isArray(p.launchers) ? p.launchers : {})
+    }
   });
 }
 
-function loadProjectLocal() {
-  try {
-    const raw = localStorage.getItem(storageKey('hub'));
-    const parsed = raw ? JSON.parse(raw) : null;
-    project.value = normalizeProject(parsed);
-    capabilities.value = {
-      can_manage: true,
-      can_issue_db_token: true,
-      auth_via_project_token: false
-    };
-  } catch {
-    project.value = seedProject();
-    capabilities.value = {
-      can_manage: true,
-      can_issue_db_token: true,
-      auth_via_project_token: false
-    };
-  }
+function syncAclRulesFromOverview(overview) {
+  const rows = Array.isArray(overview?.acl_rules) ? overview.acl_rules : [];
+  aclRules.value = rows.map((r) => ({
+    subject_type: r.subject_type || 'role',
+    subject_key: r.subject_key || '',
+    resource_type: r.resource_type || 'project',
+    resource_key: r.resource_key || '',
+    permission: r.permission || 'view',
+    effect: r.effect || 'allow'
+  }));
 }
 
 async function loadProject() {
@@ -644,25 +618,25 @@ async function loadProject() {
       auth_via_project_token: Boolean(caps?.auth_via_project_token)
     };
     project.value = mapOverviewToProject(res.data);
-    persistProjectLocal();
+    syncAclRulesFromOverview(res.data);
     if (capabilities.value.can_manage) {
       await loadDbTokens();
     } else {
       dbTokens.value = [];
     }
+    loadError.value = '';
     return;
-  } catch {
+  } catch (e) {
+    project.value = seedProject();
+    aclRules.value = [];
+    dbTokens.value = [];
     capabilities.value = {
-      can_manage: true,
-      can_issue_db_token: true,
+      can_manage: false,
+      can_issue_db_token: false,
       auth_via_project_token: false
     };
-    loadProjectLocal();
+    loadError.value = e?.response?.data?.error || e?.message || 'Failed to load project from backend.';
   }
-}
-
-function persistProjectLocal() {
-  localStorage.setItem(storageKey('hub'), JSON.stringify(project.value));
 }
 
 async function loadDatasets() {
@@ -741,7 +715,7 @@ function launchNotebook(launcher, notebook) {
 }
 
 async function loadDbTokens() {
-  if (!isUuid(id.value)) return;
+  if (!id.value) return;
   try {
     const res = await api.get(`projects/${encodeURIComponent(id.value)}/db-tokens`, authHeaders());
     dbTokens.value = Array.isArray(res.data) ? res.data : [];
@@ -751,7 +725,7 @@ async function loadDbTokens() {
 }
 
 async function issueDbToken() {
-  if (!isUuid(id.value)) return;
+  if (!requireBackendProject('Issue project token')) return;
   tokenIssuing.value = true;
   lastIssuedToken.value = '';
   try {
@@ -767,7 +741,8 @@ async function issueDbToken() {
 }
 
 async function revokeDbToken(tokenId) {
-  if (!isUuid(id.value) || !tokenId) return;
+  if (!tokenId) return;
+  if (!requireBackendProject('Revoke token')) return;
   if (!window.confirm('Revoke this token? Jobs using it will lose access.')) return;
   try {
     await api.delete(
@@ -809,7 +784,7 @@ function removeMemberRow(idx) {
 }
 
 async function saveMembers() {
-  if (!isUuid(id.value)) return;
+  if (!requireBackendProject('Save members')) return;
   membersSaving.value = true;
   try {
     await api.put(
@@ -830,12 +805,55 @@ async function saveMembers() {
   }
 }
 
-function openProjectModal() {
-  projectModal?.show();
+function addAclRow() {
+  aclRules.value.push({
+    subject_type: 'role',
+    subject_key: 'viewer',
+    resource_type: 'project',
+    resource_key: '',
+    permission: 'view',
+    effect: 'allow'
+  });
 }
 
-function closeProjectModal() {
-  projectModal?.hide();
+function removeAclRow(idx) {
+  aclRules.value.splice(idx, 1);
+}
+
+async function saveAclRules() {
+  if (!requireBackendProject('Save ACL rules')) return;
+  aclSaving.value = true;
+  try {
+    const res = await api.put(
+      `projects/${encodeURIComponent(id.value)}/acl`,
+      {
+        rules: aclRules.value.map((r) => ({
+          subject_type: r.subject_type,
+          subject_key: String(r.subject_key || '').trim(),
+          resource_type: r.resource_type,
+          resource_key: String(r.resource_key || '').trim() || null,
+          permission: r.permission,
+          effect: r.effect || 'allow'
+        }))
+      },
+      authHeaders()
+    );
+    aclRules.value = Array.isArray(res.data)
+      ? res.data.map((r) => ({
+          subject_type: r.subject_type,
+          subject_key: r.subject_key || '',
+          resource_type: r.resource_type,
+          resource_key: r.resource_key || '',
+          permission: r.permission,
+          effect: r.effect || 'allow'
+        }))
+      : [];
+    await loadProject();
+  } catch (e) {
+    window.alert(e.response?.data?.error || e.message || 'Failed to save ACL rules');
+  } finally {
+    aclSaving.value = false;
+  }
 }
 
 function serializeNotebooksForApi(notebooks) {
@@ -849,71 +867,6 @@ function serializeNotebooksForApi(notebooks) {
     runtime_type: 'jupyter',
     launchers: Array.isArray(n.launchers) && n.launchers.length ? n.launchers : ['jupyter']
   }));
-}
-
-async function saveProject() {
-  persistProjectLocal();
-  if (!isUuid(id.value)) {
-    closeProjectModal();
-    return;
-  }
-
-  const pid = encodeURIComponent(id.value);
-  try {
-    await api.patch(
-      `projects/${pid}`,
-      {
-        name: project.value.name,
-        description: project.value.description === '' ? null : project.value.description,
-        status: project.value.status,
-        visibility: project.value.visibility,
-        irb_protocol_id: project.value.irbProtocolId || null,
-        irb_expiry_date: project.value.irbExpiryDate || null
-      },
-      authHeaders()
-    );
-
-    await api.put(
-      `projects/${pid}/datasets`,
-      {
-        datasets: (project.value.linkedDatasetIds || []).map((dataset_id) => ({
-          dataset_id,
-          access_type: 'read'
-        }))
-      },
-      authHeaders()
-    );
-
-    try {
-      await api.put(
-        `projects/${pid}/docs`,
-        { doc_slugs: (project.value.docs || []).map((d) => d.slug).filter(Boolean) },
-        authHeaders()
-      );
-    } catch (docErr) {
-      console.error(docErr);
-      window.alert(
-        docErr.response?.data?.error ||
-          docErr.message ||
-          'Saved project and datasets. Documentation links could not be synced (each slug must exist in the docs catalog).'
-      );
-    }
-
-    closeProjectModal();
-    await loadProject();
-    persistProjectLocal();
-  } catch (e) {
-    console.error(e);
-    window.alert(e.response?.data?.error || e.message || 'Failed to save project.');
-  }
-}
-
-function toggleDatasetLink(datasetId) {
-  const idValue = String(datasetId || '');
-  const current = new Set(project.value.linkedDatasetIds || []);
-  if (current.has(idValue)) current.delete(idValue);
-  else current.add(idValue);
-  project.value.linkedDatasetIds = Array.from(current);
 }
 
 function openNotebookModal() {
@@ -943,8 +896,8 @@ async function saveNotebook() {
   const previous = project.value.notebooks;
   project.value.notebooks = [entry, ...previous];
 
-  if (!isUuid(id.value)) {
-    persistProjectLocal();
+  if (!id.value) {
+    window.alert('This is not a valid project route. Open a project from the Projects list.');
     closeNotebookModal();
     return;
   }
@@ -955,7 +908,6 @@ async function saveNotebook() {
       { notebooks: serializeNotebooksForApi(project.value.notebooks) },
       authHeaders()
     );
-    persistProjectLocal();
     closeNotebookModal();
     await loadProject();
   } catch (e) {
@@ -966,19 +918,7 @@ async function saveNotebook() {
 }
 
 function addDoc() {
-  const title = window.prompt('Documentation page title');
-  if (!title) return;
-  const slug = `project-${id.value}-${title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')}`;
-  project.value.docs = [
-    {
-      id: `${Date.now()}-doc`,
-      title: title.trim(),
-      slug: slug || 'home',
-      updatedAt: new Date().toISOString()
-    },
-    ...project.value.docs
-  ];
-  persistProjectLocal();
+  router.push({ name: 'docNew' });
 }
 
 onMounted(async () => {
@@ -991,7 +931,6 @@ onMounted(async () => {
   await loadProject();
   await loadDatasets();
 
-  if (projectModalEl.value) projectModal = new Modal(projectModalEl.value);
   if (notebookModalEl.value) notebookModal = new Modal(notebookModalEl.value);
   if (membersModalEl.value) membersModal = new Modal(membersModalEl.value);
 });
@@ -1004,6 +943,11 @@ onMounted(async () => {
 
 .dataset-picker {
   max-height: 260px;
+  overflow: auto;
+}
+
+.acl-editor {
+  max-height: 280px;
   overflow: auto;
 }
 

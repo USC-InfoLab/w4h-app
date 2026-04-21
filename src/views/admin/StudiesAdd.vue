@@ -15,9 +15,9 @@
           <h5 class="card-title mb-3">New Project</h5>
 
           <div class="mb-3">
-            <label class="form-label">Project ID</label>
-            <input v-model.trim="form.id" class="form-control" placeholder="e.g. w4h-core" />
-            <div class="form-text">Unique and immutable identifier.</div>
+            <label class="form-label">Project slug (optional)</label>
+            <input v-model.trim="form.slug" class="form-control" placeholder="e.g. w4h-core" />
+            <div class="form-text">URL-friendly key. Leave blank to auto-generate from name.</div>
           </div>
 
           <div class="mb-3">
@@ -35,7 +35,7 @@
           </div>
 
           <div class="d-flex justify-content-end">
-            <button class="btn btn-primary" :disabled="saving || !form.id || !form.name" @click="onSave">
+            <button class="btn btn-primary" :disabled="saving || !form.name" @click="onSave">
               <span v-if="saving" class="spinner-border spinner-border-sm me-2" />
               Create Project
             </button>
@@ -54,7 +54,7 @@ import { api, authHeaders } from '@/utils/api';
 const router = useRouter();
 
 const form = reactive({
-  id: '',
+  slug: '',
   name: '',
   description: ''
 });
@@ -69,8 +69,8 @@ async function onSave() {
   ok.value = false;
 
   try {
-    await api.post('datasets/studies-admin', {
-      id: form.id,
+    await api.post('projects', {
+      slug: form.slug || undefined,
       name: form.name,
       description: form.description || null
     }, authHeaders());

@@ -26,7 +26,7 @@
         :key="study.id"
         class="list-group-item d-flex justify-content-between align-items-center list-group-item-action"
         role="button"
-        @click="openProject(study.id)"
+        @click="openProject(study.slug || study.id)"
       >
         <span class="text-truncate">{{ study.name || study.id }}</span>
         <span class="badge text-bg-secondary text-truncate" style="max-width: 12rem">{{ study.slug || study.id }}</span>
@@ -79,9 +79,11 @@ import { Modal } from 'bootstrap';
 import { api, authHeaders } from '@/utils/api';
 import { APP_NAME } from '@/utils/defs';
 import { useUserStore } from '@/stores/user';
+import { useUIStore } from '@/stores/ui';
 
 const router = useRouter();
 const userStore = useUserStore();
+const uiStore = useUIStore();
 
 const isLoading = ref(true);
 const errorMessage = ref('');
@@ -93,11 +95,22 @@ let createModal = null;
 const newProject = ref({ name: '', description: '' });
 
 const canCreateProject = computed(() =>
-  ['admin', 'researcher', 'clinician'].includes(userStore.user?.role)
+  userStore.user?.role === 'admin' && uiStore.isAdminUI
 );
 
-function openProject(id) {
-  router.push({ name: 'projectWorkspace', params: { id } });
+function clearLocalProjectDrafts() {
+  const keysToDelete = [];
+  for (let i = 0; i < localStorage.length; i += 1) {
+    const key = localStorage.key(i);
+    if (key && key.startsWith('w4h.project.')) {
+      keysToDelete.push(key);
+    }
+  }
+  keysToDelete.forEach((key) => localStorage.removeItem(key));
+}
+
+function openProject(projectRef) {
+  router.push({ name: 'projectWorkspace', params: { id: projectRef } });
 }
 
 function openCreateModal() {
@@ -122,7 +135,7 @@ async function submitCreateProject() {
       },
       authHeaders()
     );
-    const id = res.data?.id;
+    const id = res.data?.slug || res.data?.id;
     closeCreateModal();
     errorMessage.value = '';
     if (id) {
@@ -140,14 +153,11 @@ async function submitCreateProject() {
 
 onMounted(async () => {
   document.title = `${APP_NAME} Projects`;
+  clearLocalProjectDrafts();
 
   try {
     const res = await api.get('projects', authHeaders());
     studies.value = Array.isArray(res.data) ? res.data : [];
-    if (!studies.value.length) {
-      const fallback = await api.get('datasets/studies', authHeaders());
-      studies.value = Array.isArray(fallback.data) ? fallback.data : [];
-    }
   } catch (error) {
     studies.value = [];
     errorMessage.value = error.response?.data?.error || error.message || 'Failed to load projects.';
