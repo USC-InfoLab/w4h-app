@@ -126,7 +126,15 @@
               <span class="badge text-bg-light">{{ org.short }}</span>
               <div>
                 <div class="fw-semibold">{{ org.name }}</div>
-                <small class="text-muted">{{ org.role }}</small>
+                <a
+                  v-if="orgWebsiteHref(org)"
+                  :href="orgWebsiteHref(org)"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="small text-break d-inline-block"
+                >
+                  {{ orgLinkLabel(org) }}
+                </a>
               </div>
             </div>
           </div>
@@ -575,12 +583,20 @@ function mapOverviewToProject(overview) {
         }))
       : base.members,
     organizations: Array.isArray(overview?.organizations)
-      ? overview.organizations.map((o, idx) => ({
-          id: o.study_id || `study-${idx}`,
-          short: String(o.study_id || '').slice(0, 4).toUpperCase() || 'ORG',
-          name: o.study_name || o.study_id || 'Study',
-          role: 'linked study'
-        }))
+      ? overview.organizations.map((o, idx) => {
+          const link =
+            o.website_url != null && String(o.website_url).trim() !== ''
+              ? String(o.website_url).trim()
+              : o.url != null && String(o.url).trim() !== ''
+                ? String(o.url).trim()
+                : '';
+          return {
+            id: o.id || o.study_id || `study-${idx}`,
+            short: o.short || String(o.study_id || '').slice(0, 4).toUpperCase() || 'ORG',
+            name: o.name || o.study_name || o.study_id || 'Study',
+            url: link
+          };
+        })
       : base.organizations,
     linkedDatasetIds: Array.isArray(overview?.datasets)
       ? overview.datasets.map(d => String(d.dataset_id || d.id || '')).filter(Boolean)
@@ -667,6 +683,25 @@ async function loadDatasets() {
 
 function shortSha(value) {
   return String(value || '').slice(0, 7) || '—';
+}
+
+/** Safe href for optional org website (adds https if scheme omitted). */
+function orgWebsiteHref(org) {
+  const raw = String(org?.url || '').trim();
+  if (!raw) return '';
+  if (/^https?:\/\//i.test(raw)) return raw;
+  return `https://${raw}`;
+}
+
+function orgLinkLabel(org) {
+  const href = orgWebsiteHref(org);
+  if (!href) return '';
+  try {
+    const u = new URL(href);
+    return u.hostname.replace(/^www\./i, '') || href;
+  } catch {
+    return href.length > 56 ? `${href.slice(0, 53)}…` : href;
+  }
 }
 
 function visibilityLabel(value) {

@@ -96,6 +96,41 @@
             </label>
           </div>
 
+          <hr class="my-3" />
+
+          <h6>Collaborating organizations</h6>
+          <p class="small text-muted mb-2">Shown on the user project page under Collaborating organizations.</p>
+          <div v-if="orgRows.length === 0" class="small text-muted mb-2">No organizations added yet.</div>
+          <div v-for="(row, idx) in orgRows" :key="`org-${idx}`" class="row g-2 align-items-end mb-2">
+            <div class="col-2">
+              <label class="form-label small mb-0">Short</label>
+              <input v-model.trim="row.short" class="form-control form-control-sm" placeholder="USC" />
+            </div>
+            <div class="col-4">
+              <label class="form-label small mb-0">Organization</label>
+              <input v-model.trim="row.name" class="form-control form-control-sm" placeholder="University of Southern California" />
+            </div>
+            <div class="col-5">
+              <label class="form-label small mb-0">Website <span class="text-muted fw-normal">(optional)</span></label>
+              <input
+                v-model.trim="row.url"
+                type="text"
+                class="form-control form-control-sm font-monospace"
+                placeholder="https://www.usc.edu"
+                autocomplete="off"
+                inputmode="url"
+              />
+            </div>
+            <div class="col-1">
+              <button type="button" class="btn btn-sm btn-outline-danger w-100" @click="removeOrganization(idx)">-</button>
+            </div>
+          </div>
+          <div class="mb-3">
+            <button type="button" class="btn btn-sm btn-outline-primary" @click="addOrganization">
+              + Add organization
+            </button>
+          </div>
+
           <div class="d-flex justify-content-end">
             <button class="btn btn-primary" :disabled="savingProject || !form.name" @click="saveProject">
               <span v-if="savingProject" class="spinner-border spinner-border-sm me-2" />
@@ -208,6 +243,7 @@ const newMember = reactive({
   email: '',
   role: 'viewer'
 });
+const orgRows = ref([]);
 
 function setMessage(success, text) {
   ok.value = success;
@@ -236,6 +272,18 @@ function mapOverviewToForm(data) {
         user_id: m.user_id,
         email: m.email || '',
         role: m.role || 'viewer'
+      }))
+    : [];
+  orgRows.value = Array.isArray(data?.organizations)
+    ? data.organizations.map((o) => ({
+        short: o.short || '',
+        name: o.name || o.study_name || '',
+        url:
+          o.website_url != null && String(o.website_url).trim() !== ''
+            ? String(o.website_url).trim()
+            : o.url != null
+              ? String(o.url)
+              : ''
       }))
     : [];
 }
@@ -270,7 +318,7 @@ async function saveProject() {
   savingProject.value = true;
   setMessage(false, '');
   try {
-    await api.patch(
+    const patchRes = await api.patch(
       `projects/${encodeURIComponent(form.id)}`,
       {
         name: form.name,
@@ -283,10 +331,29 @@ async function saveProject() {
           jupyterBaseUrl: form.launchers.jupyterBaseUrl || '',
           rstudioBaseUrl: form.launchers.rstudioBaseUrl || '',
           vscodeTemplate: form.launchers.vscodeTemplate || 'vscode://file/{path}'
-        }
+        },
+        organizations: (orgRows.value || [])
+          .map((o) => ({
+            short: String(o?.short || '').trim() || null,
+            name: String(o?.name || '').trim(),
+            website_url: String(o?.url || '').trim() || null
+          }))
+          .filter((o) => o.name)
       },
       authHeaders()
     );
+    if (Array.isArray(patchRes.data?.organizations)) {
+      orgRows.value = patchRes.data.organizations.map((o) => ({
+        short: o.short || '',
+        name: o.name || '',
+        url:
+          o.website_url != null && String(o.website_url).trim() !== ''
+            ? String(o.website_url).trim()
+            : o.url != null
+              ? String(o.url)
+              : ''
+      }));
+    }
     await api.put(
       `projects/${encodeURIComponent(form.id)}/datasets`,
       {
@@ -371,5 +438,13 @@ async function deleteMember(row) {
   } finally {
     savingMembers.value = false;
   }
+}
+
+function addOrganization() {
+  orgRows.value.push({ short: '', name: '', url: '' });
+}
+
+function removeOrganization(index) {
+  orgRows.value.splice(index, 1);
 }
 </script>
