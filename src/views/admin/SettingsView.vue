@@ -51,7 +51,7 @@
                 Connection</button>
               <button class="btn btn-outline-primary" :disabled="backingUpDocs" type="button" @click="backupDocs">
                 <span v-if="backingUpDocs" class="spinner-border spinner-border-sm me-1" />
-                Backup Docs
+                Export docs (Markdown ZIP)
               </button>
             </div>
             <div v-if="message"
@@ -231,28 +231,33 @@ async function testDatabase() {
 async function backupDocs() {
   backingUpDocs.value = true;
   try {
-    const res = await api.get('config/docs-backup', authHeaders());
+    const res = await api.get('docs/export/markdown.zip', {
+      ...authHeaders(),
+      responseType: 'blob'
+    });
 
-    if (res.data?.saved) {
-      setMessage(`Docs backup saved to ${res.data.saved}`, 'success');
-    } else {
-      const filename = res.data?.filename;
-      const sql = res.data?.sql;
-      if (!filename || !sql) throw new Error('Invalid backup response');
-
-      const blob = new Blob([sql], { type: 'application/sql;charset=utf-8' });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-      setMessage('Docs backup downloaded successfully.', 'success');
-    }
+    const blob = res.data instanceof Blob ? res.data : new Blob([res.data], { type: 'application/zip' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'w4h-docs-markdown.zip';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+    setMessage('Markdown export downloaded successfully.', 'success');
   } catch (error) {
-    setMessage(error.response?.data?.error || error.message || 'Failed to download docs backup', 'error');
+    let msg = error.response?.data?.error || error.message || 'Failed to export docs';
+    if (error.response?.data instanceof Blob) {
+      try {
+        const text = await error.response.data.text();
+        const parsed = JSON.parse(text);
+        msg = parsed.error || msg;
+      } catch {
+        /* keep msg */
+      }
+    }
+    setMessage(msg, 'error');
   } finally {
     backingUpDocs.value = false;
   }
