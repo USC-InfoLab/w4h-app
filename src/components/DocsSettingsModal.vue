@@ -16,14 +16,6 @@
             </div>
           </div>
 
-          <!-- Title -->
-          <!-- <div class="mb-3 row align-items-center">
-            <label class="col-sm-3 text-end fw-bold">Title</label>
-            <div class="col-sm-9">
-              <input type="text" v-model="doc.title" class="form-control form-control-sm" />
-            </div>
-          </div> -->
-
           <!-- Card Title -->
           <div class="mb-3 row align-items-center">
             <label class="col-sm-3 text-end fw-bold">Card Title</label>
@@ -116,16 +108,12 @@ const DOC_TYPES = ['', 'guide', 'tutorial', 'reference', 'faq', 'internal', 'oth
 
 function capitalizeType(type) {
   if (type === '') {
-    return 'None'; // This will be the label for the '' value
+    return 'None';
   }
   return type.charAt(0).toUpperCase() + type.slice(1);
 }
 
-const props = defineProps({
-  doc: { type: Object, required: true }
-});
-
-// const emit = defineEmits(['delete']);
+const doc = defineModel('doc', { type: Object, required: true });
 </script>
 
 <style>

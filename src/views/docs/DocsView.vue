@@ -4,9 +4,15 @@
       <aside v-if="!hideSidebar" ref="leftPane" class="docs-sidebar border-end">
         <div class="position-sticky" style="top: 1rem;">
 
-          <button v-if="isAdminUI" class="btn btn-primary btn-sm" @click="goToNewDoc" :disabled="editMode">
-            <i class="bi bi-plus-lg"></i> New Doc
-          </button>
+          <div v-if="isAdminUI" class="d-flex flex-column gap-1">
+            <button class="btn btn-primary btn-sm" @click="goToNewDoc" :disabled="editMode">
+              <i class="bi bi-plus-lg"></i> New Doc
+            </button>
+            <button type="button" class="btn btn-outline-secondary btn-sm" :disabled="editMode"
+              @click="downloadMarkdownZip">
+              <i class="bi bi-file-earmark-zip"></i> Export Markdown
+            </button>
+          </div>
 
           <div v-if="isAdminUI" class="py-1 px-2 border-bottom my-0">
           </div>
@@ -63,7 +69,7 @@
                         <li v-for="item in doc.toc" :key="item.id"
                           :style="{ marginLeft: 0.5 + (item.level - 2) * 0.5 + 'rem' }">
                           <router-link
-                            :to="{ name: 'docs', params: { slug: doc.slug }, hash: '#' + normalizeId(item.title) }"
+                            :to="{ name: 'docs', params: { slug: doc.slug }, hash: '#' + (item.id || docsHeadingHashId(item.title)) }"
                             custom v-slot="{ navigate, href }">
                             <a :href="href" @click.prevent="!editMode && navigate()"
                               class="text-decoration-none d-block toc-link" :class="{ 'is-disabled': editMode }">
@@ -129,12 +135,17 @@
 <script setup>
 import { ref, watch, onMounted, computed, onBeforeUnmount, nextTick } from 'vue';
 import Split from 'split.js';
+import mermaid from 'mermaid';
 import { api, authHeaders } from '@/utils/api';
 import { APP_NAME } from '@/utils/defs';
 import { stripHTML } from '../../utils/toc';
+import { docsHeadingHashId } from '@/utils/docsHeadingId';
 
 import DocsDeleteDocModal from '@/components/DocsDeleteDocModal.vue';
 import DocsSearch from '@/components/DocsSearch.vue';
+
+mermaid.initialize({ startOnLoad: false, theme: 'default' });
+
 const showDeleteModal = ref(false);
 const docToDelete = ref(null);
 
@@ -233,14 +244,36 @@ function goToNewDoc() {
   router.push({ name: 'docNew' });
 }
 
-function normalizeId(str) {
-  return str
-    .normalize('NFKD')
-    .replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu, '') // remove emojis
-    .replace(/[^\w\s-]/g, '')        // remove punctuation
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, '-');           // spaces → dash
+async function downloadMarkdownZip() {
+  try {
+    const res = await api.get('/docs/export/markdown-zip', {
+      ...authHeaders(),
+      responseType: 'blob',
+    });
+    const url = URL.createObjectURL(res.data);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'w4h-docs-markdown.zip';
+    a.rel = 'noopener';
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch (e) {
+    console.error('Export markdown zip failed', e);
+  }
+}
+
+async function refreshMermaidInPreview() {
+  if (editMode.value || props.isNewDoc) return;
+  await nextTick();
+  const container = document.querySelector('.md-preview');
+  if (!container) return;
+  const nodes = [...container.querySelectorAll('.mermaid')].filter((el) => !el.querySelector('svg'));
+  if (!nodes.length) return;
+  try {
+    await mermaid.run({ nodes });
+  } catch (e) {
+    console.warn('Mermaid render in docs preview', e);
+  }
 }
 
 const groupedDocs = computed(() => {
@@ -298,8 +331,9 @@ async function selectdoc(doc) {
 
   await nextTick();
 
-  setupCopyButtons();
+  ensureCopyButtonsListener();
   initSplitIfNeeded();
+  await refreshMermaidInPreview();
 
   if (route.hash) {
     const el = document.querySelector(route.hash);
@@ -384,25 +418,29 @@ function handleResize() {
   initSplitIfNeeded();
 }
 
-function setupCopyButtons() {
-  // ⚠️ Ensure the selector here matches the `MdDocsEditable` component's output.
-  // Assuming the structure is `<div class="code-block"><button class="copy-btn">...</button>...</div>`
-  document.body.addEventListener("click", async (e) => {
-    if (e.target.closest(".copy-btn")) {
-      const btn = e.target.closest(".copy-btn");
-      // Use the raw code data attribute which is set in MdDocsEditable
-      const code = decodeURIComponent(btn.getAttribute("data-code"));
-      try {
-        await navigator.clipboard.writeText(code);
-        btn.innerHTML = '<i class="bi bi-check"></i>'; // success icon
-        setTimeout(() => {
-          btn.innerHTML = '<i class="bi bi-files"></i>';
-        }, 2000);
-      } catch (err) {
-        console.error("Copy failed", err);
-      }
-    }
-  });
+let copyButtonsListenerRegistered = false;
+
+async function onDocsCopyButtonClick(e) {
+  const btn = e.target.closest('.copy-btn');
+  if (!btn || !btn.closest('.md-preview')) return;
+  const raw = btn.getAttribute('data-code');
+  if (raw == null) return;
+  const code = decodeURIComponent(raw);
+  try {
+    await navigator.clipboard.writeText(code);
+    btn.innerHTML = '<i class="bi bi-check"></i>';
+    setTimeout(() => {
+      btn.innerHTML = '<i class="bi bi-files"></i>';
+    }, 2000);
+  } catch (err) {
+    console.error('Copy failed', err);
+  }
+}
+
+function ensureCopyButtonsListener() {
+  if (copyButtonsListenerRegistered) return;
+  document.body.addEventListener('click', onDocsCopyButtonClick);
+  copyButtonsListenerRegistered = true;
 }
 
 async function handleSlug(slug) {
@@ -454,12 +492,11 @@ async function handleSlug(slug) {
   }
 }
 
-// Toggle enlarge on click for injected HTML images
-document.addEventListener('click', (e) => {
+function onMdPreviewMediaClick(e) {
   const media = e.target.closest('.md-preview img, .md-preview video');
   if (!media) return;
   media.classList.toggle('enlarged');
-});
+}
 
 const showBackToTop = ref(true);
 
@@ -491,8 +528,17 @@ onMounted(async () => {
 
   initSplitIfNeeded();
   window.addEventListener('resize', handleResize);
+  document.addEventListener('click', onMdPreviewMediaClick);
   watch(() => route.params.slug, handleSlug);
 });
+
+watch(
+  () => [selecteddoc.value?.html, editMode.value, props.isNewDoc],
+  async () => {
+    await refreshMermaidInPreview();
+  },
+  { flush: 'post' }
+);
 
 watch(
   () => route.hash,
@@ -508,6 +554,11 @@ watch(
 
 onBeforeUnmount(() => {
   window.removeEventListener('resize', handleResize);
+  document.removeEventListener('click', onMdPreviewMediaClick);
+  if (copyButtonsListenerRegistered) {
+    document.body.removeEventListener('click', onDocsCopyButtonClick);
+    copyButtonsListenerRegistered = false;
+  }
   if (splitInstance && splitInstance.destroy) {
     try { splitInstance.destroy(); } catch { /* ignore */ }
     splitInstance = null;

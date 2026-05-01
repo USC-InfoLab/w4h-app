@@ -48,7 +48,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, watch } from 'vue';
+import { ref, onMounted, watch } from 'vue';
 import { api, authHeaders } from '../utils/api'; // your existing API helper
 import { useRouter } from 'vue-router'; // Assuming you need this for the button
 
@@ -83,7 +83,8 @@ function cleanSnippet(text) {
     .replace(/\[([^\]]+)\]\([^)\s]*/g, '$1')
     
     // 4. Remove any stray brackets [ or ] left over
-    .replace(/[\[\]]/g, '')
+    .replace(/\[/g, '')
+    .replace(/\]/g, '')
     
     // 5. Remove structural MD (#, ##, **, _, `) but keep <b> tags
     // This lookahead ensures we don't accidentally match the 'b' in <b>
@@ -99,10 +100,6 @@ const searchTerm = ref('');
 const allDocs = ref([]);       // Full list from backend
 const filteredDocs = ref([]);  // List shown in search results
 const isSearching = ref(false);
-
-// --- Existing form state (omitted for brevity) ---
-const form = reactive({ /* ... */ });
-const showForm = ref(false);
 
 // --- API Search Function ---
 // This is the core logic that makes the API call.
@@ -219,7 +216,8 @@ onMounted(() => {
 //   if (!type) return '';
 //   return type.charAt(0).toUpperCase() + type.slice(1);
 // }
-// </script>
+
+</script>
 
 <style scoped>
 /* Target the <b> tags inside the snippet to highlight matches */

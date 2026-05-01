@@ -58,11 +58,22 @@ import Shiki from '@shikijs/markdown-it';
 import { Modal } from 'bootstrap';
 import { onBeforeRouteLeave } from 'vue-router';
 import { api, authHeaders } from '@/utils/api';
-import { generateTOC } from '../utils/toc';
 import mermaid from 'mermaid';
+import { docsHeadingHashId } from '@/utils/docsHeadingId';
 
 // Initialize Mermaid
 mermaid.initialize({ startOnLoad: false, theme: 'default' });
+
+function extractTocFromHtml(root) {
+  const toc = [];
+  root.querySelectorAll('h1, h2, h3, h4, h5, h6').forEach((h) => {
+    if (!h.id) return;
+    const depth = parseInt(h.tagName[1], 10);
+    const title = (h.textContent || '').replace(/\s+/g, ' ').trim();
+    toc.push({ id: h.id, level: depth + 1, title });
+  });
+  return toc;
+}
 
 const router = useRouter(); // Added
 
@@ -167,7 +178,7 @@ const handleEditorSave = async (markdown) => {
   }
 
   doc.value.html = tmp.innerHTML;
-  doc.value.toc = generateTOC(markdown);
+  doc.value.toc = extractTocFromHtml(tmp);
   doc.value.md = markdown;
 
   try {
@@ -289,7 +300,7 @@ onMounted(async () => {
       defaultLanguage: 'plaintext',
     }))
     .use(markdownItAttrs)
-    .use(markdownItAnchor, { slugify })
+    .use(markdownItAnchor, { slugify: docsHeadingHashId })
     .use(MarkdownItTaskLists, { enabled: true, label: true, labelAfter: true, disabled: false });
 
   // Keep original fence for logic

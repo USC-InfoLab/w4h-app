@@ -1,4 +1,5 @@
 import MarkdownIt from "markdown-it";
+import { docsHeadingHashId } from "./docsHeadingId.js";
 
 export function stripHTML(html) {
   if (!html) return '';
@@ -8,16 +9,31 @@ export function stripHTML(html) {
 }
 
 /**
- * A basic slugify function to match markdown-it-anchor's default behavior.
- * @param {string} title The heading title to slugify.
- * @returns {string} The slugified string.
+ * @param {string} base
+ * @param {Set<string>} used
  */
-function slugify(title) {
+function uniqueHeadingId(base, used) {
+  let id = base && base.length ? base : 'section';
+  let n = 0;
+  while (used.has(id)) {
+    n += 1;
+    id = `${base || 'section'}-${n}`;
+  }
+  used.add(id);
+  return id;
+}
+
+/**
+ * A basic slugify (legacy) for generateTOC2 parity with markdown-it default-style anchors.
+ * @param {string} title
+ * @returns {string}
+ */
+function slugifyLegacy(title) {
   return title
     .toLowerCase()
-    .replace(/[^\w\s-]/g, '') // Remove non-word chars except spaces and hyphens
-    .replace(/\s+/g, '-') // Replace spaces with hyphens
-    .replace(/^-+|-+$/g, ''); // Trim leading/trailing hyphens
+    .replace(/[^\w\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/^-+|-+$/g, '');
 }
 
 /**
@@ -37,9 +53,8 @@ export function generateTOC2(markdown) {
 
       if (inlineToken) {
         const title = stripHTML(inlineToken.content);
-        let slug = slugify(title);
+        let slug = slugifyLegacy(title);
 
-        // Handle duplicate slugs by appending a number
         let count = 0;
         let originalSlug = slug;
         while (renderedHeadings[slug]) {
@@ -56,8 +71,14 @@ export function generateTOC2(markdown) {
   return toc;
 }
 
+/**
+ * TOC from markdown (no full anchor render). Uses docsHeadingHashId + duplicate suffixes
+ * aligned with markdown-it-anchor for typical headings. Used for static card blurbs;
+ * for saved docs, the editor/API derive TOC from rendered HTML when possible.
+ */
 export function generateTOC(markdown) {
   const toc = [];
+  const used = new Set();
   const md = new MarkdownIt({ html: true, breaks: true });
 
   md.renderer.rules.heading_open = (tokens, idx, options, env, self) => {
@@ -65,12 +86,14 @@ export function generateTOC(markdown) {
     const level = Number(token.tag.slice(1));
 
     const inlineToken = tokens[idx + 1];
-    const headingTitle = inlineToken && inlineToken.type === "inline"
-      ? stripHTML(inlineToken.content)
-      : '';
+    const headingTitle =
+      inlineToken && inlineToken.type === "inline"
+        ? stripHTML(inlineToken.content)
+        : '';
 
-    const id = `${headingTitle.toLowerCase().replace(/[^\w]+/g, "-")}`;
-    toc.push({ id: id, level: level + 1, title: headingTitle });
+    const base = docsHeadingHashId(headingTitle);
+    const id = uniqueHeadingId(base, used);
+    toc.push({ id, level: level + 1, title: headingTitle });
     token.attrSet('id', id);
 
     return self.renderToken(tokens, idx, options);
