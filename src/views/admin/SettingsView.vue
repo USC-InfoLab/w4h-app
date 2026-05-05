@@ -153,6 +153,8 @@ const mailer = ref({ host: '', port: '587', secure: false, user: '', password: '
 
 let messageTimer = null;
 
+const W4H_DOCS_EXPORT_FILENAME = 'w4h-docs.zip';
+
 function setMessage(text, type = 'success') {
   message.value = text;
   messageType.value = type;
@@ -231,7 +233,7 @@ async function testDatabase() {
 async function backupDocs() {
   backingUpDocs.value = true;
   try {
-    const res = await api.get('docs/export/markdown.zip', {
+    const res = await api.get('docs/export', {
       ...authHeaders(),
       responseType: 'blob'
     });
@@ -240,7 +242,7 @@ async function backupDocs() {
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = 'w4h-docs-markdown.zip';
+    link.download = W4H_DOCS_EXPORT_FILENAME;
     document.body.appendChild(link);
     link.click();
     link.remove();

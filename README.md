@@ -1,118 +1,106 @@
 # W4H Web App: Wearables for Health Toolkit
 
-The [Wearables for Health (W4H) Toolkit](https://infolab.usc.edu/projects/W4H/) is a suite of open-source tools for managing, analyzing, and visualizing wearable data used in health applications. This repository provides the **W4H Web App**, the primary interface for setting up the toolkit and managing workflows.
+The [Wearables for Health (W4H) Toolkit](https://infolab.usc.edu/projects/W4H/) is an open-source suite for managing, analyzing, and visualizing wearable data. This repository contains the **W4H Web App**, the primary interface for toolkit configuration and workflow management.
 
 ---
 
-## 🚀 Quick Start (Docker)
+## 🚀 Quick Start
 
-The fastest way to install the W4H Toolkit is using the W4H Docker component.
+At this stage, the W4H toolkit is available as a development package.
 
 ### 1. Prerequisites
 
 Ensure you have the following installed:
 
-- **Docker:** [Docker Desktop](https://www.docker.com/products/docker-desktop/)
-- **PostgreSQL:** [Postgres Docker Image](https://hub.docker.com/_/postgres) or [Postgres.app](https://postgresapp.com/) (Mac)
-- **Management:** [pgAdmin](https://www.pgadmin.org/) is recommended for managing the instance.
+- **PostgreSQL:** [Postgres Docker Image](https://hub.docker.com/_/postgres) or [Postgres.app](https://postgresapp.com/) (Mac).
+- **Management Tools:** [pgAdmin](https://www.pgadmin.org/) is recommended for database management.
 
 ### 2. Configure PostgreSQL
 
-Start your `Postgres.app` server or Docker container and verify the installation:
+Start your PostgreSQL server/container and verify the installation:
 
 - Run `pg_config --version` to verify.
-- Verify the connection with **pgAdmin** and note the configuration that you will need to provide in step 3:
-  - **Host**
-  - **Port**
+- Using **pgAdmin**, confirm your connection details (needed for Step 3):
+  - **Host / Port**
   - **Maintenance Database**
-  - **User/Password**
-
-### 3. Run the Container
-
-Pull the image from DockerHub and run the application:
-
-```bash
-# Pull the image
-docker pull uscimsc/w4h:icde-demo
-
-# Run the container (Access via port 8501)
-docker run -dp 8501:8501 uscimsc/w4h:icde-demo
-```
-
-Connect to the [W4H Web App](http://localhost:5173) and follow the on-screen prompts to connect to your Postgres instance. Once configured, you can manage users, import data, and run analytics through the W4H Web App.
+  - **User / Password**
 
 ---
 
 ## 🛠️ Local Development Setup
 
-This project is built with **Vue 3** and **Vite**.
+The App is built with **Vue 3** and **Vite**.
 
 ### Recommended IDE Setup
 
 - **Editor:** [VS Code](https://code.visualstudio.com/) + [Vue - Official](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (disable Vetur).
-- **Browser Tools:** Install [Vue.js devtools](https://chromewebstore.google.com/detail/vuejs-devtools/nhdogjmejiglipccpnnnanhbledajbpd) and [enable Custom Object Formatters](http://bit.ly/object-formatters).
+- **Browser Tools:** [Vue.js devtools](https://chromewebstore.google.com/detail/vuejs-devtools/nhdogjmejiglipccpnnnanhbledajbpd).
 
-### Project Scripts
+### Running the Application
 
-````bash
-# Install dependencies
-npm install
+1. **Start the Backend**: Follow the steps in the [w4h-api](https://github.com/USC-InfoLab/w4h-api) repository.
+2. **Start the Web App**: Execute the commands listed in the section below.
 
-# Create .env from .env.example and configure
-cp .env.example .env
-# To avoid re-entering credentials set VITE_APP_ADMIN_EMAIL, VITE_APP_ADMIN_PASSWORD
+### Database Initialization
 
-# Compile and Hot-Reload for development
-npm run dev
+If the database is not yet configured, the app will launch an **initialization wizard** on the first run. You will be prompted to enter your database credentials, after which the app will create the W4H database schema automatically.
 
-# Compile and minify for production
-npm run build
+**Development Note:** To re-trigger the setup wizard, edit the `.env` in `w4h-api` and remove the database configuration properties.
 
-# Lint and fix files
-npm run lint
+---
+
+## 💻 Commands
+
+### Development
+
+```bash
+npm install                     # Install dependencies
+cp .env.example .env            # Create local environment file
+npm run dev                     # Compile and Hot-Reload
+```
+
+_Note: To skip manual login, set `VITE_APP_ADMIN_EMAIL` and `VITE_APP_ADMIN_PASSWORD` in `.env`._
+
+### Build & Lint
+
+```bash
+npm run build                   # Compile and minify for production
+npm run lint                    # Find and fix code style issues
+```
 
 ### End-to-End Testing (Playwright)
 
-To ensure stability across different browsers, use the following commands:
-
 ```bash
-# Install browser binaries (first run only)
-npx playwright install
+npx playwright install          # Install browsers (first run only)
+npm run build                   # Required before running CI tests
+npm run test:e2e                # Run all tests
+npm run test:e2e -- --debug     # Run tests in headed/debug mode
+```
 
-# When testing on CI, must build the project first
-npm run build
+## 🚢 Deployment
 
-# Run all end-to-end tests
-npm run test:e2e
+To deploy the W4H Web App to a production environment:
 
-# Run tests only on Chromium
-npm run test:e2e -- --project=chromium
+1. **Build the Project:** Run `npm run build` to generate a static `/dist` folder.
+2. **Web Server:** Deploy the contents of the `/dist` folder to a production-grade web server (e.g., Nginx, Apache) or a static hosting service (e.g., AWS S3 + CloudFront, Vercel).
+3. **Environment Variables:** Ensure production environment variables are configured in your hosting provider to point to the production **W4H API** endpoint.
+4. **HTTPS:** Production deployments **must** be served over HTTPS to ensure data in transit is encrypted.
 
-# Run tests for a specific file
-npm run test:e2e -- tests/example.spec.ts
+---
 
-# Run tests in debug mode (headed mode)
-npm run test:e2e -- --debug
+## 🔒 HIPAA Compliance & Security
 
+The W4H Toolkit is engineered to facilitate HIPAA compliance with minimal external configuration.
 
-#### Linting
+- **Integrated Audit Logging:** The `w4h-api` automatically records all data access and system events into a dedicated audit table within the W4H database.
+- **Admin Reporting:** Access logs can be viewed and managed directly through the **Admin Dashboard** in the Web App, eliminating the need for external logging services like CloudWatch.
+- **Encryption:** The toolkit is designed to communicate securely with PostgreSQL. Administrators must ensure the PostgreSQL instance is configured for **Encryption at Rest** and that the Web App is served over **HTTPS**.
+- **HIPAA-Eligible Hosting:** To maintain compliance, the application must be deployed on HIPAA-eligible infrastructure (e.g., AWS, GCP, or Azure) under a signed Business Associate Agreement (BAA).
+- **Access Control:** User management is built-in to enforce the Principle of Least Privilege (PoLP), ensuring users only access the data necessary for their role.
 
-To maintain code quality and follow the project's style guidelines:
-
-```bash
-# Run ESLint to find and fix code style issues
-npm run lint
-````
+---
 
 ## 🔗 Resources
 
-- **Official Project Website:** [W4H Project Page](https://infolab.usc.edu/projects/W4H/)
-- **Vite Configuration:** [Vite Configuration Reference](https://vite.dev/config/)
-- **Vue 3 Documentation:** [vuejs.org](https://vuejs.org/)
-- **Official Project Website:** [W4H Project Page](https://infolab.usc.edu/projects/W4H/)
-
-- **Vite Configuration:** [Vite Configuration Reference](https://vite.dev/config/)
-- **Vue 3 Documentation:** [vuejs.org](https://vuejs.org/)
-- **Playwright Docs:** [playwright.dev](https://playwright.dev/)
-
----
+- **W4H Official Site:** [infolab.usc.edu/projects/W4H/](https://infolab.usc.edu/projects/W4H/)
+- **Documentation:** [Vue 3](https://vuejs.org/) | [Vite](https://vite.dev/config/) | [Playwright](https://playwright.dev/)

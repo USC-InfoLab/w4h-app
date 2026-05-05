@@ -8,11 +8,11 @@ import api from '../utils/api'
 
 const routes = [
   // Public routes
-  { path: '/login', name: 'login', component: Login, meta: { guest: true } },
-  { path: '/loginCode', name: 'loginCode', component: LoginWithCode, meta: { guest: true } },
+  { path: '/login', name: 'login', component: Login, meta: { requiresAuth: false } },
+  { path: '/loginCode', name: 'loginCode', component: LoginWithCode, meta: { requiresAuth: false } },
   { path: '/logout', redirect: '/login' },
-  { path: '/', name: 'default', component: Login, meta: { guest: true } },
-  { path: '/:pathMatch(.*)*', name: 'not-found', component: Login, meta: { guest: true } },
+  { path: '/', name: 'default', component: Login, meta: { requiresAuth: false } },
+  { path: '/:pathMatch(.*)*', name: 'not-found', component: Login, meta: { requiresAuth: false } },
 
   // User routes
   { path: '/home', name: 'home', component: () => import('../views/HomeView.vue'), meta: { requiresAuth: true } },

@@ -176,7 +176,7 @@
 
 <script setup>
 import { ref, reactive, onMounted, computed } from 'vue';
-import { api } from '../utils/api';
+import { api, authHeaders } from '../utils/api';
 import { validatePassword, PASSWORD_REQUIREMENTS } from '@/utils/password-validator';
 import { APP_NAME } from '@/utils/defs';
 import { useRouter } from 'vue-router';
@@ -215,7 +215,7 @@ const db = reactive({
 
 const admin = reactive({
   email: import.meta.env.VITE_APP_ADMIN_EMAIL || '',
-  name: import.meta.env.VITE_APP_ADMIN_NAME || '',  
+  name: import.meta.env.VITE_APP_ADMIN_NAME || '',
   password: import.meta.env.VITE_APP_ADMIN_PASSWORD || '',
   passwordConfirm: import.meta.env.VITE_APP_ADMIN_PASSWORD || ''
 });
@@ -250,7 +250,7 @@ function suggestAdminPassword() {
 
 const fetchDatabaseSettings = async () => {
   try {
-    const res = await api.get('config/database-settings');
+    const res = await api.get('config/database-settings', { headers: authHeaders() });
     console.log('Fetched database settings:', res.data);
     if (res.data.host) db.host = res.data.host;
     if (res.data.port) db.port = res.data.port;
@@ -271,6 +271,15 @@ const checkDbStatus = async () => {
     showAdminSetup.value = false;
     backendError.value = '';
 
+    // Set db if available in res.data.details
+    if (res.data.details) {
+      const details = res.data.details;
+      if (details.host) db.host = details.host;
+      if (details.port) db.port = details.port;
+      if (details.database) db.database = details.database;
+      if (details.user) db.user = details.user;
+    }
+
     // If database config is needed, prefill any existing settings
     if (!dbConfigured.value) {
       await fetchDatabaseSettings();
@@ -284,6 +293,12 @@ const checkDbStatus = async () => {
       showAdminSetup.value = false;
       backendError.value = '';
       await fetchDatabaseSettings();
+    } else if (err.response?.status === 403) {
+      // Unauthorized (for example, not an admin)
+      dbConfigured.value = false;
+      showDbConfig.value = false;
+      showAdminSetup.value = false;
+      backendError.value = 'You are not authorized to access this resource. Please log in with an admin account.';
     } else {
       console.error('Failed to check database status:', err);
       showDbConfig.value = false;
@@ -320,9 +335,7 @@ const testAndSaveConnection = async () => {
   dbError.value = '';
 
   try {
-    const res = await api.post('config/database', {
-      ...db
-    });
+    const res = await api.post('config/init-database', { ...db });
 
     if (res.data.success) {
       showDbConfig.value = false;

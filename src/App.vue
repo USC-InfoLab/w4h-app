@@ -25,7 +25,7 @@ const { user } = storeToRefs(userStore);
 import { useUIStore } from '@/stores/ui';
 const uiStore = useUIStore();
 
-const isGuest = computed(() => route.meta.guest === true);
+const isGuest = computed(() => route.meta.requiresAuth === false);
 const isAdminUI = computed(() => {
   return user.value?.role === 'admin' && uiStore.isAdminUI;
 });
