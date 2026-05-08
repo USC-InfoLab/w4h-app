@@ -34,9 +34,6 @@
 
 <script setup>
 import { computed } from 'vue';
-import { useRouter } from 'vue-router';
-
-const router = useRouter();
 
 import { useUIStore } from '../stores/ui';
 const uiStore = useUIStore();
@@ -49,12 +46,4 @@ const props = defineProps({
 const hidden = computed(() => {
   return props.card.hidden && !uiStore.isAdminUI;
 });
-
-function goToTarget() {
-  if (props.card.slug) {
-    router.push({ name: 'docs', params: { slug: props.card.slug } });
-  } else if (props.card.route) {
-    router.push({ path: `/${props.card.route}` });
-  }
-}
 </script>
