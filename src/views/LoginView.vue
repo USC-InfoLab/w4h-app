@@ -215,7 +215,7 @@ const db = reactive({
 
 const admin = reactive({
   email: import.meta.env.VITE_APP_ADMIN_EMAIL || '',
-  name: import.meta.env.VITE_APP_ADMIN_NAME || '',  
+  name: import.meta.env.VITE_APP_ADMIN_NAME || '',
   password: import.meta.env.VITE_APP_ADMIN_PASSWORD || '',
   passwordConfirm: import.meta.env.VITE_APP_ADMIN_PASSWORD || ''
 });
@@ -320,7 +320,7 @@ const testAndSaveConnection = async () => {
   dbError.value = '';
 
   try {
-    const res = await api.post('config/database', {
+    const res = await api.post('config/init-database', {
       ...db
     });
 

@@ -37,7 +37,7 @@
               <span v-else-if="props.column.field == 'name'">
                 <div class="fw-bold text-secondary">{{ props.row.name }}</div>
                 <div><a :href="'mailto:' + props.row.email">{{ props.row.email }}</a></div>
-                <div class="small text-muted">{{ props.row.studies || 'No projects assigned' }}</div>
+                <div class="small text-muted">{{ props.row.projects || 'No projects assigned' }}</div>
               </span>
               <span v-else>{{ props.formattedRow[props.column.field] }}</span>
             </template>
@@ -113,7 +113,7 @@ onMounted(async () => {
       name: u.name || '',
       email: u.email || '',
       role: u.role || '',
-      studies: u.studies || ''
+      studies: u.projects || ''
     }));
   } catch (e) {
     console.error(e);
