@@ -246,14 +246,14 @@ function goToNewDoc() {
 
 async function downloadMarkdownZip() {
   try {
-    const res = await api.get('/docs/export/markdown-zip', {
+    const res = await api.get('/docs/export', {
       ...authHeaders(),
       responseType: 'blob',
     });
     const url = URL.createObjectURL(res.data);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'w4h-docs-markdown.zip';
+    a.download = 'w4h-docs-bundle.zip';
     a.rel = 'noopener';
     a.click();
     URL.revokeObjectURL(url);
