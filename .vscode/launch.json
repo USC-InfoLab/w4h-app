@@ -3,7 +3,7 @@
   "configurations": [
     {
       "name": "🚀 Launch App",
-      "type": "chrome",
+      "type": "editor-browser",
       "request": "launch",
       "url": "http://localhost:5173",
       "webRoot": "${workspaceFolder}"

@@ -8,5 +8,5 @@ export function validatePassword(password) {
   return regex.test(password);
 }
 
-export const PASSWORD_REQUIREMENTS = 
-  'Password must be at least 12 characters and include uppercase, lowercase, number, and special character';
+export const PASSWORD_REQUIREMENTS =
+  'Minimum 12 characters with uppercase, lowercase, number, and special character.';
