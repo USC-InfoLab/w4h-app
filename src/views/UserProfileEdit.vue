@@ -73,6 +73,26 @@
 
         </form>
 
+        <div class="card mt-4 p-3">
+          <h6 class="mb-2">Notebook API key</h6>
+          <p class="small text-muted mb-2">
+            For Python notebooks and scripts: send header <code>X-W4H-API-Key</code> or
+            <code>Authorization: Bearer &lt;key&gt;</code> (same dataset and project access as your account).
+          </p>
+          <p v-if="apiKeyMeta.active" class="small mb-1">Active prefix: <code>{{ apiKeyMeta.api_key_prefix }}</code></p>
+          <p v-else class="small text-muted mb-2">No key issued yet.</p>
+          <div v-if="newApiKeyOnce" class="alert alert-warning small mt-2 mb-2">
+            Copy this key now; it will not be shown again.
+            <pre class="mb-0 mt-2 user-select-all">{{ newApiKeyOnce }}</pre>
+          </div>
+          <div class="d-flex flex-wrap gap-2">
+            <button type="button" class="btn btn-sm btn-primary" @click="rotateApiKey">Generate new key</button>
+            <button type="button" class="btn btn-sm btn-outline-danger" :disabled="!apiKeyMeta.active" @click="revokeApiKey">
+              Revoke key
+            </button>
+          </div>
+        </div>
+
         <!-- Danger zone -->
         <div v-if="user.role === 'admin' && newUser.email !== user.email" class="card mt-4 border-danger p-3">
           <h6 class="text-danger mb-2">Danger zone</h6>
@@ -142,6 +162,9 @@ function suggestPassword() {
 const dirty = ref(false);
 const message = ref('');
 
+const apiKeyMeta = ref({ active: false, api_key_prefix: null, api_key_created_at: null });
+const newApiKeyOnce = ref('');
+
 const newUser = ref(null); // separate editable copy
 let originalUser = null;
 
@@ -171,7 +194,50 @@ onMounted(async () => {
     );
   });
 
+  try {
+    const res = await api.get('users/me/api-key', authHeaders());
+    apiKeyMeta.value = {
+      active: !!res.data.active,
+      api_key_prefix: res.data.api_key_prefix || null,
+      api_key_created_at: res.data.api_key_created_at || null
+    };
+  } catch {
+    apiKeyMeta.value = { active: false, api_key_prefix: null, api_key_created_at: null };
+  }
 });
+
+async function rotateApiKey() {
+  try {
+    message.value = '';
+    newApiKeyOnce.value = '';
+    const res = await api.post('users/me/api-key', {}, authHeaders());
+    newApiKeyOnce.value = res.data.api_key || '';
+    const meta = await api.get('users/me/api-key', authHeaders());
+    apiKeyMeta.value = {
+      active: !!meta.data.active,
+      api_key_prefix: meta.data.api_key_prefix || null,
+      api_key_created_at: meta.data.api_key_created_at || null
+    };
+  } catch (error) {
+    message.value = error.response?.data?.error || error.message || 'Failed to create API key';
+  }
+}
+
+async function revokeApiKey() {
+  try {
+    message.value = '';
+    newApiKeyOnce.value = '';
+    await api.delete('users/me/api-key', authHeaders());
+    const meta = await api.get('users/me/api-key', authHeaders());
+    apiKeyMeta.value = {
+      active: !!meta.data.active,
+      api_key_prefix: meta.data.api_key_prefix || null,
+      api_key_created_at: meta.data.api_key_created_at || null
+    };
+  } catch (error) {
+    message.value = error.response?.data?.error || error.message || 'Failed to revoke API key';
+  }
+}
 
 async function onSave() {
   try {

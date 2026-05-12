@@ -81,6 +81,20 @@
         </div>
       </div>
 
+      <div class="col-12">
+        <div class="card p-3">
+          <h5 class="card-title mb-3">Notebook API key</h5>
+          <p v-if="user.api_key_active" class="small mb-2">
+            Active key prefix: <code>{{ user.api_key_prefix }}</code>
+          </p>
+          <p v-else class="small text-muted mb-2">No API key issued for this user.</p>
+          <button type="button" class="btn btn-outline-danger btn-sm" :disabled="!user.api_key_active"
+            @click="onRevokeUserApiKey">
+            Revoke API key
+          </button>
+        </div>
+      </div>
+
       <div v-if="message" class="col-12">
         <div class="alert alert-danger">{{ message }}</div>
       </div>
@@ -187,6 +201,8 @@ onMounted(async () => {
       role: data.role,
       password: '',
       project_ids: Array.isArray(data.project_ids) ? data.project_ids : [],
+      api_key_active: !!data.api_key_active,
+      api_key_prefix: data.api_key_prefix || null,
     };
 
     originalUser = { ...user.value };
@@ -213,6 +229,19 @@ onMounted(async () => {
     message.value = error.response?.data?.error || error.message || 'Failed to load user.';
   }
 });
+
+async function onRevokeUserApiKey() {
+  if (!user.value?.email) return;
+  try {
+    message.value = '';
+    await api.delete(`users/user/${encodeURIComponent(user.value.email)}/api-key`, authHeaders());
+    user.value.api_key_active = false;
+    user.value.api_key_prefix = null;
+    originalUser = { ...user.value };
+  } catch (error) {
+    message.value = error.response?.data?.error || error.message || 'Failed to revoke API key';
+  }
+}
 
 async function onSave() {
   try {
