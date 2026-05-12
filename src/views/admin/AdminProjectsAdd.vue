@@ -3,7 +3,7 @@
     <nav aria-label="breadcrumb" class="mb-3">
       <ol class="breadcrumb">
         <li class="breadcrumb-item">
-          <router-link to="/admin/studies">Projects</router-link>
+          <router-link to="/admin/projects">Projects</router-link>
         </li>
         <li class="breadcrumb-item active" aria-current="page">Add Project</li>
       </ol>
@@ -77,7 +77,7 @@ async function onSave() {
 
     ok.value = true;
     message.value = 'Project created.';
-    router.push({ name: 'adminStudies' });
+    router.push({ name: 'adminProjects' });
   } catch (error) {
     message.value = error.response?.data?.error || error.message || 'Failed to create project.';
   } finally {

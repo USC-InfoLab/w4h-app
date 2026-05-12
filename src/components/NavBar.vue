@@ -22,7 +22,7 @@
               </RouterLink>
             </li> -->
             <li class="nav-item">
-              <RouterLink :to="{ name: 'studies' }" class="nav-link" active-class="active">
+              <RouterLink :to="{ name: 'projects' }" class="nav-link" active-class="active">
                 <i class="bi bi-beaker"></i> Projects
               </RouterLink>
             </li>

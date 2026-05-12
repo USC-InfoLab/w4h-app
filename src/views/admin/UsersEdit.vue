@@ -25,8 +25,8 @@
 
           <div v-if="!isAdminUser" class="mb-3">
             <label class="form-label">Projects</label>
-            <select v-model="user.study_ids" class="form-select" multiple>
-              <option v-for="option in studyOptions" :key="option.value" :value="option.value">
+            <select v-model="user.project_ids" class="form-select" multiple>
+              <option v-for="option in projectOptions" :key="option.value" :value="option.value">
                 {{ option.text }}
               </option>
             </select>
@@ -162,7 +162,7 @@ let originalUser = null;
 const originalRole = ref('');
 
 const roleOptions = ref([]);
-const studyOptions = ref([]);
+const projectOptions = ref([]);
 const message = ref('');
 const isAdminUser = computed(() => originalRole.value === 'admin');
 
@@ -194,7 +194,7 @@ onMounted(async () => {
       name: data.name,
       role: data.role,
       password: '',
-      study_ids: Array.isArray(data.study_ids) ? data.study_ids : [],
+      project_ids: Array.isArray(data.project_ids) ? data.project_ids : (Array.isArray(data.study_ids) ? data.study_ids : []),
     };
 
     originalUser = { ...user.value };
@@ -211,8 +211,8 @@ onMounted(async () => {
       { deep: true }
     );
 
-    const studies = await api.get('datasets/studies', authHeaders());
-    studyOptions.value = studies.data.map(s => ({ text: s.name, value: s.id }));
+    const projectsRes = await api.get('projects', authHeaders());
+    projectOptions.value = projectsRes.data.map((p) => ({ text: p.name, value: p.id }));
 
     const roles = await api.get('users/roles', authHeaders());
     roleOptions.value = roles.data.map((r) => ({ text: r, value: r }));
@@ -237,7 +237,7 @@ async function onSave() {
       email: user.value.email,
       name: user.value.name,
       role: isAdminUser.value ? 'admin' : user.value.role,
-      study_ids: isAdminUser.value ? [] : user.value.study_ids,
+      project_ids: isAdminUser.value ? [] : user.value.project_ids,
       ...(user.value.password ? { password: user.value.password } : {})
     };
 

@@ -20,7 +20,7 @@
             </RouterLink>
           </li>
           <li class="nav-item">
-            <RouterLink :to="{ name: 'adminStudies' }" class="nav-link" active-class="active">
+            <RouterLink :to="{ name: 'adminProjects' }" class="nav-link" active-class="active">
               <i class="bi bi-folder"></i> Projects
             </RouterLink>
           </li>
@@ -48,7 +48,7 @@
             </RouterLink>
           </li>
           <li class="nav-item">
-            <RouterLink :to="{ name: 'adminStudies' }" class="nav-link" active-class="active">
+            <RouterLink :to="{ name: 'adminProjects' }" class="nav-link" active-class="active">
               <i class="bi bi-folder"></i> Projects
             </RouterLink>
           </li>

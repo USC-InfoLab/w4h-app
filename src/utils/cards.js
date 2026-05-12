@@ -5,9 +5,9 @@ import { generateTOC } from './toc';
 function getCards(isAdminUI = false) {
   const allCards = [
     {
-      card_title: '<span style="font-size: 2em">📊</span> Studies',
+      card_title: '<span style="font-size: 2em">📊</span> Projects',
       description: '<b>Data</b> are organized collections of datasets.',
-      route: isAdminUI ? 'admin/studies' : 'studies',
+      route: isAdminUI ? 'admin/projects' : 'datasets',
       action_label: 'Browse Data'
     },
     {

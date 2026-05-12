@@ -75,7 +75,7 @@ const columns = [
   { label: 'Name', field: 'name' },
   { label: 'Email', field: 'email' },
   { label: 'Role', field: 'role' },
-  { label: 'Projects', field: 'studies' },
+  { label: 'Projects', field: 'projects' },
   { label: '', field: 'edit', sortable: false }
 ];
 
@@ -113,7 +113,7 @@ onMounted(async () => {
       name: u.name || '',
       email: u.email || '',
       role: u.role || '',
-      studies: u.projects || ''
+      projects: u.projects || ''
     }));
   } catch (e) {
     console.error(e);

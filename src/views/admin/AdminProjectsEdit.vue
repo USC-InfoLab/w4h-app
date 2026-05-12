@@ -3,7 +3,7 @@
     <nav aria-label="breadcrumb" class="mb-3">
       <ol class="breadcrumb">
         <li class="breadcrumb-item">
-          <router-link to="/admin/studies">Projects</router-link>
+          <router-link to="/admin/projects">Projects</router-link>
         </li>
         <li class="breadcrumb-item active" aria-current="page">Edit Project</li>
       </ol>
@@ -277,7 +277,7 @@ function mapOverviewToForm(data) {
   orgRows.value = Array.isArray(data?.organizations)
     ? data.organizations.map((o) => ({
         short: o.short || '',
-        name: o.name || o.study_name || '',
+        name: o.name || o.dataset_project_name || o.study_name || '',
         url:
           o.website_url != null && String(o.website_url).trim() !== ''
             ? String(o.website_url).trim()

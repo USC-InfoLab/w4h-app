@@ -35,8 +35,8 @@
 
           <div class="mb-3">
             <label class="form-label">Projects</label>
-            <select v-model="user.study_ids" class="form-select" multiple :disabled="user.role === 'admin'">
-              <option v-for="option in studyOptions" :key="option.value" :value="option.value">
+            <select v-model="user.project_ids" class="form-select" multiple :disabled="user.role === 'admin'">
+              <option v-for="option in projectOptions" :key="option.value" :value="option.value">
                 {{ option.text }}
               </option>
             </select>
@@ -119,12 +119,12 @@ const user = ref({
   email: '',
   name: '',
   role: null,
-  study_ids: [],
+  project_ids: [],
   password: '',
 });
 
 const roleOptions = ref([]);
-const studyOptions = ref([]);
+const projectOptions = ref([]);
 
 const submitMessage = ref('');
 const submitted = ref(false);
@@ -158,7 +158,7 @@ async function onReset() {
     email: '',
     name: '',
     role: null,
-    study_ids: [],
+    project_ids: [],
     password: '',
   };
   submitMessage.value = '';
@@ -199,8 +199,8 @@ const isValidEmail = computed(() => {
 onMounted(async () => {
   document.title = `${APP_NAME} Add User`;
 
-  const studies = await api.get('datasets/studies', authHeaders());
-  studyOptions.value = studies.data.map(s => ({ text: s.name, value: s.id }));
+  const projectsRes = await api.get('projects', authHeaders());
+  projectOptions.value = projectsRes.data.map((p) => ({ text: p.name, value: p.id }));
 
   const roles = await api.get('users/roles', authHeaders());
   roleOptions.value = [
