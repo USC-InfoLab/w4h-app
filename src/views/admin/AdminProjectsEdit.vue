@@ -277,7 +277,7 @@ function mapOverviewToForm(data) {
   orgRows.value = Array.isArray(data?.organizations)
     ? data.organizations.map((o) => ({
         short: o.short || '',
-        name: o.name || o.dataset_project_name || o.study_name || '',
+        name: o.name || o.dataset_project_name || '',
         url:
           o.website_url != null && String(o.website_url).trim() !== ''
             ? String(o.website_url).trim()

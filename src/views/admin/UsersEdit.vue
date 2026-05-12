@@ -194,7 +194,7 @@ onMounted(async () => {
       name: data.name,
       role: data.role,
       password: '',
-      project_ids: Array.isArray(data.project_ids) ? data.project_ids : (Array.isArray(data.study_ids) ? data.study_ids : []),
+      project_ids: Array.isArray(data.project_ids) ? data.project_ids : [],
     };
 
     originalUser = { ...user.value };

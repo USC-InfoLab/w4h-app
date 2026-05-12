@@ -313,7 +313,7 @@
 
             <div v-for="d in linkedDatasets" :key="d.id" class="border rounded p-2 mb-2">
               <div class="fw-semibold">{{ d.name || d.id }}</div>
-              <div class="small text-muted">{{ d.dataset_project_id || d.study_id || 'n/a' }} · {{ d.version || 'v1.0.0' }}</div>
+              <div class="small text-muted">{{ d.dataset_project_id || 'n/a' }} · {{ d.version || 'v1.0.0' }}</div>
               <div class="small text-muted text-truncate" :title="d.description || ''">{{ d.description || 'No description' }}</div>
             </div>
           </div>
@@ -493,7 +493,6 @@ const linkedDatasets = computed(() => {
     id: datasetId,
     name: datasetId,
     dataset_project_id: '',
-    study_id: '',
     description: '',
     version: ''
   });
@@ -592,9 +591,9 @@ function mapOverviewToProject(overview) {
                 ? String(o.url).trim()
                 : '';
           return {
-            id: o.id || o.dataset_project_id || o.study_id || `org-${idx}`,
-            short: o.short || String(o.dataset_project_id || o.study_id || '').slice(0, 4).toUpperCase() || 'ORG',
-            name: o.name || o.dataset_project_name || o.study_name || o.dataset_project_id || o.study_id || 'Project',
+            id: o.id || o.dataset_project_id || `org-${idx}`,
+            short: o.short || String(o.dataset_project_id || '').slice(0, 4).toUpperCase() || 'ORG',
+            name: o.name || o.dataset_project_name || o.dataset_project_id || 'Project',
             url: link
           };
         })
