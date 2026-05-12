@@ -73,36 +73,6 @@
 
         </form>
 
-        <div class="card mt-4 border-secondary">
-          <h5 class="card-title mb-2">
-            <i class="bi bi-terminal me-1"></i>Notebook API key
-          </h5>
-          <p class="text-muted small">
-            Use this key in Python or scripts with header <code class="small">x-w4h-api-key</code>.
-            It grants the same dataset access as your account. Copy it once when generated; it is not shown again.
-          </p>
-          <div v-if="apiKeyMeta.configured" class="mb-2">
-            <span class="badge bg-secondary">Active</span>
-            <span class="ms-2 small text-muted">Prefix: {{ apiKeyMeta.prefix }}…</span>
-            <span v-if="apiKeyMeta.created_at" class="ms-2 small text-muted">created {{ apiKeyMeta.created_at }}</span>
-          </div>
-          <div v-else class="mb-2 text-muted small">No API key configured.</div>
-          <div v-if="newApiKeyOnce" class="alert alert-warning small mb-2">
-            <strong>Copy now:</strong>
-            <pre class="mb-0 mt-1 user-select-all small bg-white p-2 border rounded">{{ newApiKeyOnce }}</pre>
-          </div>
-          <div class="d-flex flex-wrap gap-2">
-            <button type="button" class="btn btn-sm btn-primary" @click="rotateApiKey">
-              {{ apiKeyMeta.configured ? 'Rotate key' : 'Generate key' }}
-            </button>
-            <button type="button" class="btn btn-sm btn-outline-danger" :disabled="!apiKeyMeta.configured"
-              @click="revokeApiKey">
-              Revoke key
-            </button>
-          </div>
-          <div v-if="apiKeyMessage" class="text-danger small mt-2">{{ apiKeyMessage }}</div>
-        </div>
-
         <!-- Danger zone -->
         <div v-if="user.role === 'admin' && newUser.email !== user.email" class="card mt-4 border-danger p-3">
           <h6 class="text-danger mb-2">Danger zone</h6>
@@ -171,9 +141,6 @@ function suggestPassword() {
 }
 const dirty = ref(false);
 const message = ref('');
-const apiKeyMeta = ref({ configured: false, prefix: null, created_at: null });
-const newApiKeyOnce = ref('');
-const apiKeyMessage = ref('');
 
 const newUser = ref(null); // separate editable copy
 let originalUser = null;
@@ -204,47 +171,7 @@ onMounted(async () => {
     );
   });
 
-  await loadApiKeyMeta();
 });
-
-async function loadApiKeyMeta() {
-  apiKeyMessage.value = '';
-  try {
-    const res = await api.get('users/me/api-key', authHeaders());
-    apiKeyMeta.value = {
-      configured: !!res.data?.configured,
-      prefix: res.data?.prefix || null,
-      created_at: res.data?.created_at || null
-    };
-  } catch (e) {
-    apiKeyMessage.value = e.response?.data?.error || e.message || 'Could not load API key status';
-  }
-}
-
-async function rotateApiKey() {
-  apiKeyMessage.value = '';
-  newApiKeyOnce.value = '';
-  try {
-    const res = await api.post('users/me/api-key', {}, authHeaders());
-    if (res.data?.apiKey) {
-      newApiKeyOnce.value = res.data.apiKey;
-    }
-    await loadApiKeyMeta();
-  } catch (e) {
-    apiKeyMessage.value = e.response?.data?.error || e.message || 'Failed to generate key';
-  }
-}
-
-async function revokeApiKey() {
-  apiKeyMessage.value = '';
-  newApiKeyOnce.value = '';
-  try {
-    await api.delete('users/me/api-key', authHeaders());
-    await loadApiKeyMeta();
-  } catch (e) {
-    apiKeyMessage.value = e.response?.data?.error || e.message || 'Failed to revoke';
-  }
-}
 
 async function onSave() {
   try {
