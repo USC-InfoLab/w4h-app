@@ -1,7 +1,6 @@
 <template>
   <main v-if="user" role="main" class="container-fluid">
 
-    <!-- Breadcrumb -->
     <nav aria-label="breadcrumb" class="mb-3">
       <ol class="breadcrumb">
         <li class="breadcrumb-item">
@@ -15,7 +14,6 @@
 
     <form class="row gy-3" @submit.prevent="onSave">
 
-      <!-- Profile Card -->
       <div class="col-12 col-md-6">
         <div class="card p-3 h-100">
           <h5 class="card-title mb-3">Profile</h5>
@@ -56,7 +54,6 @@
         </div>
       </div>
 
-      <!-- Password Card -->
       <div class="col-12 col-md-6">
         <div class="card p-3 h-100">
           <h5 class="card-title mb-3">Password</h5>
@@ -86,14 +83,12 @@
         </div>
       </div>
 
-      <!-- Submit Message -->
       <div v-if="submitMessage" class="col-12">
         <div class="alert" :class="submitted ? 'alert-success' : 'alert-danger'">
           {{ submitMessage }}
         </div>
       </div>
 
-      <!-- Save Button -->
       <div class="d-flex justify-content-end mb-3">
         <button v-if="!submitted" class="btn btn-primary"
           :disabled="!user.email || !isValidEmail || !user.password || !isSecurePassword" type="submit">

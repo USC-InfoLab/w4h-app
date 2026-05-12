@@ -685,7 +685,6 @@ function shortSha(value) {
   return String(value || '').slice(0, 7) || '—';
 }
 
-/** Safe href for optional org website (adds https if scheme omitted). */
 function orgWebsiteHref(org) {
   const raw = String(org?.url || '').trim();
   if (!raw) return '';

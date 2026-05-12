@@ -3,7 +3,7 @@
     <div class="container-fluid">
       <RouterLink class="navbar-brand" :to="{ name: 'adminHome' }">
         <img class="app-icon" :src="iconSrc" alt="W4H Logo" />
-        <!-- {{ user.account_name }} -->
+        {{ user.account_name }}
       </RouterLink>
 
       <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse"
@@ -92,8 +92,8 @@ import { useUIStore } from '../stores/ui';
 const uiStore = useUIStore();
 
 function exitAdminAndGoHome() {
-  uiStore.exitAdmin();   // update store
-  router.push({ name: 'home' }); // navigate
+  uiStore.exitAdmin();
+  router.push({ name: 'home' });
 }
 
 const isUsersActive = computed(() => {
@@ -104,11 +104,9 @@ const isUsersActive = computed(() => {
   );
 });
 
-// Watch for changes in the user property
 watch(
   () => userStore.user,
   (newUser) => {
-    // Update the user reference with the new value
     user.value = newUser;
   }
 );

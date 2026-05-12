@@ -84,10 +84,8 @@ const columnsSmall = [
   { label: '', field: 'edit', sortable: false }
 ];
 
-// hold all users, never filtered
 const allRows = ref([]);
 
-// computed rows for table
 const filteredRows = computed(() => {
   return allRows.value;
 });
@@ -121,7 +119,6 @@ onMounted(async () => {
   }
 });
 
-// Navigation & Theme helpers
 function onEditButtonClick(row) {
   const isSelf = row.email === userStore.user.email;
   const isAdmin = userStore.user.role === 'admin';

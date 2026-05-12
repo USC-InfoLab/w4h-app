@@ -13,7 +13,6 @@
 
     <div class="row gy-3">
 
-      <!-- Profile -->
       <div class="col-12 col-md-6">
         <div class="card p-3 h-100">
           <h5 class="card-title mb-3">Profile</h5>
@@ -54,10 +53,9 @@
         </div>
       </div>
 
-      <!-- Password -->
       <div class="col-12 col-md-6">
         <div class="card p-3 h-100">
-          <!-- <h5 class="card-title mb-3">Password</h5> -->
+          <h5 class="card-title mb-3">Password</h5>
 
           <div class="mb-2">
             <label class="form-label">Password</label>
@@ -83,12 +81,10 @@
         </div>
       </div>
 
-      <!-- Error -->
       <div v-if="message" class="col-12">
         <div class="alert alert-danger">{{ message }}</div>
       </div>
 
-      <!-- Save Button -->
       <div class="d-flex justify-content-end mb-3">
         <button class="btn btn-primary" :disabled="!dirty || !isSecurePassword" @click="onSave">
           Save
@@ -96,7 +92,6 @@
       </div>
 
 
-      <!-- Danger Zone -->
       <div v-if="!isAdminUser" class="col-12">
         <div class="card border-danger p-3">
           <h5 class="text-danger">Danger Zone</h5>
@@ -122,13 +117,10 @@
 import { ref, onMounted, watch, computed } from 'vue';
 import { api, authHeaders } from '../../utils/api';
 import { validatePassword } from '@/utils/password-validator';
-// import ToastComponent from './Toast.vue';
 
 import { useRoute, useRouter } from 'vue-router';
 const route = useRoute();
 const router = useRouter();
-
-//const showToast = ref(false);
 
 const verifyCode = ref('');
 const dirty = ref(false);
@@ -242,7 +234,7 @@ async function onSave() {
     };
 
     await api.post('users/set', { user: updates }, authHeaders());
-    user.value.password = '';  //in case we changed it
+    user.value.password = '';
     originalUser = { ...user.value };
 
     dirty.value = false;
@@ -254,7 +246,7 @@ async function onSave() {
 const isSecurePassword = computed(() => {
   const password = user.value?.password;
   if (!password) {
-    return true; // Empty password is ok
+    return true;
   }
   return validatePassword(password);
 });
