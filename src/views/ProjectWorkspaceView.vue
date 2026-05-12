@@ -52,13 +52,26 @@
 
             <div v-if="project.notebooks.length === 0" class="text-muted small">No notebooks tracked yet.</div>
 
-            <div v-for="nb in project.notebooks" :key="nb.id" class="border rounded p-3 mb-2">
+            <div v-for="nb in project.notebooks" :key="nb.id || nb.notebookPath" class="border rounded p-3 mb-2">
               <div class="d-flex justify-content-between align-items-start gap-2">
                 <div>
                   <div class="fw-semibold">{{ nb.title }}</div>
                   <div class="small text-muted">{{ nb.description || 'No description.' }}</div>
                 </div>
-                <span class="badge text-bg-light">{{ nb.purpose }}</span>
+                <div class="d-flex align-items-center gap-2 flex-shrink-0">
+                  <span class="badge text-bg-light">{{ nb.purpose }}</span>
+                  <div v-if="capabilities.can_manage" class="btn-group btn-group-sm">
+                    <button
+                      v-if="notebookHasPersistedId(nb)"
+                      type="button"
+                      class="btn btn-outline-secondary"
+                      @click="editNotebook(nb)"
+                    >
+                      Edit
+                    </button>
+                    <button type="button" class="btn btn-outline-danger" @click="deleteNotebook(nb)">Delete</button>
+                  </div>
+                </div>
               </div>
 
               <div class="small text-muted mt-2 font-monospace">
@@ -187,8 +200,30 @@
                 {{ tokenIssuing ? 'Issuing…' : 'Issue project token' }}
               </button>
             </div>
+            <div v-if="capabilities.can_manage" class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+              <div class="small text-muted mb-0">
+                {{ showDbTokenHistory ? 'All tokens (including revoked / expired)' : 'Active tokens only' }}
+              </div>
+              <div class="d-flex flex-wrap align-items-center gap-2">
+                <label class="form-check small mb-0">
+                  <input
+                    class="form-check-input"
+                    type="checkbox"
+                    :checked="showDbTokenHistory"
+                    @change="onDbTokenHistoryChange"
+                  />
+                  <span class="form-check-label">Show revoked &amp; expired</span>
+                </label>
+                <button
+                  type="button"
+                  class="btn btn-sm btn-outline-secondary"
+                  @click="purgeInactiveDbTokens"
+                >
+                  Clear revoked / expired from database
+                </button>
+              </div>
+            </div>
             <div v-if="capabilities.can_manage && dbTokens.length">
-              <div class="small text-muted mb-1">Active &amp; past tokens</div>
               <ul class="list-group list-group-flush small">
                 <li
                   v-for="t in dbTokens"
@@ -203,7 +238,7 @@
                     </div>
                   </div>
                   <button
-                    v-if="!t.revoked_at"
+                    v-if="!t.revoked_at && new Date(t.expires_at) > new Date()"
                     type="button"
                     class="btn btn-sm btn-outline-danger"
                     @click="revokeDbToken(t.id)"
@@ -213,6 +248,7 @@
                 </li>
               </ul>
             </div>
+            <p v-else-if="capabilities.can_manage" class="small text-muted mb-0">No tokens in this view.</p>
           </div>
         </section>
 
@@ -325,7 +361,7 @@
       <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title">Add notebook link</h5>
+            <h5 class="modal-title">{{ editingNotebookId ? 'Edit notebook link' : 'Add notebook link' }}</h5>
             <button type="button" class="btn-close" @click="closeNotebookModal" aria-label="Close" />
           </div>
           <div class="modal-body">
@@ -372,7 +408,9 @@
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-outline-secondary" @click="closeNotebookModal">Cancel</button>
-            <button type="button" class="btn btn-primary" :disabled="!canSaveNotebook" @click="saveNotebook">Save notebook</button>
+            <button type="button" class="btn btn-primary" :disabled="!canSaveNotebook" @click="saveNotebook">
+              {{ editingNotebookId ? 'Save changes' : 'Save notebook' }}
+            </button>
           </div>
         </div>
       </div>
@@ -445,6 +483,8 @@ const loadError = ref('');
 const dbTokens = ref([]);
 const lastIssuedToken = ref('');
 const tokenIssuing = ref(false);
+const showDbTokenHistory = ref(false);
+const editingNotebookId = ref(null);
 
 const memberRows = ref([]);
 const membersSaving = ref(false);
@@ -765,13 +805,46 @@ function launchNotebook(launcher, notebook) {
   if (url) window.open(url, '_blank', 'noopener,noreferrer');
 }
 
-async function loadDbTokens() {
+async function loadDbTokens(includeHistoryOverride) {
   if (!id.value) return;
+  const includeHistory =
+    typeof includeHistoryOverride === 'boolean'
+      ? includeHistoryOverride
+      : showDbTokenHistory.value;
   try {
-    const res = await api.get(`projects/${encodeURIComponent(id.value)}/db-tokens`, authHeaders());
+    const res = await api.get(`projects/${encodeURIComponent(id.value)}/db-tokens`, {
+      ...authHeaders(),
+      params: includeHistory ? { history: '1' } : {}
+    });
     dbTokens.value = Array.isArray(res.data) ? res.data : [];
   } catch {
     dbTokens.value = [];
+  }
+}
+
+function onDbTokenHistoryChange(e) {
+  const checked = Boolean(e?.target?.checked);
+  showDbTokenHistory.value = checked;
+  loadDbTokens(checked);
+}
+
+async function purgeInactiveDbTokens() {
+  if (!requireBackendProject('Clear tokens')) return;
+  if (
+    !window.confirm(
+      'Permanently delete revoked and expired token rows from the database for this project? Active tokens stay.'
+    )
+  ) {
+    return;
+  }
+  try {
+    await api.delete(
+      `projects/${encodeURIComponent(id.value)}/db-tokens/purge-inactive`,
+      authHeaders()
+    );
+    await loadDbTokens();
+  } catch (e) {
+    window.alert(e.response?.data?.error || e.message || 'Purge failed');
   }
 }
 
@@ -921,25 +994,58 @@ async function saveAclRules() {
   }
 }
 
+function notebookHasPersistedId(nb) {
+  return (
+    nb &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(nb.id || ''))
+  );
+}
+
 function serializeNotebooksForApi(notebooks) {
-  return (notebooks || []).map((n) => ({
-    title: n.title,
-    description: n.description || null,
-    purpose: n.purpose || 'analysis',
-    repo_url: n.repoUrl || null,
-    repo_ref: n.repoRef || null,
-    notebook_path: n.notebookPath,
-    runtime_type: 'jupyter',
-    launchers: Array.isArray(n.launchers) && n.launchers.length ? n.launchers : ['jupyter']
-  }));
+  const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  return (notebooks || []).map((n) => {
+    const row = {
+      title: n.title,
+      description: n.description || null,
+      purpose: n.purpose || 'analysis',
+      repo_url: n.repoUrl || null,
+      repo_ref: n.repoRef || null,
+      notebook_path: n.notebookPath,
+      runtime_type: 'jupyter',
+      launchers: Array.isArray(n.launchers) && n.launchers.length ? n.launchers : ['jupyter']
+    };
+    if (n.id && uuidRe.test(String(n.id))) {
+      row.id = String(n.id);
+    }
+    return row;
+  });
 }
 
 function openNotebookModal() {
+  editingNotebookId.value = null;
   notebookForm.value = newNotebookForm();
   notebookModal?.show();
 }
 
+function editNotebook(nb) {
+  if (!nb) return;
+  editingNotebookId.value = nb.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(nb.id))
+    ? nb.id
+    : null;
+  notebookForm.value = {
+    title: nb.title || '',
+    description: nb.description || '',
+    purpose: nb.purpose || 'analysis',
+    repoUrl: nb.repoUrl || '',
+    repoRef: nb.repoRef || 'main',
+    notebookPath: nb.notebookPath || '',
+    launchers: Array.isArray(nb.launchers) && nb.launchers.length ? [...nb.launchers] : ['jupyter']
+  };
+  notebookModal?.show();
+}
+
 function closeNotebookModal() {
+  editingNotebookId.value = null;
   notebookModal?.hide();
 }
 
@@ -947,7 +1053,7 @@ async function saveNotebook() {
   if (!canSaveNotebook.value) return;
   const now = Date.now();
   const entry = {
-    id: `${now}-nb`,
+    id: editingNotebookId.value,
     title: notebookForm.value.title.trim(),
     description: notebookForm.value.description.trim(),
     purpose: notebookForm.value.purpose,
@@ -958,8 +1064,17 @@ async function saveNotebook() {
     launchers: notebookForm.value.launchers.length ? [...notebookForm.value.launchers] : ['jupyter']
   };
 
+  let next;
+  if (editingNotebookId.value) {
+    next = project.value.notebooks.map((n) =>
+      String(n.id) === String(editingNotebookId.value) ? { ...n, ...entry } : n
+    );
+  } else {
+    next = [{ ...entry, id: `temp-${now}` }, ...project.value.notebooks];
+  }
+
   const previous = project.value.notebooks;
-  project.value.notebooks = [entry, ...previous];
+  project.value.notebooks = next;
 
   if (!id.value) {
     window.alert('This is not a valid project route. Open a project from the Projects list.');
@@ -979,6 +1094,26 @@ async function saveNotebook() {
     project.value.notebooks = previous;
     console.error(e);
     window.alert(e.response?.data?.error || e.message || 'Failed to save notebook.');
+  }
+}
+
+async function deleteNotebook(nb) {
+  if (!capabilities.value.can_manage || !nb) return;
+  if (!window.confirm('Remove this notebook link from the project?')) return;
+  if (!requireBackendProject('Delete notebook')) return;
+  const next = project.value.notebooks.filter((n) => String(n.id) !== String(nb.id));
+  const previous = project.value.notebooks;
+  project.value.notebooks = next;
+  try {
+    await api.put(
+      `projects/${encodeURIComponent(id.value)}/notebooks`,
+      { notebooks: serializeNotebooksForApi(project.value.notebooks) },
+      authHeaders()
+    );
+    await loadProject();
+  } catch (e) {
+    project.value.notebooks = previous;
+    window.alert(e.response?.data?.error || e.message || 'Failed to delete notebook.');
   }
 }
 
