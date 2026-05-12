@@ -81,6 +81,19 @@
         </div>
       </div>
 
+      <div class="col-12">
+        <div class="card p-3 border-secondary">
+          <h5 class="card-title mb-2">Notebook API key</h5>
+          <p class="text-muted small mb-2">
+            Revokes static keys for Python notebooks for this user. They can create a new key from Profile settings.
+          </p>
+          <button type="button" class="btn btn-sm btn-outline-warning" @click="revokeTargetApiKeys">
+            Revoke notebook API keys
+          </button>
+          <span v-if="apiKeyAdminMessage" class="small ms-2 text-muted">{{ apiKeyAdminMessage }}</span>
+        </div>
+      </div>
+
       <div v-if="message" class="col-12">
         <div class="alert alert-danger">{{ message }}</div>
       </div>
@@ -156,6 +169,7 @@ const originalRole = ref('');
 const roleOptions = ref([]);
 const projectOptions = ref([]);
 const message = ref('');
+const apiKeyAdminMessage = ref('');
 const isAdminUser = computed(() => originalRole.value === 'admin');
 
 function onDelete() {
@@ -166,6 +180,18 @@ function onDelete() {
   api.delete('users/' + user.value.email, authHeaders()).then(() => {
     router.push('/admin/users');
   });
+}
+
+async function revokeTargetApiKeys() {
+  apiKeyAdminMessage.value = '';
+  try {
+    const email = user.value?.email;
+    if (!email) return;
+    await api.delete(`users/user/${encodeURIComponent(email)}/api-keys`, authHeaders());
+    apiKeyAdminMessage.value = 'Revoked.';
+  } catch (e) {
+    apiKeyAdminMessage.value = e.response?.data?.error || e.message || 'Failed';
+  }
 }
 
 onMounted(async () => {
