@@ -52,7 +52,7 @@
                   <i class="bi bi-gear me-2"></i> Account Settings
                 </a></li>
               <li v-if="user.role === 'admin'"><a class="dropdown-item admin-entry" @click="onAdminButtonClick">
-                  <i class="bi bi-gear me-2"></i> Admin Settings
+                  <i class="bi bi-toggles me-2"></i> Admin Settings
                 </a></li>
               <li><a data-cy='logout-menu-item' class="dropdown-item" @click="onSignOutClick">Sign out</a></li>
             </ul>

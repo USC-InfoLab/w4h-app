@@ -1,55 +1,23 @@
-# W4H Web App: Wearables for Health Toolkit
+# W4H Web App
 
-The [Wearables for Health (W4H) Toolkit](https://infolab.usc.edu/projects/W4H/) is a suite of open-source tools for managing, analyzing, and visualizing wearable data used in health applications. This repository provides the **W4H Web App**, the primary interface for setting up the toolkit and managing workflows.
+The [Wearables for Health (W4H) Toolkit](https://infolab.usc.edu/projects/W4H/) is a suite of open-source tools for managing, analyzing, and visualizing wearable data used in health applications. This repository provides the [W4H Web App](https://github.com/USC-InfoLab/w4h-app), the primary interface for setting up the toolkit and managing workflows.
 
 ---
 
-## 🚀 Quick Start (Docker)
+## 📋 Prerequisites
 
-The fastest way to install the W4H Toolkit is using the W4H Docker component.
+Ensure you have Postgres 16.14 or later installed:
 
-### 1. Prerequisites
-
-Ensure you have the following installed:
-
-- **Docker:** [Docker Desktop](https://www.docker.com/products/docker-desktop/)
 - **PostgreSQL:** [Postgres Docker Image](https://hub.docker.com/_/postgres) or [Postgres.app](https://postgresapp.com/) (Mac)
 - **Management:** [pgAdmin](https://www.pgadmin.org/) is recommended for managing the instance.
 
-### 2. Configure PostgreSQL
+## 🛠️ Development Setup
 
-Start your `Postgres.app` server or Docker container and verify the installation:
-
-- Run `pg_config --version` to verify.
-- Verify the connection with **pgAdmin** and note the configuration that you will need to provide in step 3:
-  - **Host**
-  - **Port**
-  - **Maintenance Database**
-  - **User/Password**
-
-### 3. Run the Container
-
-Pull the image from DockerHub and run the application:
-
-```bash
-# Pull the image
-docker pull uscimsc/w4h:icde-demo
-
-# Run the container (Access via port 8501)
-docker run -dp 8501:8501 uscimsc/w4h:icde-demo
-```
-
-Connect to the [W4H Web App](http://localhost:5173) and follow the on-screen prompts to connect to your Postgres instance. Once configured, you can manage users, import data, and run analytics through the W4H Web App.
-
----
-
-## 🛠️ Local Development Setup
-
-This project is built with **Vue 3** and **Vite**.
+This project is built with **Vue 3** and **Vite**. In the following we will assume that the [w4h-api](https://github.com/USC-InfoLab/w4h-api) services are running.
 
 ### Recommended IDE Setup
 
-- **Editor:** [VS Code](https://code.visualstudio.com/) + [Vue - Official](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (disable Vetur).
+- **Editor:** [VS Code](https://code.visualstudio.com/) + [Vue - Official](https://marketplace.visualstudio.com/items?itemName=Vue.volar).
 - **Browser Tools:** Install [Vue.js devtools](https://chromewebstore.google.com/detail/vuejs-devtools/nhdogjmejiglipccpnnnanhbledajbpd) and [enable Custom Object Formatters](http://bit.ly/object-formatters).
 
 ### Project Scripts
@@ -114,5 +82,44 @@ npm run lint
 - **Vite Configuration:** [Vite Configuration Reference](https://vite.dev/config/)
 - **Vue 3 Documentation:** [vuejs.org](https://vuejs.org/)
 - **Playwright Docs:** [playwright.dev](https://playwright.dev/)
+
+---
+
+## 🚀 Quick Start (Docker)
+
+The fastest way to install the W4H Toolkit is using the W4H Docker component.
+
+### 1. Prerequisites
+
+Ensure you have the following installed:
+
+- **Docker:** [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+- **PostgreSQL:** [Postgres Docker Image](https://hub.docker.com/_/postgres) or [Postgres.app](https://postgresapp.com/) (Mac)
+- **Management:** [pgAdmin](https://www.pgadmin.org/) is recommended for managing the instance.
+
+### 2. Configure PostgreSQL
+
+Start your `Postgres.app` server or Docker container and verify the installation:
+
+- Run `pg_config --version` to verify.
+- Verify the connection with **pgAdmin** and note the configuration that you will need to provide in step 3:
+  - **Host**
+  - **Port**
+  - **Maintenance Database**
+  - **User/Password**
+
+### 3. Run the Container
+
+Pull the image from DockerHub and run the application:
+
+```bash
+# Pull the image
+docker pull uscimsc/w4h:icde-demo
+
+# Run the container (Access via port 8501)
+docker run -dp 8501:8501 uscimsc/w4h:icde-demo
+```
+
+Connect to the [W4H Web App](http://localhost:5173) and follow the on-screen prompts to connect to your Postgres instance. Once configured, you can manage users, import data, and run analytics through the W4H Web App.
 
 ---

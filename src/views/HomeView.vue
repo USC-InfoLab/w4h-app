@@ -73,6 +73,7 @@ onMounted(async () => {
 
 <template>
   <main>
+
     <!-- First Time Login - Change Password Modal -->
     <div v-if="showPasswordModal" class="modal" style="display: block; background: rgba(0,0,0,0.7);">
       <div class="modal-dialog modal-dialog-centered">
