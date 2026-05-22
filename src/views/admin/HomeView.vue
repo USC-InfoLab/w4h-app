@@ -1,5 +1,6 @@
 <template>
   <main class="d-flex flex-column main-content">
+
     <div class="row my-2">
       <FeatureCard v-for="card in staticCards" :key="card.card_title" :card="card" />
     </div>

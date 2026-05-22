@@ -5,15 +5,9 @@ function getCards(isAdminUI = false) {
   const allCards = [
     {
       card_title: '<span style="font-size: 2em">📊</span> Projects',
-      description: '<b>Data</b> are organized collections of datasets.',
+      description: '<b>Projects</b> are trial based studies that are organized and managed within the W4H platform.',
       route: isAdminUI ? 'admin/projects' : 'datasets',
-      action_label: 'Browse Data'
-    },
-    {
-      card_title: '<span style="font-size: 2em">📊</span> Analytics',
-      description: 'Insights on wearables and other study data.',
-      route: isAdminUI ? 'admin/analytics' : 'analytics',
-      action_label: 'Open Analytics'
+      action_label: 'Open Projects'
     },
     {
       card_title: '<span style="font-size: 2em">📚</span> Docs',

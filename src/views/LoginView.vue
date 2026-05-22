@@ -248,20 +248,6 @@ function suggestAdminPassword() {
   showAdminConfirmPassword.value = true;
 }
 
-const fetchDatabaseSettings = async () => {
-  try {
-    const res = await api.get('config/database-settings');
-    console.log('Fetched database settings:', res.data);
-    if (res.data.host) db.host = res.data.host;
-    if (res.data.port) db.port = res.data.port;
-    if (res.data.database) db.database = res.data.database;
-    if (res.data.user) db.user = res.data.user;
-  } catch (err) {
-    // Silently fail - just use default values
-    console.log('Could not fetch database settings:', err.message);
-  }
-};
-
 const checkDbStatus = async () => {
 
   try {
@@ -271,9 +257,13 @@ const checkDbStatus = async () => {
     showAdminSetup.value = false;
     backendError.value = '';
 
-    // If database config is needed, prefill any existing settings
-    if (!dbConfigured.value) {
-      await fetchDatabaseSettings();
+    // If database config is needed, prefill any existing settings from the status response
+    if (!dbConfigured.value && res.data.details) {
+      const d = res.data.details;
+      if (d.host) db.host = d.host;
+      if (d.port) db.port = d.port;
+      if (d.database) db.database = d.database;
+      if (d.user) db.user = d.user;
     }
   } catch (err) {
     // Only treat as "not configured" if status code is 503 (Service Unavailable)
@@ -283,7 +273,6 @@ const checkDbStatus = async () => {
       showDbConfig.value = true;
       showAdminSetup.value = false;
       backendError.value = '';
-      await fetchDatabaseSettings();
     } else {
       console.error('Failed to check database status:', err);
       showDbConfig.value = false;
