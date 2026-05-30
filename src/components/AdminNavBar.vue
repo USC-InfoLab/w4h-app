@@ -1,8 +1,8 @@
 <template>
   <nav :class="['navbar', 'navbar-expand-md', 'navbar-dark', 'fixed-top', navbarColorClass]">
     <div class="container-fluid">
-      <RouterLink class="navbar-brand" :to="{ name: 'adminHome' }">
-        <img class="app-icon" :src="iconSrc" alt="W4H Logo" />
+      <RouterLink class="navbar-brand w4h-admin-title" :to="{ name: 'adminHome' }">
+        <img class="app-icon" :src="iconSrc" alt="W4H Logo" /> <span>W4H Admin</span>
         <!-- {{ user.account_name }} -->
       </RouterLink>
 
@@ -141,18 +141,18 @@ onMounted(() => {
   padding: 2px;
 }
 
-.w4h-nav {
-  background-color: #FFCC00 !important;
-  color: rgb(49, 49, 49) !important;
+.w4h-nav,
+.w4h-dark-nav {
+  background-color: #767676 !important;
 }
 
-.w4h-dark-nav {
-  background-color: #FFCC00 !important;
-  color: rgb(49, 49, 49) !important;
+.w4h-admin-title span,
+.nav-link {
+  color: #ffffff !important;
 }
 
 .nav-link {
-  color: rgb(49, 49, 49) !important;
+  color: #ffffff !important;
 }
 
 .navbar-nav .nav-link {

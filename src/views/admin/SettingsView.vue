@@ -49,22 +49,49 @@
               <button class="btn btn-primary" :disabled="savingDb" type="submit">Save Database</button>
               <button class="btn btn-outline-secondary" :disabled="testingDb" type="button" @click="testDatabase">Test
                 Connection</button>
-              <button class="btn btn-outline-primary" :disabled="backingUpDocs" type="button" @click="backupDocs">
-                <span v-if="backingUpDocs" class="spinner-border spinner-border-sm me-1" />
-                Export Docs
-              </button>
             </div>
-            <div v-if="message"
-              :class="['alert alert-dismissible mt-3 mb-0', messageType === 'success' ? 'alert-success' : 'alert-danger']">
-              {{ message }}
-              <button type="button" class="btn-close" @click="message = ''"></button>
+            <div v-if="dbMessage"
+              :class="['alert alert-dismissible mt-3 mb-0', dbMessageType === 'success' ? 'alert-success' : 'alert-danger']">
+              {{ dbMessage }}
+              <button type="button" class="btn-close" @click="dbMessage = ''"></button>
             </div>
           </form>
         </div>
 
-        <div class="card p-3">
-          <h5 class="card-title mb-3">Email (SMTP)</h5>
+        <div class="card p-3 mb-3">
+          <h5 class="card-title mb-1">Documentation Management</h5>
+          <p class="text-muted small mb-3">
+            Export a backup of your documentation, or refresh from the source directory.<br>
+            <span class="text-muted small">
+              <strong>Warning:</strong> Refreshing docs will <u>overwrite</u> any pages with the same slug as the
+              source. Local-only pages are not affected.
+            </span>
+          </p>
+          <div class="gap-2 mt-2 d-flex">
+            <button class="btn btn-primary me-2" :disabled="backingUpDocs" type="button" @click="backupDocs">
+              <span v-if="backingUpDocs" class="spinner-border spinner-border-sm me-1" />
+              Export Docs
+            </button>
+            <button class="btn btn-warning" :disabled="refreshingDocs" type="button" @click="refreshDocs">
+              <span v-if="refreshingDocs" class="spinner-border spinner-border-sm me-1" />
+              Refresh Docs
+            </button>
+          </div>
+          <div v-if="docsMessage" class="mt-2 alert alert-dismissible"
+            :class="docsMessageType === 'success' ? 'alert-success' : 'alert-danger'">
+            {{ docsMessage }}
+            <button type="button" class="btn-close" @click="docsMessage = ''"></button>
+          </div>
+        </div>
 
+        <div class="card p-3">
+          <h5 class="card-title mb-3">Mail Server</h5>
+          <div class="mb-2 text-muted" style="font-size: 1rem;">
+            Configure the SMTP server used to send emails from W4H. This is required for password resets, admin
+            notifications, and user invitations.
+            Use a service like Gmail, Outlook, or your organization's SMTP server. Credentials are stored securely and
+            never shared.
+          </div>
           <form @submit.prevent="saveMailerSettings">
             <div class="row g-3">
               <div class="col-md-8">
@@ -113,12 +140,55 @@
                   autocomplete="email" />
               </div>
             </div>
+
+            <div v-if="mailerMessage"
+              :class="['alert alert-dismissible mt-3 mb-0', mailerMessageType === 'success' ? 'alert-success' : 'alert-danger']">
+              {{ mailerMessage }}
+              <button type="button" class="btn-close" @click="mailerMessage = ''"></button>
+            </div>
           </form>
         </div>
       </div>
 
       <div class="col-12 col-lg-4">
-        <div class="card p-3 h-100">
+
+        <div class="card p-3 mb-3">
+          <h5 class="card-title mb-1">Email</h5>
+          <div class="row g-3 align-items-end mb-2">
+            <div class="col-12">
+              <label class="form-label">Help request email address</label>
+              <input v-model="appSettings.helpEmail" class="form-control" type="email" placeholder="support@example.com"
+                autocomplete="email" />
+              <small class="text-muted">The email address users should be referred to if they encounter a
+                problem.</small>
+            </div>
+            <div class="col-12 d-flex gap-2 mt-2">
+              <button class="btn btn-primary" :disabled="savingAppSettings" @click="saveAppSettings">Save Email</button>
+            </div>
+          </div>
+          <div v-if="appMessage"
+            :class="['alert alert-dismissible mt-2 mb-0', appMessageType === 'success' ? 'alert-success' : 'alert-danger']">
+            {{ appMessage }}
+            <button type="button" class="btn-close" @click="appMessage = ''"></button>
+          </div>
+        </div>
+
+        <div class="card p-3 mb-3">
+          <h5 class="card-title mb-1">Usage tracking</h5>
+          <div class="mb-1">
+            <p class="fw-semibold mb-1">Send anonymous tracking data</p>
+            <p class="text-muted small mb-2">Enable the collection of anonymous usage data to help improve W4H.</p>
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" id="usageTracking" v-model="appSettings.usageTracking"
+                @change="saveAppSettings" />
+              <label class="form-check-label" for="usageTracking">
+                {{ appSettings.usageTracking ? 'Enabled' : 'Disabled' }}
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div class="card p-3">
           <h6 class="mb-2">Status</h6>
           <div :class="['alert mb-2', dbConfigured ? 'alert-success' : 'alert-warning']">
             {{ dbConfigured ? 'Database is configured' : 'Database is not configured' }}
@@ -137,36 +207,43 @@ import { onMounted, ref } from 'vue';
 import { api, authHeaders } from '@/utils/api';
 import { APP_NAME } from '@/utils/defs';
 
-const message = ref('');
-const messageType = ref('success');
 const dbConfigured = ref(false);
 const mailerConfigured = ref(false);
 const savingDb = ref(false);
 const testingDb = ref(false);
 const backingUpDocs = ref(false);
+const refreshingDocs = ref(false);
 const savingMailer = ref(false);
 const testingMailer = ref(false);
 const testRecipient = ref('');
+const savingAppSettings = ref(false);
 
 const db = ref({ host: '', port: '5432', database: '', user: '', password: '' });
 const mailer = ref({ host: '', port: '587', secure: false, user: '', password: '', from: '', replyTo: '' });
+const appSettings = ref({ helpEmail: '', usageTracking: false });
 
-let messageTimer = null;
+// Per-card message state
+const dbMessage = ref('');
+const dbMessageType = ref('success');
+const docsMessage = ref('');
+const docsMessageType = ref('success');
+const mailerMessage = ref('');
+const mailerMessageType = ref('success');
+const appMessage = ref('');
+const appMessageType = ref('success');
 
-function setMessage(text, type = 'success') {
-  message.value = text;
-  messageType.value = type;
-  clearTimeout(messageTimer);
-  messageTimer = setTimeout(() => { message.value = ''; }, 4000);
+const timers = {};
+
+function setMessage(msgRef, typeRef, text, type = 'success', key = 'default') {
+  msgRef.value = text;
+  typeRef.value = type;
+  clearTimeout(timers[key]);
+  timers[key] = setTimeout(() => { msgRef.value = ''; }, 4000);
 }
 
 async function loadSettings() {
   try {
-    const [dbRes, mailRes] = await Promise.all([
-      api.get('config/status', authHeaders()),
-      api.get('config/mailer-settings', authHeaders())
-    ]);
-
+    const dbRes = await api.get('config/status', authHeaders());
     dbConfigured.value = !!dbRes.data.configured;
     if (dbRes.data.details) {
       db.value.host = dbRes.data.details.host || '';
@@ -174,7 +251,10 @@ async function loadSettings() {
       db.value.database = dbRes.data.details.database || '';
       db.value.user = dbRes.data.details.user || '';
     }
+  } catch { /* ignore */ }
 
+  try {
+    const mailRes = await api.get('config/mailer-settings', authHeaders());
     const smtp = mailRes.data || {};
     mailer.value.host = smtp.host || '';
     mailer.value.port = smtp.port || '587';
@@ -184,14 +264,19 @@ async function loadSettings() {
     mailer.value.from = smtp.from || '';
     mailer.value.replyTo = smtp.replyTo || '';
     mailerConfigured.value = !!smtp.configured;
-  } catch (error) {
-    setMessage(error.response?.data?.error || 'Failed to load settings', 'error');
-  }
+  } catch { /* ignore */ }
+
+  try {
+    const appRes = await api.get('config/app-settings', authHeaders());
+    const app = appRes.data || {};
+    appSettings.value.helpEmail = app.helpEmail || '';
+    appSettings.value.usageTracking = !!app.usageTracking;
+  } catch { /* ignore */ }
 }
 
 async function saveDatabaseSettings() {
   if (!db.value.host || !db.value.port || !db.value.database || !db.value.user) {
-    setMessage('Host, port, database, and user are required.', 'error');
+    setMessage(dbMessage, dbMessageType, 'Host, port, database, and user are required.', 'error', 'db');
     return;
   }
 
@@ -206,11 +291,11 @@ async function saveDatabaseSettings() {
     };
 
     const res = await api.post('config/database', payload, authHeaders());
-    setMessage(res.data.message || 'Database settings saved.', 'success');
+    setMessage(dbMessage, dbMessageType, res.data.message || 'Database settings saved.', 'success', 'db');
     db.value.password = '';
     await loadSettings();
   } catch (error) {
-    setMessage(error.response?.data?.error || error.message || 'Failed to save database settings.', 'error');
+    setMessage(dbMessage, dbMessageType, error.response?.data?.error || error.message || 'Failed to save database settings.', 'error', 'db');
   } finally {
     savingDb.value = false;
   }
@@ -220,9 +305,9 @@ async function testDatabase() {
   testingDb.value = true;
   try {
     const res = await api.get('config/test', authHeaders());
-    setMessage(res.data.message || 'Database connection successful', 'success');
+    setMessage(dbMessage, dbMessageType, res.data.message || 'Database connection successful', 'success', 'db');
   } catch (error) {
-    setMessage(error.response?.data?.error || error.message || 'Database connection failed', 'error');
+    setMessage(dbMessage, dbMessageType, error.response?.data?.error || error.message || 'Database connection failed', 'error', 'db');
   } finally {
     testingDb.value = false;
   }
@@ -232,11 +317,9 @@ async function backupDocs() {
   backingUpDocs.value = true;
   try {
     const res = await api.get('docs/export', { ...authHeaders(), responseType: 'blob' });
-
     const disposition = res.headers['content-disposition'] || '';
     const match = disposition.match(/filename="?([^"]+)"?/);
     const filename = match ? match[1] : 'w4h-docs-bundle.zip';
-
     const blob = new Blob([res.data], { type: 'application/zip' });
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -246,17 +329,34 @@ async function backupDocs() {
     link.click();
     link.remove();
     window.URL.revokeObjectURL(url);
-    setMessage('Docs exported and downloaded successfully.', 'success');
+    setMessage(docsMessage, docsMessageType, 'Docs archive ready, download and save the zip.', 'success', 'docs');
   } catch (error) {
-    setMessage(error.response?.data?.error || error.message || 'Failed to export docs', 'error');
+    setMessage(docsMessage, docsMessageType, error.response?.data?.error || error.message || 'Failed to export docs', 'error', 'docs');
   } finally {
     backingUpDocs.value = false;
   }
 }
 
+async function refreshDocs() {
+  refreshingDocs.value = true;
+  docsMessage.value = '';
+  try {
+    const res = await api.post('docs/refresh', {}, authHeaders());
+    if (res.data.success) {
+      setMessage(docsMessage, docsMessageType, `Docs refreshed (${res.data.count} pages imported)`, 'success', 'docs');
+    } else {
+      setMessage(docsMessage, docsMessageType, res.data.reason || 'Refresh returned no results', 'error', 'docs');
+    }
+  } catch (e) {
+    setMessage(docsMessage, docsMessageType, e.response?.data?.error || e.response?.data?.reason || 'Failed to refresh docs', 'error', 'docs');
+  } finally {
+    refreshingDocs.value = false;
+  }
+}
+
 async function saveMailerSettings() {
   if (!mailer.value.host || !mailer.value.port || !mailer.value.from) {
-    setMessage('SMTP host, port, and from are required.', 'error');
+    setMessage(mailerMessage, mailerMessageType, 'SMTP host, port, and from are required.', 'error', 'mailer');
     return;
   }
 
@@ -273,11 +373,11 @@ async function saveMailerSettings() {
     };
 
     const res = await api.post('config/mailer-settings', payload, authHeaders());
-    setMessage(res.data.message || 'SMTP settings saved.', 'success');
+    setMessage(mailerMessage, mailerMessageType, res.data.message || 'SMTP settings saved.', 'success', 'mailer');
     mailer.value.password = '';
     await loadSettings();
   } catch (error) {
-    setMessage(error.response?.data?.error || error.message || 'Failed to save SMTP settings.', 'error');
+    setMessage(mailerMessage, mailerMessageType, error.response?.data?.error || error.message || 'Failed to save SMTP settings.', 'error', 'mailer');
   } finally {
     savingMailer.value = false;
   }
@@ -287,11 +387,26 @@ async function sendTestEmail() {
   testingMailer.value = true;
   try {
     const res = await api.post('config/mailer-test', { to: testRecipient.value }, authHeaders());
-    setMessage(res.data.message || 'Test email sent.', 'success');
+    setMessage(mailerMessage, mailerMessageType, res.data.message || 'Test email sent.', 'success', 'mailer');
   } catch (error) {
-    setMessage(error.response?.data?.error || error.message || 'Failed to send test email.', 'error');
+    setMessage(mailerMessage, mailerMessageType, error.response?.data?.error || error.message || 'Failed to send test email.', 'error', 'mailer');
   } finally {
     testingMailer.value = false;
+  }
+}
+
+async function saveAppSettings() {
+  savingAppSettings.value = true;
+  try {
+    const res = await api.post('config/app-settings', {
+      helpEmail: appSettings.value.helpEmail,
+      usageTracking: appSettings.value.usageTracking,
+    }, authHeaders());
+    setMessage(appMessage, appMessageType, res.data.message || 'App settings saved.', 'success', 'app');
+  } catch (error) {
+    setMessage(appMessage, appMessageType, error.response?.data?.error || error.message || 'Failed to save app settings.', 'error', 'app');
+  } finally {
+    savingAppSettings.value = false;
   }
 }
 

@@ -7,8 +7,9 @@
         <p class="text-muted text-center mb-3"></p>
         <div class="alert alert-info" role="alert">
           <div class="mt-1">
-            <strong>Postgres user must have CREATEDB privilege</strong> to create the database and
-            schema if they don't exist.
+            Enter your <strong>PostgreSQL database credentials</strong> to connect W4H to your database.
+            The database and the schema will be created automatically if they don't exist
+            — the Postgres user must have <strong>CREATEDB privilege</strong> for that.
           </div>
         </div>
 
@@ -27,8 +28,8 @@
           <div class="mb-3">
             <label class="form-label">Database Name</label>
             <input v-model="db.database" class="form-control" placeholder="w4h-db" required />
-            <small class="form-text text-muted">Database will be created if it doesn't exist. The <strong>w4h</strong>
-              schema will be created inside.</small>
+            <small class="form-text text-muted">Name the W4H database. Database will be created if it doesn't exist. The
+              <strong>w4h</strong> schema will be created inside.</small>
           </div>
 
           <div class="mb-3">

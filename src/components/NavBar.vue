@@ -3,7 +3,7 @@
     <div class="container-fluid">
       <RouterLink class="navbar-brand" :to="{ name: 'home' }">
         <img class="app-icon" :src="iconSrc" alt="W4H Logo" />
-        {{ user.account_name }}
+        {{ user.name }}
       </RouterLink>
 
       <!-- Hamburger button for small screens -->
@@ -43,8 +43,8 @@
               {{ user.name ? user.name : '' }}
             </a>
             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="menuDropdown">
-              <li class="dropdown-item">{{ user.account_name }}</li>
-              <li class="dropdown-header text-secondary">{{ user.city_name }}</li>
+              <li class="dropdown-item">{{ user.name }}</li>
+              <!-- <li class="dropdown-header text-secondary">{{ user.email }}</li> -->
               <li>
                 <hr class="dropdown-divider">
               </li>
@@ -167,8 +167,8 @@ function onSignOutClick() {
 
 .w4h-nav .admin-entry,
 .w4h-dark-nav .admin-entry {
-  background-color: #FFCC00 !important;
-  color: black !important;
+  background-color: #767676 !important;
+  color: white !important;
 }
 
 /* Small screen adjustments */
