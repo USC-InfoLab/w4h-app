@@ -97,10 +97,12 @@
       <div ref="rightPane" class="docs-content" id="top">
         <template v-if="isAdminUI && isEditing">
 
-          <Suspense>
-            <MdDocEditable :slug="route.params.slug ?? null" :is-new="props.isNewDoc" @saved="onDocSaved"
-              @close="exitEditMode" />
-          </Suspense>
+          <div class="pt-3">
+            <Suspense>
+              <MdDocEditable :slug="route.params.slug ?? null" :is-new="props.isNewDoc" @saved="onDocSaved"
+                @close="exitEditMode" />
+            </Suspense>
+          </div>
         </template>
 
         <template v-else>
@@ -937,11 +939,11 @@ div .alert {
 }
 
 .md-editor-fullscreen {
-  top: 56px !important;
-  /* match your menu bar height */
-  height: calc(100vh - 56px) !important;
+  top: 70px !important;
+  /* was 56px — adds breathing room below navbar */
+  height: calc(100vh - 70px) !important;
+  /* was calc(100vh - 56px) */
   z-index: 1050 !important;
-  /* just above the navbar, below modals if any */
 }
 
 /* Standard sidebar link style (for all items) */

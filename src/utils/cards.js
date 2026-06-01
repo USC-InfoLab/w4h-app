@@ -4,14 +4,14 @@ import { generateTOC } from './toc';
 function getCards(isAdminUI = false) {
   const allCards = [
     {
-      card_title: '<span style="font-size: 2em">📊</span> Projects',
-      description: '<b>Projects</b> are trial based studies that are organized and managed within the W4H platform.',
+      card_title: '<span style="font-size: 2em">🧪</span> Projects',
+      description: '<b>Projects</b> are trial or studies that are organized and managed within the W4H Toolkit platform.',
       route: isAdminUI ? 'admin/projects' : 'datasets',
       action_label: 'Open Projects'
     },
     {
-      card_title: '<span style="font-size: 2em">📚</span> Docs',
-      description: '<b>Docs</b> provide guides and reference material for using the W4H Toolkit.',
+      card_title: '<span style="font-size: 2em">📚</span> Help',
+      description: '<b>Help</b> provide guides and reference material for using the W4H Toolkit.',
       route: 'docs',
       hidden: false
     },
