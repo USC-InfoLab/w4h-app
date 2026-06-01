@@ -253,6 +253,13 @@ const checkDbStatus = async () => {
 
   try {
     const res = await api.get('config/status');
+
+    if (typeof res.data !== 'object') {
+      backendError.value = 'Application is not configured correctly. Please set VITE_API_URL in your .env file and restart.';
+      return;
+    }
+        
+    console.log(res);
     dbConfigured.value = !!res.data.configured;
     showDbConfig.value = !dbConfigured.value;
     showAdminSetup.value = false;
