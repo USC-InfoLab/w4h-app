@@ -13,7 +13,6 @@
 
     <div class="row gy-3">
 
-      <!-- Profile -->
       <div class="col-12 col-md-6">
         <div class="card p-3 h-100">
           <h5 class="card-title mb-3">Profile</h5>
@@ -25,8 +24,8 @@
 
           <div v-if="!isAdminUser" class="mb-3">
             <label class="form-label">Projects</label>
-            <select v-model="user.study_ids" class="form-select" multiple>
-              <option v-for="option in studyOptions" :key="option.value" :value="option.value">
+            <select v-model="user.project_ids" class="form-select" multiple>
+              <option v-for="option in projectOptions" :key="option.value" :value="option.value">
                 {{ option.text }}
               </option>
             </select>
@@ -54,10 +53,9 @@
         </div>
       </div>
 
-      <!-- Password -->
       <div class="col-12 col-md-6">
         <div class="card p-3 h-100">
-          <!-- <h5 class="card-title mb-3">Password</h5> -->
+          <h5 class="card-title mb-3">Password</h5>
 
           <div class="mb-2">
             <label class="form-label">Password</label>
@@ -83,12 +81,24 @@
         </div>
       </div>
 
-      <!-- Error -->
+      <div class="col-12">
+        <div class="card p-3">
+          <h5 class="card-title mb-3">Notebook API key</h5>
+          <p v-if="user.api_key_active" class="small mb-2">
+            Active key prefix: <code>{{ user.api_key_prefix }}</code>
+          </p>
+          <p v-else class="small text-muted mb-2">No API key issued for this user.</p>
+          <button type="button" class="btn btn-outline-danger btn-sm" :disabled="!user.api_key_active"
+            @click="onRevokeUserApiKey">
+            Revoke API key
+          </button>
+        </div>
+      </div>
+
       <div v-if="message" class="col-12">
         <div class="alert alert-danger">{{ message }}</div>
       </div>
 
-      <!-- Save Button -->
       <div class="d-flex justify-content-end mb-3">
         <button class="btn btn-primary" :disabled="!dirty || !isSecurePassword" @click="onSave">
           Save
@@ -96,7 +106,6 @@
       </div>
 
 
-      <!-- Danger Zone -->
       <div v-if="!isAdminUser" class="col-12">
         <div class="card border-danger p-3">
           <h5 class="text-danger">Danger Zone</h5>
@@ -122,13 +131,10 @@
 import { ref, onMounted, watch, computed } from 'vue';
 import { api, authHeaders } from '../../utils/api';
 import { validatePassword } from '@/utils/password-validator';
-// import ToastComponent from './Toast.vue';
 
 import { useRoute, useRouter } from 'vue-router';
 const route = useRoute();
 const router = useRouter();
-
-//const showToast = ref(false);
 
 const verifyCode = ref('');
 const dirty = ref(false);
@@ -162,7 +168,7 @@ let originalUser = null;
 const originalRole = ref('');
 
 const roleOptions = ref([]);
-const studyOptions = ref([]);
+const projectOptions = ref([]);
 const message = ref('');
 const isAdminUser = computed(() => originalRole.value === 'admin');
 
@@ -194,7 +200,9 @@ onMounted(async () => {
       name: data.name,
       role: data.role,
       password: '',
-      study_ids: Array.isArray(data.study_ids) ? data.study_ids : [],
+      project_ids: Array.isArray(data.project_ids) ? data.project_ids : [],
+      api_key_active: !!data.api_key_active,
+      api_key_prefix: data.api_key_prefix || null,
     };
 
     originalUser = { ...user.value };
@@ -211,8 +219,8 @@ onMounted(async () => {
       { deep: true }
     );
 
-    const studies = await api.get('datasets/studies', authHeaders());
-    studyOptions.value = studies.data.map(s => ({ text: s.name, value: s.id }));
+    const projectsRes = await api.get('projects', authHeaders());
+    projectOptions.value = projectsRes.data.map((p) => ({ text: p.name, value: p.id }));
 
     const roles = await api.get('users/roles', authHeaders());
     roleOptions.value = roles.data.map((r) => ({ text: r, value: r }));
@@ -221,6 +229,19 @@ onMounted(async () => {
     message.value = error.response?.data?.error || error.message || 'Failed to load user.';
   }
 });
+
+async function onRevokeUserApiKey() {
+  if (!user.value?.email) return;
+  try {
+    message.value = '';
+    await api.delete(`users/user/${encodeURIComponent(user.value.email)}/api-key`, authHeaders());
+    user.value.api_key_active = false;
+    user.value.api_key_prefix = null;
+    originalUser = { ...user.value };
+  } catch (error) {
+    message.value = error.response?.data?.error || error.message || 'Failed to revoke API key';
+  }
+}
 
 async function onSave() {
   try {
@@ -237,12 +258,12 @@ async function onSave() {
       email: user.value.email,
       name: user.value.name,
       role: isAdminUser.value ? 'admin' : user.value.role,
-      study_ids: isAdminUser.value ? [] : user.value.study_ids,
+      project_ids: isAdminUser.value ? [] : user.value.project_ids,
       ...(user.value.password ? { password: user.value.password } : {})
     };
 
     await api.post('users/set', { user: updates }, authHeaders());
-    user.value.password = '';  //in case we changed it
+    user.value.password = '';
     originalUser = { ...user.value };
 
     dirty.value = false;
@@ -254,7 +275,7 @@ async function onSave() {
 const isSecurePassword = computed(() => {
   const password = user.value?.password;
   if (!password) {
-    return true; // Empty password is ok
+    return true;
   }
   return validatePassword(password);
 });

@@ -1,7 +1,6 @@
 <template>
   <main v-if="user" role="main" class="container-fluid">
 
-    <!-- Breadcrumb -->
     <nav aria-label="breadcrumb" class="mb-3">
       <ol class="breadcrumb">
         <li class="breadcrumb-item">
@@ -15,7 +14,6 @@
 
     <form class="row gy-3" @submit.prevent="onSave">
 
-      <!-- Profile Card -->
       <div class="col-12 col-md-6">
         <div class="card p-3 h-100">
           <h5 class="card-title mb-3">Profile</h5>
@@ -35,8 +33,8 @@
 
           <div class="mb-3">
             <label class="form-label">Projects</label>
-            <select v-model="user.study_ids" class="form-select" multiple :disabled="user.role === 'admin'">
-              <option v-for="option in studyOptions" :key="option.value" :value="option.value">
+            <select v-model="user.project_ids" class="form-select" multiple :disabled="user.role === 'admin'">
+              <option v-for="option in projectOptions" :key="option.value" :value="option.value">
                 {{ option.text }}
               </option>
             </select>
@@ -56,7 +54,6 @@
         </div>
       </div>
 
-      <!-- Password Card -->
       <div class="col-12 col-md-6">
         <div class="card p-3 h-100">
           <h5 class="card-title mb-3">Password</h5>
@@ -86,14 +83,12 @@
         </div>
       </div>
 
-      <!-- Submit Message -->
       <div v-if="submitMessage" class="col-12">
         <div class="alert" :class="submitted ? 'alert-success' : 'alert-danger'">
           {{ submitMessage }}
         </div>
       </div>
 
-      <!-- Save Button -->
       <div class="d-flex justify-content-end mb-3">
         <button v-if="!submitted" class="btn btn-primary"
           :disabled="!user.email || !isValidEmail || !user.password || !isSecurePassword" type="submit">
@@ -119,12 +114,12 @@ const user = ref({
   email: '',
   name: '',
   role: null,
-  study_ids: [],
+  project_ids: [],
   password: '',
 });
 
 const roleOptions = ref([]);
-const studyOptions = ref([]);
+const projectOptions = ref([]);
 
 const submitMessage = ref('');
 const submitted = ref(false);
@@ -158,7 +153,7 @@ async function onReset() {
     email: '',
     name: '',
     role: null,
-    study_ids: [],
+    project_ids: [],
     password: '',
   };
   submitMessage.value = '';
@@ -199,8 +194,8 @@ const isValidEmail = computed(() => {
 onMounted(async () => {
   document.title = `${APP_NAME} Add User`;
 
-  const studies = await api.get('datasets/studies', authHeaders());
-  studyOptions.value = studies.data.map(s => ({ text: s.name, value: s.id }));
+  const projectsRes = await api.get('projects', authHeaders());
+  projectOptions.value = projectsRes.data.map((p) => ({ text: p.name, value: p.id }));
 
   const roles = await api.get('users/roles', authHeaders());
   roleOptions.value = [

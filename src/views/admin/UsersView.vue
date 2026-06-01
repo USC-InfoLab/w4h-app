@@ -75,7 +75,7 @@ const columns = [
   { label: 'Name', field: 'name' },
   { label: 'Email', field: 'email' },
   { label: 'Role', field: 'role' },
-  { label: 'Projects', field: 'studies' },
+  { label: 'Projects', field: 'projects' },
   { label: '', field: 'edit', sortable: false }
 ];
 
@@ -84,10 +84,8 @@ const columnsSmall = [
   { label: '', field: 'edit', sortable: false }
 ];
 
-// hold all users, never filtered
 const allRows = ref([]);
 
-// computed rows for table
 const filteredRows = computed(() => {
   return allRows.value;
 });
@@ -113,7 +111,7 @@ onMounted(async () => {
       name: u.name || '',
       email: u.email || '',
       role: u.role || '',
-      studies: u.projects || ''
+      projects: u.projects || ''
     }));
   } catch (e) {
     console.error(e);
@@ -121,7 +119,6 @@ onMounted(async () => {
   }
 });
 
-// Navigation & Theme helpers
 function onEditButtonClick(row) {
   const isSelf = row.email === userStore.user.email;
   const isAdmin = userStore.user.role === 'admin';

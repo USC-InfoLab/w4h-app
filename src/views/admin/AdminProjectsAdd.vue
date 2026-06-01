@@ -1,28 +1,28 @@
 <template>
-  <main class="container-fluid" v-if="loaded">
+  <main class="container-fluid">
     <nav aria-label="breadcrumb" class="mb-3">
       <ol class="breadcrumb">
         <li class="breadcrumb-item">
-          <router-link to="/admin/studies">Projects</router-link>
+          <router-link to="/admin/projects">Projects</router-link>
         </li>
-        <li class="breadcrumb-item active" aria-current="page">Edit Project</li>
+        <li class="breadcrumb-item active" aria-current="page">Add Project</li>
       </ol>
     </nav>
 
     <div class="row justify-content-center">
       <div class="col-12 col-md-8 col-lg-6">
         <div class="card p-3">
-          <h5 class="card-title mb-3">Edit Project</h5>
+          <h5 class="card-title mb-3">New Project</h5>
 
           <div class="mb-3">
-            <label class="form-label">Project ID</label>
-            <input v-model="form.id" class="form-control" disabled />
-            <div class="form-text">Project ID cannot be changed.</div>
+            <label class="form-label">Project slug (optional)</label>
+            <input v-model.trim="form.slug" class="form-control" placeholder="e.g. w4h-core" />
+            <div class="form-text">URL-friendly key. Leave blank to auto-generate from name.</div>
           </div>
 
           <div class="mb-3">
             <label class="form-label">Name</label>
-            <input v-model.trim="form.name" class="form-control" />
+            <input v-model.trim="form.name" class="form-control" placeholder="e.g. W4H Core Project" />
           </div>
 
           <div class="mb-3">
@@ -37,7 +37,7 @@
           <div class="d-flex justify-content-end">
             <button class="btn btn-primary" :disabled="saving || !form.name" @click="onSave">
               <span v-if="saving" class="spinner-border spinner-border-sm me-2" />
-              Save
+              Create Project
             </button>
           </div>
         </div>
@@ -47,37 +47,21 @@
 </template>
 
 <script setup>
-import { onMounted, reactive, ref } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { reactive, ref } from 'vue';
+import { useRouter } from 'vue-router';
 import { api, authHeaders } from '@/utils/api';
 
-const route = useRoute();
 const router = useRouter();
 
-const loaded = ref(false);
-const saving = ref(false);
-const message = ref('');
-const ok = ref(false);
-
 const form = reactive({
-  id: '',
+  slug: '',
   name: '',
   description: ''
 });
 
-onMounted(async () => {
-  try {
-    const id = Array.isArray(route.params.id) ? route.params.id[0] : route.params.id;
-    const data = (await api.get(`datasets/studies-admin/${encodeURIComponent(id || '')}`, authHeaders())).data;
-    form.id = data.id;
-    form.name = data.name || '';
-    form.description = data.description || '';
-  } catch (error) {
-    message.value = error.response?.data?.error || error.message || 'Failed to load project.';
-  } finally {
-    loaded.value = true;
-  }
-});
+const saving = ref(false);
+const message = ref('');
+const ok = ref(false);
 
 async function onSave() {
   saving.value = true;
@@ -85,16 +69,17 @@ async function onSave() {
   ok.value = false;
 
   try {
-    await api.put(`datasets/studies-admin/${encodeURIComponent(form.id)}`, {
+    await api.post('projects', {
+      slug: form.slug || undefined,
       name: form.name,
       description: form.description || null
     }, authHeaders());
 
     ok.value = true;
-    message.value = 'Project updated.';
-    router.push({ name: 'adminStudies' });
+    message.value = 'Project created.';
+    router.push({ name: 'adminProjects' });
   } catch (error) {
-    message.value = error.response?.data?.error || error.message || 'Failed to save project.';
+    message.value = error.response?.data?.error || error.message || 'Failed to create project.';
   } finally {
     saving.value = false;
   }

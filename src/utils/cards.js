@@ -1,4 +1,3 @@
-// cards.js
 import { api, authHeaders } from './api';
 import { generateTOC } from './toc';
 
@@ -7,15 +6,9 @@ function getCards(isAdminUI = false) {
     {
       card_title: '<span style="font-size: 2em">🧪</span> Projects',
       description: '<b>Projects</b> are trial or studies that are organized and managed within the W4H Toolkit platform.',
-      route: isAdminUI ? 'admin/projects' : 'projects',
+      route: isAdminUI ? 'admin/projects' : 'datasets',
       action_label: 'Open Projects'
     },
-    // {
-    //   card_title: '<span style="font-size: 2em">📊</span> Analytics',
-    //   description: 'Insights on wearables and other study data.',
-    //   route: isAdminUI ? 'admin/analytics' : 'analytics',
-    //   action_label: 'Open Analytics'
-    // },
     {
       card_title: '<span style="font-size: 2em">📚</span> Help',
       description: '<b>Help</b> provide guides and reference material for using the W4H Toolkit.',
@@ -31,11 +24,9 @@ function getCards(isAdminUI = false) {
     : allCards.filter(card => !card.hidden);
 }
 
-// Fetch feature cards from dedicated endpoint
 async function getFeatureCards() {
   try {
     const res = await api.get('/docs/cards/feature', authHeaders());
-    console.log('Feature cards fetched:', res.data);
     return res.data;
   } catch (err) {
     console.error('Error fetching feature cards:', err);
@@ -43,16 +34,12 @@ async function getFeatureCards() {
   }
 }
 
-// New function to fetch dynamic markdown cards from API
 async function getMarkdownCards(showHidden = false) {
   try {
-    // pass showHidden as query param
     const res = await api.get('/docs', {
       ...authHeaders(),
-      params: { hidden: showHidden } // ?hidden=true/false
+      params: { hidden: showHidden }
     });
-
-    // res.data.forEach(d => d.toc = generateTOC(d.md));
 
     return res.data;
   } catch (err) {

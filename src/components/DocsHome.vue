@@ -14,7 +14,7 @@
 
     <ul>
       <li>
-        <router-link :to="{ name: 'studies' }" target="_blank"> Data <i
+        <router-link :to="{ name: 'projects' }" target="_blank"> Data <i
             class="bi bi-box-arrow-up-right"></i></router-link> for <router-link
           :to="{ name: 'docs', params: { slug: `sample-dataset` } }" target="_blank">
           Sample datasets <i class="bi bi-box-arrow-up-right"></i></router-link>.
@@ -52,12 +52,3 @@
     </p>
   </div>
 </template>
-
-<script setup>
-// const props = defineProps({
-//   city: {
-//     type: Object,
-//     required: true
-//   }
-// });
-</script>

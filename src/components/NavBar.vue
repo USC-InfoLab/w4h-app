@@ -6,23 +6,16 @@
         {{ user.name }}
       </RouterLink>
 
-      <!-- Hamburger button for small screens -->
       <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse"
         aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation">
         <span class="navbar-toggler-icon"></span>
       </button>
 
       <div class="collapse navbar-collapse" id="navbarCollapse">
-        <!-- CENTER: Navigation -->
         <div class="flex-grow-1 d-md-flex justify-content-center">
           <ul class="navbar-nav w-100 justify-content-center flex-md-row flex-column">
-            <!-- <li class="nav-item">
-              <RouterLink :to="{ name: 'home' }" class="nav-link" active-class="active">
-                <i class="bi bi-house-door"></i> Home
-              </RouterLink>
-            </li> -->
             <li class="nav-item">
-              <RouterLink :to="{ name: 'studies' }" class="nav-link" active-class="active">
+              <RouterLink :to="{ name: 'projects' }" class="nav-link" active-class="active">
                 <i class="bi bi-beaker"></i> Projects
               </RouterLink>
             </li>
@@ -34,7 +27,6 @@
           </ul>
         </div>
 
-        <!-- RIGHT: User dropdown -->
         <form class="d-flex mt-2 mt-md-0">
           <div class="dropdown w-100 w-md-auto">
             <a class="dropdown-toggle text-reset d-flex align-items-center" href="#" role="button" id="menuDropdown"
@@ -109,45 +101,37 @@ function onSignOutClick() {
   padding: 2px;
 }
 
-/* Navbar background */
 .w4h-nav,
 .w4h-dark-nav {
   background-color: rgb(99, 0, 0) !important;
   color: white !important;
-  /* dark gray text */
 }
 
 .w4h-dark-nav,
 .navbar-brand,
 .navbar-nav .nav-link {
   color: white !important;
-  /* dark gray text */
 }
 
-/* Active link underline */
 .navbar-nav .nav-link.active {
   border-bottom: 2px solid currentColor;
 }
 
-/* Admin entry keeps original dark background with light text */
 .w4h-dark-nav .admin-entry {
   background-color: rgb(99, 0, 0) !important;
   color: whitesmoke !important;
 }
 
-/* Hover for normal links and dropdown items */
 .w4h-dark-nav .admin-entry {
   color: rgb(30, 30, 30) !important;
 }
 
-/* Combined rule for both modes */
 .w4h-nav,
 .w4h-dark-nav {
   background-color: rgb(99, 0, 0) !important;
   color: whitesmoke !important;
 }
 
-/* Maintain link colors and active states */
 .navbar-nav .nav-link {
   font-weight: 500;
 }
@@ -171,7 +155,6 @@ function onSignOutClick() {
   color: white !important;
 }
 
-/* Small screen adjustments */
 @media (max-width: 767.98px) {
   .navbar-nav {
     flex-direction: column;
