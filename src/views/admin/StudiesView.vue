@@ -22,9 +22,9 @@
         class="list-group-item d-flex justify-content-between align-items-center">
         <div>
           <div class="fw-semibold">{{ study.name || study.id }}</div>
-          <small class="text-muted">{{ study.id }}</small>
+          <small class="text-muted">{{ study.slug || study.id }}</small>
         </div>
-        <button class="btn btn-sm btn-outline-primary" @click="goEdit(study.id)">Edit</button>
+        <button class="btn btn-sm btn-outline-primary" @click="goEdit(study.slug || study.id)">Edit</button>
       </li>
     </ul>
 
@@ -48,7 +48,7 @@ onMounted(async () => {
   document.title = 'Projects';
 
   try {
-    const res = await api.get('datasets/studies', authHeaders());
+    const res = await api.get('projects', authHeaders());
     studies.value = Array.isArray(res.data) ? res.data : [];
   } catch (error) {
     errorMessage.value = error.response?.data?.error || error.message || 'Failed to load projects.';
@@ -58,7 +58,7 @@ onMounted(async () => {
   }
 });
 
-function goEdit(id) {
-  router.push({ name: 'adminStudiesEdit', params: { id } });
+function goEdit(projectRef) {
+  router.push({ name: 'adminStudiesEdit', params: { id: projectRef } });
 }
 </script>
