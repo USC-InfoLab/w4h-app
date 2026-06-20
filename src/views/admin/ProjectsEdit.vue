@@ -3,7 +3,7 @@
     <nav aria-label="breadcrumb" class="mb-3">
       <ol class="breadcrumb">
         <li class="breadcrumb-item">
-          <router-link to="/admin/studies">Projects</router-link>
+          <router-link to="/admin/projects">Projects</router-link>
         </li>
         <li class="breadcrumb-item active" aria-current="page">Edit Project</li>
       </ol>
@@ -210,10 +210,8 @@
 import { onMounted, reactive, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import { api, authHeaders } from '@/utils/api';
-import { useUserStore } from '@/stores/user';
 
 const route = useRoute();
-const userStore = useUserStore();
 
 const loaded = ref(false);
 const savingProject = ref(false);

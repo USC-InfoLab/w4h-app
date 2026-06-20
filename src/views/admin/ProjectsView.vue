@@ -2,7 +2,7 @@
   <main role="main" class="container-fluid">
     <div class="row align-items-center mb-2">
       <div class="col-auto ms-auto">
-        <button class="btn btn-sm btn-primary my-2" @click="$router.push({ name: 'adminStudiesAdd' })">
+        <button class="btn btn-sm btn-primary my-2" @click="$router.push({ name: 'adminProjectsAdd' })">
           <i class="bi bi-plus"></i> Add Project
         </button>
       </div>
@@ -17,14 +17,14 @@
       <p>Loading projects...</p>
     </div>
 
-    <ul v-else-if="studies.length" class="list-group">
-      <li v-for="study in studies" :key="study.id"
+    <ul v-else-if="projects.length" class="list-group">
+      <li v-for="project in projects" :key="project.id"
         class="list-group-item d-flex justify-content-between align-items-center">
         <div>
-          <div class="fw-semibold">{{ study.name || study.id }}</div>
-          <small class="text-muted">{{ study.slug || study.id }}</small>
+          <div class="fw-semibold">{{ project.name || project.id }}</div>
+          <small class="text-muted">{{ project.slug || project.id }}</small>
         </div>
-        <button class="btn btn-sm btn-outline-primary" @click="goEdit(study.slug || study.id)">Edit</button>
+        <button class="btn btn-sm btn-outline-primary" @click="goEdit(project.slug || project.id)">Edit</button>
       </li>
     </ul>
 
@@ -40,7 +40,7 @@ import { useRouter } from 'vue-router';
 import { api, authHeaders } from '@/utils/api';
 
 const router = useRouter();
-const studies = ref([]);
+const projects = ref([]);
 const loading = ref(true);
 const errorMessage = ref('');
 
@@ -49,16 +49,16 @@ onMounted(async () => {
 
   try {
     const res = await api.get('projects', authHeaders());
-    studies.value = Array.isArray(res.data) ? res.data : [];
+    projects.value = Array.isArray(res.data) ? res.data : [];
   } catch (error) {
     errorMessage.value = error.response?.data?.error || error.message || 'Failed to load projects.';
-    studies.value = [];
+    projects.value = [];
   } finally {
     loading.value = false;
   }
 });
 
 function goEdit(projectRef) {
-  router.push({ name: 'adminStudiesEdit', params: { id: projectRef } });
+  router.push({ name: 'adminProjectsEdit', params: { id: projectRef } });
 }
 </script>

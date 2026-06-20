@@ -199,8 +199,8 @@ const isValidEmail = computed(() => {
 onMounted(async () => {
   document.title = `${APP_NAME} Add User`;
 
-  const studies = await api.get('datasets/studies', authHeaders());
-  studyOptions.value = studies.data.map(s => ({ text: s.name, value: s.id }));
+  const projects = await api.get('projects', authHeaders());
+  studyOptions.value = projects.data.map(s => ({ text: s.name, value: s.id }));
 
   const roles = await api.get('users/roles', authHeaders());
   roleOptions.value = [

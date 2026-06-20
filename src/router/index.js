@@ -16,11 +16,8 @@ const routes = [
 
   // User routes
   { path: '/home', name: 'home', component: () => import('../views/HomeView.vue'), meta: { requiresAuth: true } },
-  // { path: '/storyEdit/:id', name: 'storyEdit', component: () => import('../views/StoryEdit.vue'), meta: { requiresAuth: true } },
-  // { path: '/storyAdd', name: 'storyAdd', component: () => import('../views/StoryAdd.vue'), meta: { requiresAuth: true } },
-  { path: '/datasets', name: 'studies', component: () => import('../views/StudiesView.vue'), meta: { requiresAuth: true } },
-  { path: '/datasets/:id', name: 'projectWorkspace', component: () => import('../views/ProjectWorkspaceView.vue'), props: true, meta: { requiresAuth: true } },
-  // { path: '/print/:id', name: 'print', component: () => import('../views/admin/Print.vue'), meta: { requiresAuth: true } },
+  { path: '/projects', name: 'projects', component: () => import('../views/ProjectsView.vue'), meta: { requiresAuth: true } },
+  { path: '/projects/:id', name: 'projectWorkspace', component: () => import('../views/ProjectWorkspaceView.vue'), props: true, meta: { requiresAuth: true } },
   { path: '/userProfileEdit', name: 'userProfileEdit', component: () => import('../views/UserProfileEdit.vue'), meta: { requiresAuth: true } },
 
   // Docs routes
@@ -46,10 +43,9 @@ const routes = [
   { path: '/admin/home', name: 'adminHome', component: () => import('../views/admin/HomeView.vue'), meta: { requiresAuth: true, adminPage: true } },
   { path: '/admin/settings', name: 'adminSettings', component: () => import('../views/admin/SettingsView.vue'), meta: { requiresAuth: true, adminPage: true } },
   { path: '/admin/database', name: 'adminDatabase', redirect: '/admin/settings' },
-  // { path: '/admin/studies', name: 'adminStudies', component: () => import('../views/admin/studies.vue'), meta: { requiresAuth: true, adminPage: true } },
-  { path: '/admin/studies', name: 'adminStudies', component: () => import('../views/admin/StudiesView.vue'), meta: { requiresAuth: true, adminPage: true } },
-  { path: '/admin/studies/add', name: 'adminStudiesAdd', component: () => import('../views/admin/StudiesAdd.vue'), meta: { requiresAuth: true, adminPage: true } },
-  { path: '/admin/studies/:id/edit', name: 'adminStudiesEdit', component: () => import('../views/admin/StudiesEdit.vue'), props: true, meta: { requiresAuth: true, adminPage: true } },
+  { path: '/admin/projects', name: 'adminProjects', component: () => import('../views/admin/ProjectsView.vue'), meta: { requiresAuth: true, adminPage: true } },
+  { path: '/admin/projects/add', name: 'adminProjectsAdd', component: () => import('../views/admin/ProjectsAdd.vue'), meta: { requiresAuth: true, adminPage: true } },
+  { path: '/admin/projects/:id/edit', name: 'adminProjectsEdit', component: () => import('../views/admin/ProjectsEdit.vue'), props: true, meta: { requiresAuth: true, adminPage: true } },
   { path: '/admin/accounts', name: 'accounts', component: () => import('../views/admin/AccountsView.vue'), meta: { requiresAuth: true, adminPage: true } },
   { path: '/admin/accounts/:id/edit', name: 'accountsEdit', component: () => import('../views/admin/AccountsEdit.vue'), props: true, meta: { requiresAuth: true, adminPage: true } },
   { path: '/admin/accounts/add', name: 'accountsAdd', component: () => import('../views/admin/AccountsAdd.vue'), meta: { requiresAuth: true, adminPage: true } },

@@ -1,5 +1,5 @@
 <template>
-  <main class="StudiesView">
+  <main class="ProjectsView">
     <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
       <h3 class="mb-0">My Projects</h3>
       <button
@@ -20,16 +20,16 @@
       {{ errorMessage }}
     </div>
 
-    <ul v-else-if="studies.length" class="list-group">
+    <ul v-else-if="projects.length" class="list-group">
       <li
-        v-for="study in studies"
-        :key="study.id"
+        v-for="project in projects"
+        :key="project.id"
         class="list-group-item d-flex justify-content-between align-items-center list-group-item-action"
         role="button"
-        @click="openProject(study.slug || study.id)"
+        @click="openProject(project.slug || project.id)"
       >
-        <span class="text-truncate">{{ study.name || study.id }}</span>
-        <span class="badge text-bg-secondary text-truncate" style="max-width: 12rem">{{ study.slug || study.id }}</span>
+        <span class="text-truncate">{{ project.name || project.id }}</span>
+        <span class="badge text-bg-secondary text-truncate" style="max-width: 12rem">{{ project.slug || project.id }}</span>
       </li>
     </ul>
 
@@ -71,7 +71,7 @@
   </main>
 </template>
 
-<script setup name="StudiesView">
+<script setup name="ProjectsView">
 import { computed, nextTick, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { Modal } from 'bootstrap';
@@ -87,7 +87,7 @@ const uiStore = useUIStore();
 
 const isLoading = ref(true);
 const errorMessage = ref('');
-const studies = ref([]);
+const projects = ref([]);
 const createSaving = ref(false);
 const createModalEl = ref(null);
 let createModal = null;
@@ -142,7 +142,7 @@ async function submitCreateProject() {
       router.push({ name: 'projectWorkspace', params: { id } });
     } else {
       const list = await api.get('projects', authHeaders());
-      studies.value = Array.isArray(list.data) ? list.data : [];
+      projects.value = Array.isArray(list.data) ? list.data : [];
     }
   } catch (error) {
     errorMessage.value = error.response?.data?.error || error.message || 'Failed to create project.';
@@ -157,9 +157,9 @@ onMounted(async () => {
 
   try {
     const res = await api.get('projects', authHeaders());
-    studies.value = Array.isArray(res.data) ? res.data : [];
+    projects.value = Array.isArray(res.data) ? res.data : [];
   } catch (error) {
-    studies.value = [];
+    projects.value = [];
     errorMessage.value = error.response?.data?.error || error.message || 'Failed to load projects.';
   } finally {
     isLoading.value = false;

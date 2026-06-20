@@ -3,7 +3,7 @@
     <nav aria-label="breadcrumb" class="mb-3">
       <ol class="breadcrumb mb-0">
         <li class="breadcrumb-item">
-          <RouterLink :to="{ name: 'studies' }">Projects</RouterLink>
+          <RouterLink :to="{ name: 'projects' }">Projects</RouterLink>
         </li>
         <li class="breadcrumb-item active" aria-current="page">{{ project.name }}</li>
       </ol>
@@ -990,7 +990,7 @@ function addDoc() {
 onMounted(async () => {
   document.title = `${APP_NAME} Project`;
   if (!id.value) {
-    router.replace({ name: 'studies' });
+    router.replace({ name: 'projects' });
     return;
   }
 

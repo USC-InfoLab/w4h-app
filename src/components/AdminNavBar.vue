@@ -2,7 +2,7 @@
   <nav :class="['navbar', 'navbar-expand-md', 'navbar-dark', 'fixed-top', navbarColorClass]">
     <div class="container-fluid">
       <RouterLink class="navbar-brand w4h-admin-title" :to="{ name: 'adminHome' }">
-        <img class="app-icon" :src="iconSrc" alt="W4H Logo" /> <span>W4H Admin</span>
+        <img class="app-icon" :src="iconSrc" alt="W4H Logo" />
         <!-- {{ user.account_name }} -->
       </RouterLink>
 
@@ -20,7 +20,7 @@
             </RouterLink>
           </li>
           <li class="nav-item">
-            <RouterLink :to="{ name: 'adminStudies' }" class="nav-link" active-class="active">
+            <RouterLink :to="{ name: 'adminProjects' }" class="nav-link" active-class="active">
               <i class="bi bi-folder"></i> Projects
             </RouterLink>
           </li>
@@ -48,7 +48,7 @@
             </RouterLink>
           </li>
           <li class="nav-item">
-            <RouterLink :to="{ name: 'adminStudies' }" class="nav-link" active-class="active">
+            <RouterLink :to="{ name: 'adminProjects' }" class="nav-link" active-class="active">
               <i class="bi bi-folder"></i> Projects
             </RouterLink>
           </li>
@@ -143,7 +143,7 @@ onMounted(() => {
 
 .w4h-nav,
 .w4h-dark-nav {
-  background-color: #767676 !important;
+  background-color: rgb(99, 0, 0) !important;
 }
 
 .w4h-admin-title span,

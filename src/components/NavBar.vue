@@ -3,7 +3,7 @@
     <div class="container-fluid">
       <RouterLink class="navbar-brand" :to="{ name: 'home' }">
         <img class="app-icon" :src="iconSrc" alt="W4H Logo" />
-        {{ user.name }}
+        W4H Toolkit
       </RouterLink>
 
       <!-- Hamburger button for small screens -->
@@ -22,7 +22,7 @@
               </RouterLink>
             </li> -->
             <li class="nav-item">
-              <RouterLink :to="{ name: 'studies' }" class="nav-link" active-class="active">
+              <RouterLink :to="{ name: 'projects' }" class="nav-link" active-class="active">
                 <i class="bi bi-beaker"></i> Projects
               </RouterLink>
             </li>

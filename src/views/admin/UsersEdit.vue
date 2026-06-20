@@ -211,8 +211,8 @@ onMounted(async () => {
       { deep: true }
     );
 
-    const studies = await api.get('datasets/studies', authHeaders());
-    studyOptions.value = studies.data.map(s => ({ text: s.name, value: s.id }));
+    const projects = await api.get('datasets/projects', authHeaders());
+    studyOptions.value = projects.data.map(s => ({ text: s.name, value: s.id }));
 
     const roles = await api.get('users/roles', authHeaders());
     roleOptions.value = roles.data.map((r) => ({ text: r, value: r }));
