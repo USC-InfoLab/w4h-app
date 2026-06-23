@@ -13,7 +13,12 @@ Ensure you have Postgres 16.14 or later installed:
 
 ## 🛠️ Development Setup
 
-This project is built with **Vue 3** and **Vite**. In the following we will assume that the [w4h-api](https://github.com/USC-InfoLab/w4h-api) services are running.
+This project is built with **Vue 3** and **Vite**. To run the front-end you will need the following dependencies:
+
+- [w4h-api](https://github.com/USC-InfoLab/w4h-api) services
+- [w4h-docs](https://github.com/USC-InfoLab/w4h-docs) documentation
+- [w4h-notebooks](https://github.com/USC-InfoLab/w4h-notebooks) Python and R notebooks
+- [w4h-datasets](https://github.com/USC-InfoLab/w4h-datasets) sample datasets
 
 ### Recommended IDE Setup
 
