@@ -160,10 +160,14 @@ const handleEditorSave = async (markdown) => {
     return; // optionally show UI error
   }
 
+  // Title field is the page H1; drop a leading body H1 so import/app stay consistent
+  let markdownClean = String(markdown ?? '').replace(/^\uFEFF?\s*/, '');
+  markdownClean = markdownClean.replace(/^#\s+.+?(?:\r?\n|$)/, '').replace(/^\r?\n*/, '');
+  markdownClean = markdownClean.replace(/^<h1\b[^>]*>[\s\S]*?<\/h1>\s*/i, '');
 
   const appUrl = import.meta.env.VITE_APP_URL || window.location.origin;
 
-  const processedMarkdown = markdown
+  const processedMarkdown = markdownClean
     .replace(/(?<!\\)\{\{APP_URL\}\}/g, appUrl)
     .replace(/\\(\{\{APP_URL\}\})/g, '$1');
 
@@ -180,7 +184,7 @@ const handleEditorSave = async (markdown) => {
 
   doc.value.html = tmp.innerHTML;
   doc.value.toc = extractTocFromHtml(tmp);
-  doc.value.md = markdown;
+  doc.value.md = markdownClean;
 
   try {
     // Slug is already there thanks to the watcher!

@@ -1,7 +1,7 @@
 <template>
   <nav :class="['navbar', 'navbar-expand-md', 'fixed-top', navbarColorClass]">
     <div class="container-fluid">
-      <RouterLink class="navbar-brand" :to="{ name: 'home' }">
+      <RouterLink class="navbar-brand" :class="{ active: isHomeActive }" :to="{ name: 'home' }">
         <img class="app-icon" :src="iconSrc" alt="W4H Logo" />
         W4H Toolkit
       </RouterLink>
@@ -16,18 +16,13 @@
         <!-- CENTER: Navigation -->
         <div class="flex-grow-1 d-md-flex justify-content-center">
           <ul class="navbar-nav w-100 justify-content-center flex-md-row flex-column">
-            <!-- <li class="nav-item">
-              <RouterLink :to="{ name: 'home' }" class="nav-link" active-class="active">
-                <i class="bi bi-house-door"></i> Home
-              </RouterLink>
-            </li> -->
             <li class="nav-item">
-              <RouterLink :to="{ name: 'projects' }" class="nav-link" active-class="active">
+              <RouterLink :to="{ name: 'projects' }" class="nav-link" :class="{ active: isProjectsActive }">
                 <i class="bi bi-beaker"></i> Projects
               </RouterLink>
             </li>
             <li class="nav-item">
-              <RouterLink :to="{ name: 'docs', params: { slug: 'home' } }" class="nav-link" active-class="active">
+              <RouterLink :to="{ name: 'docs', params: { slug: 'home' } }" class="nav-link" :class="{ active: isHelpActive }">
                 <i class="bi bi-question-circle"></i> Help
               </RouterLink>
             </li>
@@ -66,12 +61,13 @@
 <script setup>
 import { onMounted, computed, nextTick } from 'vue';
 import { Dropdown } from 'bootstrap';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import { useUserStore } from '../stores/user';
 import { useUIStore } from '../stores/ui';
 import { storeToRefs } from 'pinia';
 
 const router = useRouter();
+const route = useRoute();
 
 const userStore = useUserStore();
 const { user } = storeToRefs(userStore);
@@ -79,6 +75,14 @@ const uiStore = useUIStore();
 
 const navbarColorClass = computed(() => uiStore.darkMode ? 'w4h-dark-nav' : 'w4h-nav');
 const iconSrc = computed(() => uiStore.darkMode ? '/w4h-dark.svg' : '/w4h-light.svg');
+
+const isHomeActive = computed(() => route.name === 'home');
+const isProjectsActive = computed(() =>
+  route.name === 'projects' || route.name === 'projectWorkspace'
+);
+const isHelpActive = computed(() =>
+  route.name === 'docs' || route.name === 'docNew'
+);
 
 onMounted(() => {
   nextTick(() => {
@@ -125,35 +129,12 @@ function onSignOutClick() {
 }
 
 /* Active link underline */
+.navbar-brand.active,
 .navbar-nav .nav-link.active {
-  border-bottom: 2px solid currentColor;
-}
-
-/* Admin entry keeps original dark background with light text */
-.w4h-dark-nav .admin-entry {
-  background-color: rgb(99, 0, 0) !important;
-  color: whitesmoke !important;
-}
-
-/* Hover for normal links and dropdown items */
-.w4h-dark-nav .admin-entry {
-  color: rgb(30, 30, 30) !important;
-}
-
-/* Combined rule for both modes */
-.w4h-nav,
-.w4h-dark-nav {
-  background-color: rgb(99, 0, 0) !important;
-  color: whitesmoke !important;
-}
-
-/* Maintain link colors and active states */
-.navbar-nav .nav-link {
-  font-weight: 500;
-}
-
-.navbar-nav .nav-link.active {
-  border-bottom: 2px solid currentColor;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.35em;
+  font-weight: 600;
 }
 
 .navbar-brand,
@@ -163,6 +144,23 @@ function onSignOutClick() {
 
 .dropdown-item {
   cursor: pointer !important;
+}
+
+/* Combined rule for both modes */
+.w4h-nav,
+.w4h-dark-nav {
+  background-color: rgb(99, 0, 0) !important;
+  color: whitesmoke !important;
+}
+
+.navbar-nav .nav-link {
+  font-weight: 500;
+}
+
+/* Admin entry keeps original dark background with light text */
+.w4h-dark-nav .admin-entry {
+  background-color: rgb(99, 0, 0) !important;
+  color: whitesmoke !important;
 }
 
 .w4h-nav .admin-entry,

@@ -7,7 +7,7 @@
           <i class="bi bi-list"></i> Menu
         </button>
         <div class="d-flex align-items-center gap-1">
-          <template v-if="isAdminUI && selecteddoc && !isEditing">
+          <template v-if="showDocAdminActions">
             <button type="button" class="btn btn-sm btn-primary" @click="editMode = true">
               <i class="bi bi-pencil"></i><span class="d-none d-sm-inline ms-1">Edit</span>
             </button>
@@ -49,7 +49,7 @@
           </div>
 
           <div v-else-if="selecteddoc">
-            <div v-if="isAdminUI && !isEditing" class="docs-admin-actions d-none d-md-block">
+            <div v-if="showDocAdminActions" class="docs-admin-actions d-none d-md-block">
               <button class="btn btn-sm btn-primary edit-btn me-2" @click="editMode = true">
                 <i class="bi bi-pencil me-1"></i> Edit
               </button>
@@ -58,7 +58,10 @@
               </button>
             </div>
 
-            <div :key="selecteddoc.slug" v-html="selecteddoc.html" class="md-preview p-3"></div>
+            <div class="md-preview p-3">
+              <h1 v-if="docPageTitle" :id="docPageTitleId">{{ docPageTitle }}</h1>
+              <div :key="selecteddoc.slug" v-html="selecteddoc.html"></div>
+            </div>
 
             <div v-if="selecteddoc.updated_at" class="doc-last-edited px-3 pb-4">
               Last updated{{ selecteddoc.updated_by ? ` by ${selecteddoc.updated_by}` : '' }}
@@ -115,6 +118,8 @@ import DocsSearch from '@/components/DocsSearch.vue';
 import DocsSidebarNav from '@/components/DocsSidebarNav.vue';
 import DocsPageToc from '@/components/DocsPageToc.vue';
 import { useDocTypes } from '@/composables/useDocTypes';
+import { stripHTML } from '@/utils/toc';
+import { docsHeadingHashId } from '@/utils/docsHeadingId';
 
 const { fetchDocTypes } = useDocTypes();
 
@@ -217,7 +222,20 @@ const rightPane = ref(null);
 let splitInstance = null;
 
 const isAdminUI = computed(() => user.value.role === 'admin' && uiStore.isAdminUI);
+const isSearchPage = computed(() => route.params?.slug === 'search');
+const showDocAdminActions = computed(() =>
+  isAdminUI.value && selecteddoc.value && !isEditing.value && !isSearchPage.value
+);
 const hideSidebar = computed(() => selecteddoc.value?.show_in_docs === false && selecteddoc.value?.slug !== 'home');
+
+/** Canonical page title from DB / frontmatter — not repeated as body H1. */
+const docPageTitle = computed(() => {
+  const t = selecteddoc.value?.title;
+  return t ? stripHTML(String(t)) : '';
+});
+const docPageTitleId = computed(() =>
+  docPageTitle.value ? docsHeadingHashId(docPageTitle.value) || 'doc-title' : 'doc-title'
+);
 
 
 function goToNewDoc() {
@@ -268,11 +286,19 @@ const groupedDocs = computed(() => {
 
   // sort each group by sort_order then title
   for (const type in groups) {
-    groups[type].sort((a, b) => a.sort_order - b.sort_order || a.title.localeCompare(b.title));
+    groups[type].sort(
+      (a, b) =>
+        (Number(a.sort_order) || 0) - (Number(b.sort_order) || 0) ||
+        a.title.localeCompare(b.title)
+    );
   }
 
   // optionally sort topDocs too
-  topDocs.sort((a, b) => a.sort_order - b.sort_order || a.title.localeCompare(b.title));
+  topDocs.sort(
+    (a, b) =>
+      (Number(a.sort_order) || 0) - (Number(b.sort_order) || 0) ||
+      a.title.localeCompare(b.title)
+  );
 
   return { top: topDocs, ...groups };
 });
@@ -412,26 +438,32 @@ function ensureCopyButtonsListener() {
 }
 
 async function handleSlug(slug) {
-  if (!slug) {
-    const res = await api.get(`/docs`, authHeaders());
-    const rows = Array.isArray(res.data) ? res.data : [];
+  if (slug === 'search') {
+    selecteddoc.value = null;
+    editMode.value = false;
+  }
 
-    if (isAdminUI.value) {
-      allDocs.value = rows;
-    } else {
-      allDocs.value = rows.filter(c => c.hidden === false);
+  if (!slug || slug === 'search') {
+    if (!allDocs.value.length) {
+      const res = await api.get(`/docs`, authHeaders());
+      const rows = Array.isArray(res.data) ? res.data : [];
 
-      // filter -datasets for user city
-      const userCity = user.value.city_id;
-      allDocs.value = allDocs.value.filter(doc => {
-        if (doc.slug.endsWith('-datasets')) {
-          const docCity = doc.slug.replace('-datasets', '').toLowerCase();
-          return docCity === userCity.toLowerCase();
-        }
-        return true;
-      });
+      if (isAdminUI.value) {
+        allDocs.value = rows;
+      } else {
+        allDocs.value = rows.filter(c => c.hidden === false);
+
+        const userCity = user.value.city_id;
+        allDocs.value = allDocs.value.filter(doc => {
+          if (doc.slug.endsWith('-datasets')) {
+            const docCity = doc.slug.replace('-datasets', '').toLowerCase();
+            return docCity === userCity.toLowerCase();
+          }
+          return true;
+        });
+      }
     }
-
+    if (slug === 'search') return;
     //goHome();
   } else {
     const res = await api.get(`/docs/${slug}`, authHeaders());

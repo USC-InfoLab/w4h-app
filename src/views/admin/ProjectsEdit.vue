@@ -20,6 +20,16 @@
             <div class="form-text">Project ID cannot be changed.</div>
           </div>
 
+          <div v-if="createdByLabel" class="mb-3">
+            <label class="form-label">Created by</label>
+            <input :value="createdByLabel" class="form-control" disabled />
+          </div>
+
+          <div v-if="createdAtLabel" class="mb-3">
+            <label class="form-label">Created</label>
+            <input :value="createdAtLabel" class="form-control" disabled />
+          </div>
+
           <div class="mb-3">
             <label class="form-label">Name</label>
             <input v-model.trim="form.name" class="form-control" />
@@ -79,7 +89,7 @@
 
           <h6>Linked datasets (project-level)</h6>
           <div v-if="availableDatasets.length === 0" class="text-muted small mb-3">
-            No datasets available for your account.
+            No datasets available.
           </div>
           <div v-else class="border rounded p-2 mb-3" style="max-height: 220px; overflow: auto;">
             <label v-for="d in availableDatasets" :key="d.id" class="d-flex align-items-start gap-2 mb-2 small">
@@ -144,7 +154,8 @@
         <div class="card p-3">
           <h5 class="card-title mb-3">Members</h5>
           <p class="small text-muted mb-3">
-            Add users by account email. Role and remove actions are saved immediately.
+            Project team members (researchers, clinicians). Platform admins who create projects are
+            shown under <strong>Created by</strong>, not here.
           </p>
 
           <div v-if="memberRows.length === 0" class="small text-muted mb-2">No members yet.</div>
@@ -242,10 +253,19 @@ const newMember = reactive({
   role: 'viewer'
 });
 const orgRows = ref([]);
+const createdByLabel = ref('');
+const createdAtLabel = ref('');
 
 function setMessage(success, text) {
   ok.value = success;
   message.value = text;
+}
+
+function formatProjectDate(value) {
+  if (!value) return '';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return String(value);
+  return d.toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
 function mapOverviewToForm(data) {
@@ -262,6 +282,15 @@ function mapOverviewToForm(data) {
     rstudioBaseUrl: p.launchers?.rstudioBaseUrl || '',
     vscodeTemplate: p.launchers?.vscodeTemplate || 'vscode://file/{path}'
   };
+
+  const creatorName = p.created_by_name || '';
+  const creatorEmail = p.created_by_email || '';
+  if (creatorName && creatorEmail) {
+    createdByLabel.value = `${creatorName} (${creatorEmail})`;
+  } else {
+    createdByLabel.value = creatorName || creatorEmail || '';
+  }
+  createdAtLabel.value = formatProjectDate(p.created_at);
   linkedDatasetIds.value = Array.isArray(data?.datasets)
     ? data.datasets.map(d => String(d.dataset_id || d.id || '')).filter(Boolean)
     : [];

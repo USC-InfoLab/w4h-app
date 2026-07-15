@@ -1,8 +1,8 @@
 <template>
   <nav :class="['navbar', 'navbar-expand-md', 'navbar-dark', 'fixed-top', navbarColorClass]">
     <div class="container-fluid">
-      <RouterLink class="navbar-brand w4h-admin-title" :to="{ name: 'adminHome' }">
-        <img class="app-icon" :src="iconSrc" alt="W4H Logo" />
+      <RouterLink class="navbar-brand w4h-admin-title" :class="{ active: isAdminHomeActive }" :to="{ name: 'adminHome' }">
+        <img class="app-icon" :src="iconSrc" alt="W4H Logo" /> W4H Toolkit Admin
         <!-- {{ user.account_name }} -->
       </RouterLink>
 
@@ -15,12 +15,12 @@
 
         <ul class="navbar-nav d-none d-md-flex">
           <li class="nav-item">
-            <RouterLink :to="{ name: 'adminSettings' }" class="nav-link" active-class="active">
+            <RouterLink :to="{ name: 'adminSettings' }" class="nav-link" :class="{ active: isSettingsActive }">
               <i class="bi bi-gear"></i> Settings
             </RouterLink>
           </li>
           <li class="nav-item">
-            <RouterLink :to="{ name: 'adminProjects' }" class="nav-link" active-class="active">
+            <RouterLink :to="{ name: 'adminProjects' }" class="nav-link" :class="{ active: isAdminProjectsActive }">
               <i class="bi bi-folder"></i> Projects
             </RouterLink>
           </li>
@@ -30,7 +30,7 @@
             </RouterLink>
           </li>
           <li class="nav-item">
-            <RouterLink :to="{ name: 'docs', params: { slug: 'home' } }" class="nav-link" active-class="active">
+            <RouterLink :to="{ name: 'docs', params: { slug: 'home' } }" class="nav-link" :class="{ active: isHelpActive }">
               <i class="bi bi-question-circle"></i> Help
             </RouterLink>
           </li>
@@ -38,27 +38,22 @@
 
         <ul class="navbar-nav d-md-none">
           <li class="nav-item">
-            <RouterLink :to="{ name: 'adminHome' }" class="nav-link" active-class="active">
-              <i class="bi bi-house"></i> Home
-            </RouterLink>
-          </li>
-          <li class="nav-item">
-            <RouterLink :to="{ name: 'adminSettings' }" class="nav-link" active-class="active">
+            <RouterLink :to="{ name: 'adminSettings' }" class="nav-link" :class="{ active: isSettingsActive }">
               <i class="bi bi-gear"></i> Settings
             </RouterLink>
           </li>
           <li class="nav-item">
-            <RouterLink :to="{ name: 'adminProjects' }" class="nav-link" active-class="active">
+            <RouterLink :to="{ name: 'adminProjects' }" class="nav-link" :class="{ active: isAdminProjectsActive }">
               <i class="bi bi-folder"></i> Projects
             </RouterLink>
           </li>
           <li class="nav-item">
-            <RouterLink :to="{ name: 'users' }" class="nav-link" :class="isUsersActive ? 'active' : ''">
+            <RouterLink :to="{ name: 'users' }" class="nav-link" :class="{ active: isUsersActive }">
               <i class="bi bi-people"></i> Users
             </RouterLink>
           </li>
           <li class="nav-item">
-            <RouterLink :to="{ name: 'docs', params: { slug: 'home' } }" class="nav-link" active-class="active">
+            <RouterLink :to="{ name: 'docs', params: { slug: 'home' } }" class="nav-link" :class="{ active: isHelpActive }">
               <i class="bi bi-question-circle"></i> Help
             </RouterLink>
           </li>
@@ -96,13 +91,23 @@ function exitAdminAndGoHome() {
   router.push({ name: 'home' }); // navigate
 }
 
-const isUsersActive = computed(() => {
-  return (
-    route.name === 'users' ||
-    route.name === 'usersEdit' ||
-    route.name === 'usersAdd'
-  );
-});
+const isAdminHomeActive = computed(() => route.name === 'adminHome');
+const isSettingsActive = computed(() =>
+  route.name === 'adminSettings' || route.name === 'adminDatabase'
+);
+const isAdminProjectsActive = computed(() =>
+  route.name === 'adminProjects' ||
+  route.name === 'adminProjectsAdd' ||
+  route.name === 'adminProjectsEdit'
+);
+const isUsersActive = computed(() =>
+  route.name === 'users' ||
+  route.name === 'usersEdit' ||
+  route.name === 'usersAdd'
+);
+const isHelpActive = computed(() =>
+  route.name === 'docs' || route.name === 'docNew'
+);
 
 // Watch for changes in the user property
 watch(
@@ -147,10 +152,7 @@ onMounted(() => {
 }
 
 .w4h-admin-title span,
-.nav-link {
-  color: #ffffff !important;
-}
-
+.navbar-brand,
 .nav-link {
   color: #ffffff !important;
 }
@@ -159,8 +161,17 @@ onMounted(() => {
   font-weight: 500;
 }
 
-.navbar-nav .nav-link.active {
+.navbar-brand.active {
+  text-decoration: none;
   border-bottom: 2px solid currentColor;
+  padding-bottom: 0.15rem;
+}
+
+.navbar-nav .nav-link.active {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.35em;
+  font-weight: 600;
 }
 
 .nav-item,
