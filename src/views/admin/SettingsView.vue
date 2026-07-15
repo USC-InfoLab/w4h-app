@@ -61,7 +61,7 @@
         <div class="card p-3 mb-3">
           <h5 class="card-title mb-1">Documentation Management</h5>
           <p class="text-muted small mb-3">
-            Export a backup of your documentation, or refresh from the source directory.<br>
+            Export a backup of the documentation pages, or refresh from the source directory.<br>
             <span class="text-muted small">
               <strong>Warning:</strong> Refreshing docs will <u>overwrite</u> any pages with the same slug as the
               source. Local-only pages are not affected.

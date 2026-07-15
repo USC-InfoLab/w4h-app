@@ -47,7 +47,8 @@
         <label class="col-sm-2 col-form-label">Doc Type</label>
         <div class="col-sm-2">
           <select v-model="form.doc_type" class="form-select">
-            <option v-for="t in DOC_TYPES" :key="t" :value="t">{{ capitalizeType(t) }}</option>
+            <option value="">None (top-level)</option>
+            <option v-for="t in docTypes" :key="t.slug" :value="t.slug">{{ t.label }}</option>
           </select>
         </div>
       </div>
@@ -95,19 +96,20 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue';
+import { ref, reactive, onMounted } from 'vue';
 import { api, authHeaders } from '../utils/api';
 import { useRouter } from 'vue-router';
-const router = useRouter();
+import { useDocTypes } from '@/composables/useDocTypes';
 
-const DOC_TYPES = ['', 'guide', 'tutorial', 'reference', 'faq', 'internal', 'other'];
+const router = useRouter();
+const { docTypes, fetchDocTypes } = useDocTypes();
 
 const form = reactive({
   slug: '',
   title: '',
   description: '',
   action_label: 'Open',
-  is_feature_card: true,
+  is_feature_card: false,
   hidden: false,
   doc_type: 'other',
   sort_order: 0,
@@ -117,10 +119,9 @@ const form = reactive({
 
 const showForm = ref(false);
 
-function capitalizeType(type) {
-  if (!type) return 'Select a type'; // Handle the empty option
-  return type.charAt(0).toUpperCase() + type.slice(1);
-}
+onMounted(() => {
+  fetchDocTypes();
+});
 
 async function submitNewDoc() {
   if (!form.slug.trim()) return;
@@ -145,7 +146,7 @@ function resetForm() {
     title: '',
     description: '',
     action_label: 'Open',
-    is_feature_card: true,
+    is_feature_card: false,
     hidden: false
   });
   showForm.value = false;

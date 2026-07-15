@@ -1,5 +1,5 @@
 <template>
-  <DocsSettingsModal v-model:doc="doc" />
+  <DocsSettingsModal ref="settingsModalRef" v-model:doc="doc" />
 
   <div class="modal fade" id="dirtyCheckModal" tabindex="-1" aria-labelledby="dirtyCheckModalLabel" aria-hidden="true">
     <div class="modal-dialog">
@@ -88,6 +88,7 @@ const mdEditorTheme = ref('light');
 const originalDoc = ref(null);
 const dirtyCheckModalInstance = ref(null);
 const settingsModalInstance = ref(null);
+const settingsModalRef = ref(null);
 
 const doc = ref({
   title: '',
@@ -95,7 +96,7 @@ const doc = ref({
   card_title: '',
   description: '',
   action_label: 'Open',
-  is_feature_card: true,
+  is_feature_card: false,
   show_in_docs: true,
   doc_type: 'other',
   sort_order: 0,
@@ -218,7 +219,8 @@ function setupCopyButtons() {
   });
 }
 
-function openSettingsModal() {
+async function openSettingsModal() {
+  await settingsModalRef.value?.refreshTypes?.();
   const modalEl = document.getElementById('settingsModal');
   if (modalEl) {
     settingsModalInstance.value = new Modal(modalEl);

@@ -27,7 +27,7 @@ This project is built with **Vue 3** and **Vite**. To run the front-end you will
 
 ### Project Scripts
 
-````bash
+```bash
 # Install dependencies
 npm install
 
@@ -43,6 +43,7 @@ npm run build
 
 # Lint and fix files
 npm run lint
+```
 
 ### End-to-End Testing (Playwright)
 
@@ -66,7 +67,7 @@ npm run test:e2e -- tests/example.spec.ts
 
 # Run tests in debug mode (headed mode)
 npm run test:e2e -- --debug
-
+```
 
 #### Linting
 
@@ -75,7 +76,7 @@ To maintain code quality and follow the project's style guidelines:
 ```bash
 # Run ESLint to find and fix code style issues
 npm run lint
-````
+```
 
 ## 🔗 Resources
 

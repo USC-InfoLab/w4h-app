@@ -1,96 +1,34 @@
 <template>
-  <main class="container-fluid p-0">
-    <div ref="splitRoot" class="docs-split">
-      <aside v-if="!hideSidebar" ref="leftPane" class="docs-sidebar border-end">
+  <main class="container-fluid p-0 docs-view">
+    <nav v-if="!hideSidebar" class="docs-subnav d-md-none border-bottom" aria-label="Docs navigation">
+      <div class="container-fluid d-flex align-items-center justify-content-between">
+        <button type="button" class="btn btn-link docs-subnav-btn" data-bs-toggle="offcanvas"
+          data-bs-target="#docsMenuOffcanvas" :disabled="editMode">
+          <i class="bi bi-list"></i> Menu
+        </button>
+        <div class="d-flex align-items-center gap-1">
+          <template v-if="isAdminUI && selecteddoc && !isEditing">
+            <button type="button" class="btn btn-sm btn-primary" @click="editMode = true">
+              <i class="bi bi-pencil"></i><span class="d-none d-sm-inline ms-1">Edit</span>
+            </button>
+            <button type="button" class="btn btn-sm btn-danger" @click="openDeleteModal(selecteddoc)">
+              <span class="d-none d-sm-inline">Delete</span><span class="d-sm-none"><i class="bi bi-trash"></i></span>
+            </button>
+          </template>
+          <button v-if="selecteddoc?.toc?.length" type="button" class="btn btn-link docs-subnav-btn"
+            data-bs-toggle="offcanvas" data-bs-target="#docsTocOffcanvas" :disabled="editMode">
+            On this page <i class="bi bi-chevron-right"></i>
+          </button>
+        </div>
+      </div>
+    </nav>
+
+    <div ref="splitRoot" class="docs-split" :class="{ 'docs-split--subnav': !hideSidebar }">
+      <aside v-if="!hideSidebar" ref="leftPane" class="docs-sidebar border-end d-none d-md-block">
         <div class="position-sticky" style="top: 1rem;">
-
-          <div v-if="isAdminUI" class="d-flex flex-column gap-1">
-            <button class="btn btn-primary btn-sm" @click="goToNewDoc" :disabled="editMode">
-              <i class="bi bi-plus-lg"></i> New Doc
-            </button>
-            <button type="button" class="btn btn-outline-secondary btn-sm" :disabled="editMode"
-              @click="downloadMarkdownZip">
-              <i class="bi bi-file-earmark-zip"></i> Export Markdown
-            </button>
-          </div>
-
-          <div v-if="isAdminUI" class="py-1 px-2 border-bottom my-0">
-          </div>
-
-          <RouterLink :to="{ name: 'docs', params: { slug: 'home' } }" custom v-slot="{ navigate, href }">
-            <a :href="href" @click.prevent="!editMode && navigate()" class="sidebar-link mb-1" :class="[
-              (route.path === '/docs' || route.params?.slug === 'home') ? 'active-link' : '',
-              { 'is-disabled': editMode }
-            ]">
-              🏠 Home
-            </a>
-          </RouterLink>
-
-          <RouterLink :to="{ name: 'docs', params: { slug: 'search' } }" custom v-slot="{ navigate, href }">
-            <a :href="href" @click.prevent="!editMode && navigate()" class="sidebar-link mb-0" :class="[
-              route.params.slug === 'search' ? 'active-link' : '',
-              { 'is-disabled': editMode }
-            ]">
-              🔍 Search
-            </a>
-          </RouterLink>
-
-          <div class="py-1 px-2 border-bottom my-0">
-          </div>
-
-          <ul class="list-unstyled mb-3">
-            <li v-for="(docs, type) in groupedDocs" :key="type" class="mb-2">
-              <div v-if="type !== 'top'" class="fw-bold text-uppercase small text-muted mb-1">
-                {{ formatDocType(type) }}
-              </div>
-
-              <ul class="list-unstyled">
-                <li v-for="doc in docs" :key="doc.slug">
-
-                  <div>
-                    <a href="#" @click.prevent="
-                      !editMode &&
-                      (doc.toc && doc.toc.length
-                        ? toggledoc(doc.slug)
-                        : $router.push({ name: 'docs', params: { slug: doc.slug }, hash: '#top' })
-                      )
-                      " class="text-decoration-none" :class="[
-                        route.params.slug === doc.slug ? 'fw-bold text-decoration-none' : '',
-                        { 'is-disabled': editMode }
-                      ]">
-                      {{ stripHTML(doc.title) }}
-                      <span v-if="doc.toc && doc.toc.length">
-                        {{ opendocs.includes(doc.slug) ? '▾' : '▸' }}
-                      </span>
-                    </a>
-
-                    <ul class="list-unstyled small mb-3" v-if="opendocs.includes(doc.slug)">
-                      <template v-if="doc.toc?.length">
-                        <li v-for="item in doc.toc" :key="item.id"
-                          :style="{ marginLeft: 0.5 + (item.level - 2) * 0.5 + 'rem' }">
-                          <router-link
-                            :to="{ name: 'docs', params: { slug: doc.slug }, hash: '#' + (item.id || docsHeadingHashId(item.title)) }"
-                            custom v-slot="{ navigate, href }">
-                            <a :href="href" @click.prevent="!editMode && navigate()"
-                              class="text-decoration-none d-block toc-link" :class="{ 'is-disabled': editMode }">
-                              {{ item.title }}
-                            </a>
-                          </router-link>
-                        </li>
-                      </template>
-                      <li v-else>
-                        <router-link :to="{ name: 'docs', params: { slug: doc.slug }, hash: '#top' }"
-                          class="text-decoration-none d-block">
-                          <i class="bi bi-file-earmark-text"></i> Open Document
-                        </router-link>
-                      </li>
-                    </ul>
-                  </div>
-                </li>
-              </ul>
-            </li>
-          </ul>
-
+          <DocsSidebarNav :is-admin-ui="isAdminUI" :edit-mode="editMode" :grouped-docs="groupedDocs"
+            :opendocs="opendocs" :active-slug="route.params?.slug ?? ''" @new-doc="goToNewDoc"
+            @toggle-doc="toggledoc" />
         </div>
       </aside>
 
@@ -111,7 +49,7 @@
           </div>
 
           <div v-else-if="selecteddoc">
-            <div v-if="isAdminUI" class="text-primary ps-2">
+            <div v-if="isAdminUI && !isEditing" class="docs-admin-actions d-none d-md-block">
               <button class="btn btn-sm btn-primary edit-btn me-2" @click="editMode = true">
                 <i class="bi bi-pencil me-1"></i> Edit
               </button>
@@ -121,6 +59,11 @@
             </div>
 
             <div :key="selecteddoc.slug" v-html="selecteddoc.html" class="md-preview p-3"></div>
+
+            <div v-if="selecteddoc.updated_at" class="doc-last-edited px-3 pb-4">
+              Last updated{{ selecteddoc.updated_by ? ` by ${selecteddoc.updated_by}` : '' }}
+              on {{ formatDocDate(selecteddoc.updated_at) }}
+            </div>
           </div>
 
         </template>
@@ -131,6 +74,31 @@
 
     <DocsDeleteDocModal :show="showDeleteModal" :doc="docToDelete" @close="showDeleteModal = false"
       @deleted="handleDeleted" />
+
+    <div v-if="!hideSidebar" class="offcanvas offcanvas-start" id="docsMenuOffcanvas" tabindex="-1"
+      aria-labelledby="docsMenuOffcanvasLabel">
+      <div class="offcanvas-header border-bottom">
+        <h5 class="offcanvas-title" id="docsMenuOffcanvasLabel">Documentation</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+      </div>
+      <div class="offcanvas-body">
+        <DocsSidebarNav :is-admin-ui="isAdminUI" :edit-mode="editMode" :grouped-docs="groupedDocs"
+          :opendocs="opendocs" :active-slug="route.params?.slug ?? ''" @new-doc="onMobileNewDoc"
+          @toggle-doc="toggledoc" @navigated="closeOffcanvas('docsMenuOffcanvas')" />
+      </div>
+    </div>
+
+    <div v-if="selecteddoc?.toc?.length" class="offcanvas offcanvas-end" id="docsTocOffcanvas" tabindex="-1"
+      aria-labelledby="docsTocOffcanvasLabel">
+      <div class="offcanvas-header border-bottom">
+        <h5 class="offcanvas-title" id="docsTocOffcanvasLabel">On this page</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+      </div>
+      <div class="offcanvas-body">
+        <DocsPageToc :toc="selecteddoc.toc" :slug="selecteddoc.slug" :edit-mode="editMode"
+          @navigated="closeOffcanvas('docsTocOffcanvas')" />
+      </div>
+    </div>
   </main>
 </template>
 
@@ -140,13 +108,23 @@ import Split from 'split.js';
 import mermaid from 'mermaid';
 import { api, authHeaders } from '@/utils/api';
 import { APP_NAME } from '@/utils/defs';
-import { stripHTML } from '../../utils/toc';
-import { docsHeadingHashId } from '@/utils/docsHeadingId';
 
+import { Offcanvas } from 'bootstrap';
 import DocsDeleteDocModal from '@/components/DocsDeleteDocModal.vue';
 import DocsSearch from '@/components/DocsSearch.vue';
+import DocsSidebarNav from '@/components/DocsSidebarNav.vue';
+import DocsPageToc from '@/components/DocsPageToc.vue';
+import { useDocTypes } from '@/composables/useDocTypes';
 
-mermaid.initialize({ startOnLoad: false, theme: 'default' });
+const { fetchDocTypes } = useDocTypes();
+
+const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+mermaid.initialize({ startOnLoad: false, theme: prefersDark ? 'dark' : 'default' });
+
+// Re-initialise mermaid if the OS color-scheme changes at runtime
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+  mermaid.initialize({ startOnLoad: false, theme: e.matches ? 'dark' : 'default' });
+});
 
 const showDeleteModal = ref(false);
 const docToDelete = ref(null);
@@ -246,22 +224,15 @@ function goToNewDoc() {
   router.push({ name: 'docNew' });
 }
 
-async function downloadMarkdownZip() {
-  try {
-    const res = await api.get('/docs/export', {
-      ...authHeaders(),
-      responseType: 'blob',
-    });
-    const url = URL.createObjectURL(res.data);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'w4h-docs-bundle.zip';
-    a.rel = 'noopener';
-    a.click();
-    URL.revokeObjectURL(url);
-  } catch (e) {
-    console.error('Export markdown zip failed', e);
-  }
+function onMobileNewDoc() {
+  closeOffcanvas('docsMenuOffcanvas');
+  goToNewDoc();
+}
+
+function closeOffcanvas(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  Offcanvas.getInstance(el)?.hide();
 }
 
 async function refreshMermaidInPreview() {
@@ -303,21 +274,16 @@ const groupedDocs = computed(() => {
   // optionally sort topDocs too
   topDocs.sort((a, b) => a.sort_order - b.sort_order || a.title.localeCompare(b.title));
 
-  return { 'top': topDocs, ...groups };
+  return { top: topDocs, ...groups };
 });
 
-// helper to display labels nicely
-function formatDocType(type) {
-  switch (type) {
-    case '': return '';
-    case 'guide': return 'Guides';
-    case 'reference': return 'Reference';
-    case 'tutorial': return 'Tutorials';
-    case 'faq': return 'FAQs';
-    default: return type.charAt(0).toUpperCase() + type.slice(1);
-  }
+// Format the updated_at timestamp for the "last updated" footer.
+function formatDocDate(value) {
+  if (!value) return '';
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return '';
+  return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
 }
-
 
 async function selectdoc(doc) {
   if (!doc) {
@@ -338,7 +304,7 @@ async function selectdoc(doc) {
   await refreshMermaidInPreview();
 
   if (route.hash) {
-    const el = document.querySelector(route.hash);
+    const el = safeQueryHash(route.hash);
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
   } else {
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -448,11 +414,12 @@ function ensureCopyButtonsListener() {
 async function handleSlug(slug) {
   if (!slug) {
     const res = await api.get(`/docs`, authHeaders());
+    const rows = Array.isArray(res.data) ? res.data : [];
 
     if (isAdminUI.value) {
-      allDocs.value = res.data; // show all docs to admin
+      allDocs.value = rows;
     } else {
-      allDocs.value = res.data.filter(c => c.hidden === false);
+      allDocs.value = rows.filter(c => c.hidden === false);
 
       // filter -datasets for user city
       const userCity = user.value.city_id;
@@ -472,10 +439,11 @@ async function handleSlug(slug) {
 
     if (!allDocs.value.length) {
       const listRes = await api.get(`/docs`, authHeaders());
+      const rows = Array.isArray(listRes.data) ? listRes.data : [];
       if (isAdminUI.value) {
-        allDocs.value = listRes.data; // show all docs to admin
+        allDocs.value = rows;
       } else {
-        allDocs.value = listRes.data.filter(c => c.hidden === false);
+        allDocs.value = rows.filter(c => c.hidden === false);
 
         // filter -datasets for user city
         const userCity = user.value.city_id;
@@ -519,6 +487,7 @@ watch(() => props.isNewDoc, (isNew) => {
 onMounted(async () => {
   document.title = `${APP_NAME} Docs`;
 
+  fetchDocTypes({ force: true });
   handleSlug(route.params.slug);
 
   window.addEventListener('scroll', () => {
@@ -542,14 +511,33 @@ watch(
   { flush: 'post' }
 );
 
+/**
+ * Safe querySelector for anchors: CSS selectors cannot start with a digit
+ * (e.g. `#1-overview` is invalid). Fall back to getElementById which has
+ * no such restriction.
+ */
+function safeQueryHash(hash) {
+  if (!hash || hash === '#') return null;
+  const id = hash.startsWith('#') ? hash.slice(1) : hash;
+  // Try getElementById first — works for any id string
+  const byId = document.getElementById(id);
+  if (byId) return byId;
+  // Fall back to querySelector only for ids that are safe selectors
+  try {
+    return document.querySelector(hash);
+  } catch {
+    return null;
+  }
+}
+
 watch(
   () => route.hash,
   async (hash) => {
-    if (!hash) return
-    await nextTick()
-    const el = document.querySelector(hash)
+    if (!hash) return;
+    await nextTick();
+    const el = safeQueryHash(hash);
     if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   }
 )
@@ -574,8 +562,17 @@ onBeforeUnmount(() => {
 .docs-content h3,
 .docs-content h4,
 #top {
-  /* Include #top just to be safe */
   scroll-margin-top: 56px;
+}
+
+@media (max-width: 767.98px) {
+  .docs-content h1,
+  .docs-content h2,
+  .docs-content h3,
+  .docs-content h4,
+  #top {
+    scroll-margin-top: calc(56px + var(--docs-subnav-height, 2.5rem));
+  }
 }
 
 svg[id^="mermaid-"] {
@@ -583,26 +580,12 @@ svg[id^="mermaid-"] {
   margin: 0 auto;
 }
 
+/* Mermaid dark mode — let Mermaid's own 'dark' theme handle colours;
+   only override the SVG container background so it blends with the page. */
 @media (prefers-color-scheme: dark) {
   .mermaid svg {
     background: transparent !important;
   }
-
-  .mermaid p {
-    color: #ccc !important;
-  }
-
-  .mermaid rect,
-  .mermaid polygon {
-    fill: #2e2e2e !important;
-    stroke: #ccc !important;
-  }
-
-  .mermaid path {
-    fill: #2e2e2e !important;
-    stroke: #ccc !important;
-  }
-
 }
 
 /* ---------- General Markdown Styling ---------- */
@@ -671,27 +654,28 @@ svg[id^="mermaid-"] {
   position: relative;
 }
 
-/* Keep Edit button fixed to top-right of the viewport */
-.docs-content .edit-btn {
-  position: fixed;
-  top: 4.3rem;
-  right: 1.5rem;
-  z-index: 9999;
-  transition: opacity 0.2s ease-in-out, transform 0.2s ease-in-out;
-}
+/* Edit/Delete fixed top-right — desktop only */
+@media (min-width: 768px) {
+  .docs-content .edit-btn {
+    position: fixed;
+    top: 4.3rem;
+    right: 1.5rem;
+    z-index: 9999;
+    transition: opacity 0.2s ease-in-out, transform 0.2s ease-in-out;
+  }
 
-.docs-content .delete-btn {
-  position: fixed;
-  top: 4.3rem;
-  right: 7rem;
-  z-index: 9999;
-  transition: opacity 0.2s ease-in-out, transform 0.2s ease-in-out;
-}
+  .docs-content .delete-btn {
+    position: fixed;
+    top: 4.3rem;
+    right: 7rem;
+    z-index: 9999;
+    transition: opacity 0.2s ease-in-out, transform 0.2s ease-in-out;
+  }
 
-/* Slight hover feedback */
-.docs-content .edit-btn:hover {
-  opacity: 1;
-  transform: scale(1.05);
+  .docs-content .edit-btn:hover {
+    opacity: 1;
+    transform: scale(1.05);
+  }
 }
 
 .md-preview img {
@@ -946,9 +930,9 @@ div .alert {
   z-index: 1050 !important;
 }
 
-/* Standard sidebar link style (for all items) */
-.sidebar-link,
-.list-unstyled a {
+/* Standard sidebar link style — desktop aside only; mobile uses DocsSidebarNav */
+.docs-sidebar .sidebar-link,
+.docs-sidebar .list-unstyled a {
   color: var(--bs-link-color);
   /* Uses the standard Bootstrap link blue */
   text-decoration: none;
@@ -958,16 +942,16 @@ div .alert {
 }
 
 /* Active state (for all items including Home/Search) */
-.active-link,
-.list-unstyled a.fw-bold {
+.docs-sidebar .active-link,
+.docs-sidebar .list-unstyled a.fw-bold {
   color: var(--bs-primary) !important;
   /* Force the bright blue */
   font-weight: 700 !important;
 }
 
 /* Hover state */
-.sidebar-link:hover,
-.list-unstyled a:hover {
+.docs-sidebar .sidebar-link:hover,
+.docs-sidebar .list-unstyled a:hover {
   color: var(--bs-link-hover-color);
   /* text-decoration: underline !important; */
 }
@@ -992,6 +976,15 @@ div .alert {
   /* don't block clicks */
 }
 
+/* "Last updated by … on …" footer under each doc */
+.doc-last-edited {
+  font-size: 0.85rem;
+  color: var(--bs-secondary-color, #6c757d);
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  margin-top: 1.5rem;
+  padding-top: 0.75rem;
+}
+
 /* Layout for Split.js panes */
 .docs-split {
   display: flex;
@@ -1014,21 +1007,51 @@ div .alert {
   background: var(--bs-body-bg);
 }
 
-/* small-screen fallback: stack panes vertically */
+/* small-screen: sidebar hidden via d-none d-md-block; nav via fixed subnav */
 @media (max-width: 767.98px) {
   .docs-split {
     display: block;
     height: auto;
   }
 
-  .docs-sidebar {
-    display: none;
-    /* keep mobile behavior like your previous .d-none d-md-block */
+  .docs-split--subnav {
+    padding-top: var(--docs-subnav-height, 2.5rem);
   }
 
   .docs-content {
-    padding: 1rem;
+    padding: 0;
   }
+}
+
+/* Fixed subnav directly under main navbar (Vue docs pattern) */
+.docs-subnav {
+  --docs-subnav-height: 2.5rem;
+  position: fixed;
+  top: 56px;
+  left: 0;
+  right: 0;
+  z-index: 1020;
+  height: var(--docs-subnav-height);
+  background: var(--bs-body-bg);
+}
+
+.docs-subnav .container-fluid {
+  height: 100%;
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+}
+
+.docs-subnav-btn {
+  color: var(--bs-body-color);
+  text-decoration: none;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.docs-subnav-btn:disabled {
+  opacity: 0.5;
+  pointer-events: none;
 }
 
 /* keep your link styling */

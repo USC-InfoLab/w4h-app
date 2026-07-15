@@ -151,12 +151,15 @@
 
       <label for="inputEmail" class="visually-hidden">Email</label>
       <input id="inputEmail" class="form-control" placeholder="Email" required autofocus v-model="email"
-        @input="resetMessage" />
+        @input="resetMessage" @animationstart="onLoginInputAnimationStart"
+        :autocomplete="isDevPrefilled ? 'off' : 'username'" />
 
       <label for="inputPassword" class="visually-hidden">Password</label>
       <div class="position-relative mb-3">
         <input :type="showLoginPassword ? 'text' : 'password'" id="inputPassword" class="form-control"
-          placeholder="Password" required v-model="password" @input="resetMessage" autocomplete="on" />
+          placeholder="Password" required v-model="password" @input="resetMessage"
+          @animationstart="onLoginInputAnimationStart"
+          :autocomplete="isDevPrefilled ? 'new-password' : 'current-password'" />
         <button type="button" class="btn-eye-toggle" @click="showLoginPassword = !showLoginPassword" tabindex="-1">
           <i :class="showLoginPassword ? 'bi bi-eye-slash' : 'bi bi-eye'"></i>
         </button>
@@ -416,22 +419,37 @@ const resetMessage = () => {
   message.value = '';
 };
 
-const email = ref('');
-const password = ref('');
+const devEmail = import.meta.env.DEV ? import.meta.env.VITE_APP_ADMIN_EMAIL?.trim() : '';
+const devPassword = import.meta.env.DEV ? import.meta.env.VITE_APP_ADMIN_PASSWORD?.trim() : '';
+
+const email = ref(devEmail || '');
+const password = ref(devPassword || '');
 const message = ref('');
 
-/** Prefill sign-in from `.env`` in dev only (`VITE_APP_ADMIN_*`, same as admin setup). */
+const isDevPrefilled = computed(() => !!devEmail || !!devPassword);
+
+function isLoginFormVisible() {
+  return !showDbConfig.value && !showAdminSetup.value && !backendError.value;
+}
+
+/** Prefill sign-in from `.env` in dev only (`VITE_APP_ADMIN_*`, same as admin setup). */
 function applyDevLoginPrefill() {
-  if (!import.meta.env.DEV) return;
-  if (showDbConfig.value || showAdminSetup.value || backendError.value) return;
-  const devEmail = import.meta.env.VITE_APP_ADMIN_EMAIL?.trim();
-  const devPassword = import.meta.env.VITE_APP_ADMIN_PASSWORD?.trim();
+  if (!import.meta.env.DEV || !isLoginFormVisible()) return;
   if (devEmail) email.value = devEmail;
   if (devPassword) password.value = devPassword;
 }
 
+/** WebKit fires `animationstart` when autofill applies `:-webkit-autofill` (no standard autofill event). */
+function onLoginInputAnimationStart(event) {
+  if (!import.meta.env.DEV || !event.animationName.includes('w4h-onAutoFillStart')) return;
+  applyDevLoginPrefill();
+}
+
 onMounted(async () => {
+  applyDevLoginPrefill();
+
   await checkDbStatus();
+
   applyDevLoginPrefill();
 });
 </script>
@@ -514,5 +532,32 @@ onMounted(async () => {
 #inputEmail {
   border-bottom-left-radius: 0px !important;
   border-bottom-right-radius: 0px !important;
+}
+</style>
+
+<style>
+/*
+ * Unscoped autofill hooks: WebKit runs these animations when the browser autofills
+ * a field, which lets us listen for `animationstart` and re-apply dev `.env` values.
+ * There is no standard DOM "autofill" event, and autofill does not fire `input`/`change`.
+ */
+.form-signin #inputEmail:-webkit-autofill,
+.form-signin #inputPassword:-webkit-autofill {
+  animation-name: w4h-onAutoFillStart;
+}
+
+.form-signin #inputEmail:not(:-webkit-autofill),
+.form-signin #inputPassword:not(:-webkit-autofill) {
+  animation-name: w4h-onAutoFillCancel;
+}
+
+@keyframes w4h-onAutoFillStart {
+  from {}
+  to {}
+}
+
+@keyframes w4h-onAutoFillCancel {
+  from {}
+  to {}
 }
 </style>

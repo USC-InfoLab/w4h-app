@@ -5,7 +5,7 @@ export function stripHTML(html) {
   if (!html) return '';
   const div = document.createElement('div');
   div.innerHTML = html;
-  return div.textContent || div.innerText || '';
+  return (div.textContent || div.innerText || '').replace(/\s+/g, ' ').trim();
 }
 
 /**
