@@ -3,7 +3,6 @@
     <div class="container-fluid">
       <RouterLink class="navbar-brand w4h-admin-title" :class="{ active: isAdminHomeActive }" :to="{ name: 'adminHome' }">
         <img class="app-icon" :src="iconSrc" alt="W4H Logo" /> W4H Toolkit Admin
-        <!-- {{ user.account_name }} -->
       </RouterLink>
 
       <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse"
@@ -14,9 +13,14 @@
       <div class="collapse navbar-collapse" id="navbarCollapse">
 
         <ul class="navbar-nav d-none d-md-flex">
+          <li v-if="showTeams" class="nav-item">
+            <RouterLink :to="{ name: 'adminTeams' }" class="nav-link" :class="{ active: isTeamsActive }">
+              <i class="bi bi-people-fill"></i> Teams
+            </RouterLink>
+          </li>
           <li class="nav-item">
-            <RouterLink :to="{ name: 'adminSettings' }" class="nav-link" :class="{ active: isSettingsActive }">
-              <i class="bi bi-gear"></i> Settings
+            <RouterLink :to="{ name: 'users' }" class="nav-link" :class="{ active: isUsersActive }">
+              <i class="bi bi-people"></i> Users
             </RouterLink>
           </li>
           <li class="nav-item">
@@ -25,8 +29,13 @@
             </RouterLink>
           </li>
           <li class="nav-item">
-            <RouterLink :to="{ name: 'users' }" class="nav-link" :class="{ active: isUsersActive }">
-              <i class="bi bi-people"></i> Users
+            <RouterLink :to="{ name: 'adminDatasets' }" class="nav-link" :class="{ active: isAdminDatasetsActive }">
+              <i class="bi bi-database"></i> Datasets
+            </RouterLink>
+          </li>
+          <li v-if="showSettings" class="nav-item">
+            <RouterLink :to="{ name: 'adminSettings' }" class="nav-link" :class="{ active: isSettingsActive }">
+              <i class="bi bi-gear"></i> Settings
             </RouterLink>
           </li>
           <li class="nav-item">
@@ -37,9 +46,14 @@
         </ul>
 
         <ul class="navbar-nav d-md-none">
+          <li v-if="showTeams" class="nav-item">
+            <RouterLink :to="{ name: 'adminTeams' }" class="nav-link" :class="{ active: isTeamsActive }">
+              <i class="bi bi-people-fill"></i> Teams
+            </RouterLink>
+          </li>
           <li class="nav-item">
-            <RouterLink :to="{ name: 'adminSettings' }" class="nav-link" :class="{ active: isSettingsActive }">
-              <i class="bi bi-gear"></i> Settings
+            <RouterLink :to="{ name: 'users' }" class="nav-link" :class="{ active: isUsersActive }">
+              <i class="bi bi-people"></i> Users
             </RouterLink>
           </li>
           <li class="nav-item">
@@ -48,8 +62,13 @@
             </RouterLink>
           </li>
           <li class="nav-item">
-            <RouterLink :to="{ name: 'users' }" class="nav-link" :class="{ active: isUsersActive }">
-              <i class="bi bi-people"></i> Users
+            <RouterLink :to="{ name: 'adminDatasets' }" class="nav-link" :class="{ active: isAdminDatasetsActive }">
+              <i class="bi bi-database"></i> Datasets
+            </RouterLink>
+          </li>
+          <li v-if="showSettings" class="nav-item">
+            <RouterLink :to="{ name: 'adminSettings' }" class="nav-link" :class="{ active: isSettingsActive }">
+              <i class="bi bi-gear"></i> Settings
             </RouterLink>
           </li>
           <li class="nav-item">
@@ -84,12 +103,16 @@ const userStore = useUserStore();
 const { user } = storeToRefs(userStore);
 
 import { useUIStore } from '../stores/ui';
+import { isSuperAdmin, isTeamAdmin } from '@/utils/roles';
 const uiStore = useUIStore();
 
 function exitAdminAndGoHome() {
-  uiStore.exitAdmin();   // update store
-  router.push({ name: 'home' }); // navigate
+  uiStore.exitAdmin();
+  router.push({ name: 'home' });
 }
+
+const showTeams = computed(() => isSuperAdmin(user.value?.role) || isTeamAdmin(user.value?.role));
+const showSettings = computed(() => isSuperAdmin(user.value?.role));
 
 const isAdminHomeActive = computed(() => route.name === 'adminHome');
 const isSettingsActive = computed(() =>
@@ -100,6 +123,16 @@ const isAdminProjectsActive = computed(() =>
   route.name === 'adminProjectsAdd' ||
   route.name === 'adminProjectsEdit'
 );
+const isAdminDatasetsActive = computed(() =>
+  route.name === 'adminDatasets' ||
+  route.name === 'adminDatasetsAdd' ||
+  route.name === 'adminDatasetsEdit'
+);
+const isTeamsActive = computed(() =>
+  route.name === 'adminTeams' ||
+  route.name === 'adminTeamsAdd' ||
+  route.name === 'adminTeamsEdit'
+);
 const isUsersActive = computed(() =>
   route.name === 'users' ||
   route.name === 'usersEdit' ||
@@ -109,11 +142,9 @@ const isHelpActive = computed(() =>
   route.name === 'docs' || route.name === 'docNew'
 );
 
-// Watch for changes in the user property
 watch(
   () => userStore.user,
   (newUser) => {
-    // Update the user reference with the new value
     user.value = newUser;
   }
 );

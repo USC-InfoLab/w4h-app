@@ -23,11 +23,12 @@ const userStore = useUserStore();
 const { user } = storeToRefs(userStore);
 
 import { useUIStore } from '@/stores/ui';
+import { canAccessAdminUi } from '@/utils/roles';
 const uiStore = useUIStore();
 
 const isGuest = computed(() => route.meta.guest === true);
 const isAdminUI = computed(() => {
-  return user.value?.role === 'admin' && uiStore.isAdminUI;
+  return canAccessAdminUi(user.value?.role) && uiStore.isAdminUI;
 });
 
 onMounted(() => {

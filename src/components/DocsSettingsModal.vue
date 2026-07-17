@@ -160,10 +160,11 @@
 import { computed, onMounted, ref } from 'vue';
 import { useDocTypes } from '@/composables/useDocTypes';
 import { useUserStore } from '@/stores/user';
+import { isSuperAdmin } from '@/utils/roles';
 
 const doc = defineModel('doc', { type: Object, required: true });
 const userStore = useUserStore();
-const isAdmin = computed(() => userStore.user?.role === 'admin');
+const isAdmin = computed(() => isSuperAdmin(userStore.user?.role));
 
 const { docTypes, fetchDocTypes, createDocType, formatDocTypeLabel, typeSortOrder } = useDocTypes();
 

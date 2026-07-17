@@ -80,6 +80,7 @@ import { api, authHeaders } from '@/utils/api';
 import { APP_NAME } from '@/utils/defs';
 import { useUserStore } from '@/stores/user';
 import { useUIStore } from '@/stores/ui';
+import { canAccessAdminUi } from '@/utils/roles';
 
 const router = useRouter();
 const userStore = useUserStore();
@@ -95,7 +96,7 @@ let createModal = null;
 const newProject = ref({ name: '', description: '' });
 
 const canCreateProject = computed(() =>
-  userStore.user?.role === 'admin' && uiStore.isAdminUI
+  canAccessAdminUi(userStore.user?.role) && uiStore.isAdminUI
 );
 
 function clearLocalProjectDrafts() {

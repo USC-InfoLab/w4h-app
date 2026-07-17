@@ -10,12 +10,13 @@ function getCards(isAdminUI = false) {
       route: isAdminUI ? 'admin/projects' : 'projects',
       action_label: 'Open Projects'
     },
-    // {
-    //   card_title: '<span style="font-size: 2em">📊</span> Analytics',
-    //   description: 'Insights on wearables and other study data.',
-    //   route: isAdminUI ? 'admin/analytics' : 'analytics',
-    //   action_label: 'Open Analytics'
-    // },
+    {
+      card_title: '<span style="font-size: 2em">👥</span> Teams',
+      description: '<b>Teams</b> are research groups that own projects, datasets, and members.',
+      route: 'admin/teams',
+      action_label: 'Open Teams',
+      hidden: !isAdminUI
+    },
     {
       card_title: '<span style="font-size: 2em">📚</span> Help',
       description: '<b>Help</b> provide guides and reference material for using the W4H Toolkit.',
@@ -26,9 +27,7 @@ function getCards(isAdminUI = false) {
 
   allCards.forEach(d => d.toc = generateTOC(d.md));
 
-  return isAdminUI
-    ? allCards
-    : allCards.filter(card => !card.hidden);
+  return allCards.filter(card => !card.hidden);
 }
 
 // Fetch feature cards from dedicated endpoint

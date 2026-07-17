@@ -192,6 +192,7 @@ const userStore = useUserStore();
 const copyright = import.meta.env.VITE_COPYRIGHT;
 
 import { useUIStore } from '@/stores/ui';
+import { canAccessAdminUi } from '@/utils/roles';
 const uiStore = useUIStore();
 
 const logoSrc = computed(() => (uiStore.darkMode ? '/w4h-dark.svg' : '/w4h-light.svg'));
@@ -308,7 +309,7 @@ const login = async () => {
       localStorage.setItem('w4h.user.token', user.token);
       await userStore.setUser(user);
 
-      if (user.role === 'admin') uiStore.exitAdmin();
+      if (canAccessAdminUi(user.role)) uiStore.exitAdmin();
 
       router.push('/home');
     }
@@ -393,7 +394,9 @@ const setupInitialAdmin = async () => {
     if (res.data.success) {
       localStorage.setItem('w4h.user.token', res.data.token);
       await userStore.setUser(res.data.user);
-      router.push('/home');
+      userStore.markSetupGuidePending();
+      uiStore.enterAdmin();
+      router.push({ name: 'adminHome' });
     } else {
       adminError.value = res.data.error || res.data.message || 'Failed to create admin account.';
     }

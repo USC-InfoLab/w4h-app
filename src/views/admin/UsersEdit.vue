@@ -6,14 +6,13 @@
           <router-link to="/admin/users">Users</router-link>
         </li>
         <li class="breadcrumb-item active" aria-current="page">
-          {{ user.email }} ({{ user.role }})
+          {{ user.email }} ({{ roleLabel(user.role) }})
         </li>
       </ol>
     </nav>
 
     <div class="row gy-3">
 
-      <!-- Profile -->
       <div class="col-12 col-md-6">
         <div class="card p-3 h-100">
           <h5 class="card-title mb-3">Profile</h5>
@@ -23,22 +22,7 @@
             <input v-model="user.name" type="text" class="form-control" />
           </div>
 
-          <div v-if="!isAdminUser" class="mb-3">
-            <label class="form-label">Projects</label>
-            <select v-model="user.study_ids" class="form-select" multiple>
-              <option v-for="option in studyOptions" :key="option.value" :value="option.value">
-                {{ option.text }}
-              </option>
-            </select>
-            <div class="form-text">Hold Cmd/Ctrl to select multiple projects.</div>
-          </div>
-          <div v-else class="mb-3">
-            <label class="form-label">Projects</label>
-            <input type="text" class="form-control" value="All Projects" disabled />
-            <div class="form-text">Admin users have access to all projects.</div>
-          </div>
-
-          <div v-if="!isAdminUser" class="mb-3">
+          <div v-if="!isProtectedSuperAdmin" class="mb-3">
             <label class="form-label">Role</label>
             <select v-model="user.role" class="form-select">
               <option v-for="option in roleOptions" :key="option.value" :value="option.value">
@@ -48,17 +32,36 @@
           </div>
           <div v-else class="mb-3">
             <label class="form-label">Role</label>
-            <input type="text" class="form-control" value="Admin" disabled />
-            <div class="form-text">Admin role cannot be re-assigned</div>
+            <input type="text" class="form-control" :value="roleLabel(user.role)" disabled />
+            <div class="form-text">Super admin role cannot be re-assigned</div>
+          </div>
+
+          <div v-if="needsTeam" class="mb-3">
+            <label class="form-label">Team(s)</label>
+            <select
+              v-model="user.team_ids"
+              class="form-select"
+              multiple
+              :disabled="teamLocked"
+            >
+              <option v-for="option in teamOptions" :key="option.value" :value="option.value">
+                {{ option.text }}
+              </option>
+            </select>
+            <div class="form-text">
+              Team membership. Project access is assigned on each project’s Members panel.
+            </div>
+          </div>
+          <div v-else class="mb-3">
+            <label class="form-label">Team</label>
+            <input type="text" class="form-control" value="None (platform-wide)" disabled />
+            <div class="form-text">Super admins are not required to belong to a team.</div>
           </div>
         </div>
       </div>
 
-      <!-- Password -->
       <div class="col-12 col-md-6">
         <div class="card p-3 h-100">
-          <!-- <h5 class="card-title mb-3">Password</h5> -->
-
           <div class="mb-2">
             <label class="form-label">Password</label>
             <div class="position-relative">
@@ -83,21 +86,17 @@
         </div>
       </div>
 
-      <!-- Error -->
       <div v-if="message" class="col-12">
         <div class="alert alert-danger">{{ message }}</div>
       </div>
 
-      <!-- Save Button -->
       <div class="d-flex justify-content-end mb-3">
         <button class="btn btn-primary" :disabled="!dirty || !isSecurePassword" @click="onSave">
           Save
         </button>
       </div>
 
-
-      <!-- Danger Zone -->
-      <div v-if="!isAdminUser" class="col-12">
+      <div v-if="!isProtectedSuperAdmin" class="col-12">
         <div class="card border-danger p-3">
           <h5 class="text-danger">Danger Zone</h5>
 
@@ -122,13 +121,13 @@
 import { ref, onMounted, watch, computed } from 'vue';
 import { api, authHeaders } from '../../utils/api';
 import { validatePassword } from '@/utils/password-validator';
-// import ToastComponent from './Toast.vue';
+import { isSuperAdmin, isTeamAdmin, roleLabel, USER_ROLES } from '@/utils/roles';
+import { useUserStore } from '@/stores/user';
 
 import { useRoute, useRouter } from 'vue-router';
 const route = useRoute();
 const router = useRouter();
-
-//const showToast = ref(false);
+const userStore = useUserStore();
 
 const verifyCode = ref('');
 const dirty = ref(false);
@@ -162,13 +161,29 @@ let originalUser = null;
 const originalRole = ref('');
 
 const roleOptions = ref([]);
-const studyOptions = ref([]);
+const teamOptions = ref([]);
 const message = ref('');
-const isAdminUser = computed(() => originalRole.value === 'admin');
+const isProtectedSuperAdmin = computed(() => isSuperAdmin(originalRole.value));
+const callerIsSuper = computed(() => isSuperAdmin(userStore.user?.role));
+const teamLocked = computed(() => isTeamAdmin(userStore.user?.role) && !callerIsSuper.value);
+
+const needsTeam = computed(() => {
+  if (isProtectedSuperAdmin.value) return false;
+  return user.value?.role !== USER_ROLES.SUPER_ADMIN && user.value?.role !== 'admin';
+});
+
+function normalizeRoleOptions(data) {
+  const roles = Array.isArray(data) ? data : [];
+  return roles.map((r) => (
+    typeof r === 'string'
+      ? { text: roleLabel(r), value: r }
+      : { text: r.text || roleLabel(r.value), value: r.value }
+  )).filter((r) => r.value);
+}
 
 function onDelete() {
-  if (isAdminUser.value) {
-    message.value = 'Admin users cannot be deleted.';
+  if (isProtectedSuperAdmin.value) {
+    message.value = 'Super admin users cannot be deleted.';
     return;
   }
   api.delete('users/' + user.value.email, authHeaders()).then(() => {
@@ -188,16 +203,18 @@ onMounted(async () => {
       return;
     }
 
+    const teamIds = Array.isArray(data.team_ids) ? data.team_ids.map(String) : [];
+
     user.value = {
       id: data.id,
       email: data.email,
       name: data.name,
       role: data.role,
       password: '',
-      study_ids: Array.isArray(data.project_ids) ? data.project_ids : [],
+      team_ids: teamIds,
     };
 
-    originalUser = { ...user.value };
+    originalUser = { ...user.value, team_ids: [...teamIds] };
     originalRole.value = data.role;
 
     watch(
@@ -205,18 +222,20 @@ onMounted(async () => {
       (newVal) => {
         const hasProfileChanges = JSON.stringify(newVal) !== JSON.stringify(originalUser);
         const hasPasswordEntry = user.value.password && user.value.password.length > 0;
-
         dirty.value = hasProfileChanges || hasPasswordEntry;
       },
       { deep: true }
     );
 
-    const projects = await api.get('datasets/projects', authHeaders());
-    studyOptions.value = projects.data.map(s => ({ text: s.name, value: s.id }));
-
-    const roles = await api.get('users/roles', authHeaders());
-    roleOptions.value = roles.data.map((r) => ({ text: r, value: r }));
-    roleOptions.value = [{ text: 'Select role', value: null }, ...roleOptions.value];
+    const [teamsRes, rolesRes] = await Promise.all([
+      api.get('teams', authHeaders()),
+      api.get('users/roles', authHeaders())
+    ]);
+    teamOptions.value = (Array.isArray(teamsRes.data) ? teamsRes.data : []).map((t) => ({
+      text: t.name,
+      value: String(t.id)
+    }));
+    roleOptions.value = normalizeRoleOptions(rolesRes.data);
   } catch (error) {
     message.value = error.response?.data?.error || error.message || 'Failed to load user.';
   }
@@ -231,30 +250,34 @@ async function onSave() {
 
     message.value = '';
 
+    const role = isProtectedSuperAdmin.value ? originalRole.value : user.value.role;
     const updates = {
       id: user.value.id,
       original_email: originalUser.email,
       email: user.value.email,
       name: user.value.name,
-      role: isAdminUser.value ? 'admin' : user.value.role,
-      study_ids: isAdminUser.value ? [] : user.value.study_ids,
+      role,
+      team_ids: isSuperAdmin(role) ? [] : (user.value.team_ids || []),
       ...(user.value.password ? { password: user.value.password } : {})
     };
 
     await api.post('users/set', { user: updates }, authHeaders());
-    user.value.password = '';  //in case we changed it
-    originalUser = { ...user.value };
+    user.value.password = '';
+    originalUser = {
+      ...user.value,
+      team_ids: [...(user.value.team_ids || [])]
+    };
 
     dirty.value = false;
   } catch (error) {
-    message.value = error.message;
+    message.value = error.response?.data?.error || error.message;
   }
 }
 
 const isSecurePassword = computed(() => {
   const password = user.value?.password;
   if (!password) {
-    return true; // Empty password is ok
+    return true;
   }
   return validatePassword(password);
 });

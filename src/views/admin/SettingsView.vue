@@ -132,6 +132,9 @@
               <button class="btn btn-outline-secondary" :disabled="testingMailer || !testRecipient" type="button"
                 @click="sendTestEmail">Send Test Email</button>
             </div>
+            <div class="form-text mt-1">
+              Test uses the values currently in the form (Save is not required). Leave password blank to reuse the saved password.
+            </div>
 
             <div class="row g-3 mt-1">
               <div class="col-md-8">
@@ -384,12 +387,32 @@ async function saveMailerSettings() {
 }
 
 async function sendTestEmail() {
+  if (!mailer.value.host || !mailer.value.port || !mailer.value.from) {
+    setMessage(mailerMessage, mailerMessageType, 'SMTP host, port, and from are required to send a test.', 'error', 'mailer');
+    return;
+  }
+  if (!testRecipient.value) {
+    setMessage(mailerMessage, mailerMessageType, 'Test recipient email is required.', 'error', 'mailer');
+    return;
+  }
+
   testingMailer.value = true;
   try {
-    const res = await api.post('config/mailer-test', { to: testRecipient.value }, authHeaders());
+    const res = await api.post('config/mailer-test', {
+      to: testRecipient.value,
+      host: mailer.value.host,
+      port: mailer.value.port,
+      secure: mailer.value.secure,
+      user: mailer.value.user,
+      from: mailer.value.from,
+      replyTo: mailer.value.replyTo,
+      ...(mailer.value.password ? { password: mailer.value.password } : {})
+    }, authHeaders());
     setMessage(mailerMessage, mailerMessageType, res.data.message || 'Test email sent.', 'success', 'mailer');
   } catch (error) {
-    setMessage(mailerMessage, mailerMessageType, error.response?.data?.error || error.message || 'Failed to send test email.', 'error', 'mailer');
+    const details = error.response?.data?.details;
+    const err = error.response?.data?.error || error.message || 'Failed to send test email.';
+    setMessage(mailerMessage, mailerMessageType, details ? `${err}: ${details}` : err, 'error', 'mailer');
   } finally {
     testingMailer.value = false;
   }

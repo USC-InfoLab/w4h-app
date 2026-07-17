@@ -18,13 +18,21 @@
     </div>
 
     <ul v-else-if="projects.length" class="list-group">
-      <li v-for="project in projects" :key="project.id"
-        class="list-group-item d-flex justify-content-between align-items-center">
+      <li
+        v-for="project in projects"
+        :key="project.id"
+        class="list-group-item d-flex justify-content-between align-items-center"
+      >
         <div>
           <div class="fw-semibold">{{ project.name || project.id }}</div>
-          <small class="text-muted">{{ project.slug || project.id }}</small>
+          <small class="text-muted">
+            {{ project.slug || project.id }}
+            <span v-if="project.team_name"> · {{ project.team_name }}</span>
+          </small>
         </div>
-        <button class="btn btn-sm btn-outline-primary" @click="goEdit(project.slug || project.id)">Edit</button>
+        <button class="btn btn-sm btn-outline-primary" @click="goEdit(project.slug || project.id)">
+          Edit
+        </button>
       </li>
     </ul>
 

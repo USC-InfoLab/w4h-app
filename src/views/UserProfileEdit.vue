@@ -74,7 +74,7 @@
         </form>
 
         <!-- Danger zone -->
-        <div v-if="user.role === 'admin' && newUser.email !== user.email" class="card mt-4 border-danger p-3">
+        <div v-if="isSuperAdmin(user.role) && newUser.email !== user.email" class="card mt-4 border-danger p-3">
           <h6 class="text-danger mb-2">Danger zone</h6>
 
           <p class="mb-2">
@@ -108,10 +108,11 @@ const userStore = useUserStore();
 const { user } = storeToRefs(userStore);
 
 import { useUIStore } from '@/stores/ui';
+import { canAccessAdminUi, isSuperAdmin } from '@/utils/roles';
 const uiStore = useUIStore();
 
 const isAdminUI = computed(() => {
-  return user.value?.role === 'admin' && uiStore.isAdminUI;
+  return canAccessAdminUi(user.value?.role) && uiStore.isAdminUI;
 });
 
 const verifyCode = ref('');

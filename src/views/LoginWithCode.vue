@@ -57,6 +57,7 @@ import { api } from '../utils/api';
 import { APP_NAME } from '@/utils/defs';
 import { useUserStore } from '../stores/user';
 import { useUIStore } from '@/stores/ui';
+import { canAccessAdminUi } from '@/utils/roles';
 
 const router = useRouter();
 const userStore = useUserStore();
@@ -130,7 +131,7 @@ const login = async () => {
     localStorage.setItem('w4h.user.token', token);
     await userStore.setUser({ ...user, token });
 
-    if (user.role === 'admin') uiStore.exitAdmin();
+    if (canAccessAdminUi(user.role)) uiStore.exitAdmin();
 
     router.push('/home');
   } catch (error) {

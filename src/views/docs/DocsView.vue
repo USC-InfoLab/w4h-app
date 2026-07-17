@@ -206,6 +206,7 @@ const userStore = useUserStore();
 const { user } = storeToRefs(userStore);
 
 import { useUIStore } from '@/stores/ui';
+import { canAccessAdminUi } from '@/utils/roles';
 const uiStore = useUIStore();
 
 import MdDocEditable from '@/components/MdDocEditable.vue';
@@ -221,7 +222,7 @@ const leftPane = ref(null);
 const rightPane = ref(null);
 let splitInstance = null;
 
-const isAdminUI = computed(() => user.value.role === 'admin' && uiStore.isAdminUI);
+const isAdminUI = computed(() => canAccessAdminUi(user.value?.role) && uiStore.isAdminUI);
 const isSearchPage = computed(() => route.params?.slug === 'search');
 const showDocAdminActions = computed(() =>
   isAdminUI.value && selecteddoc.value && !isEditing.value && !isSearchPage.value

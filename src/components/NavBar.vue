@@ -38,18 +38,25 @@
               {{ user.name ? user.name : '' }}
             </a>
             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="menuDropdown">
-              <li class="dropdown-item">{{ user.name }}</li>
-              <!-- <li class="dropdown-header text-secondary">{{ user.email }}</li> -->
+              <li>
+                <RouterLink class="dropdown-item user-account-link" :to="{ name: 'userProfileEdit' }">
+                  <div class="fw-semibold">{{ user.name }}</div>
+                  <div v-if="user.email" class="small text-secondary">{{ user.email }}</div>
+                </RouterLink>
+              </li>
               <li>
                 <hr class="dropdown-divider">
               </li>
-              <li><a class="dropdown-item" @click="onProfileButtonClick">
-                  <i class="bi bi-gear me-2"></i> Account Settings
-                </a></li>
-              <li v-if="user.role === 'admin'"><a class="dropdown-item admin-entry" @click="onAdminButtonClick">
-                  <i class="bi bi-toggles me-2"></i> Admin Settings
-                </a></li>
-              <li><a data-cy='logout-menu-item' class="dropdown-item" @click="onSignOutClick">Sign out</a></li>
+              <li v-if="canAccessAdminUi(user.role)">
+                <a class="dropdown-item" href="#" @click.prevent="onAdminButtonClick">
+                  <i class="bi bi-toggles me-2"></i> Admin
+                </a>
+              </li>
+              <li>
+                <a data-cy="logout-menu-item" class="dropdown-item" href="#" @click.prevent="onSignOutClick">
+                  Sign out
+                </a>
+              </li>
             </ul>
           </div>
         </form>
@@ -65,6 +72,7 @@ import { useRouter, useRoute } from 'vue-router';
 import { useUserStore } from '../stores/user';
 import { useUIStore } from '../stores/ui';
 import { storeToRefs } from 'pinia';
+import { canAccessAdminUi } from '@/utils/roles';
 
 const router = useRouter();
 const route = useRoute();
@@ -89,10 +97,6 @@ onMounted(() => {
     document.querySelectorAll('[data-bs-toggle="dropdown"]').forEach(el => new Dropdown(el));
   });
 });
-
-function onProfileButtonClick() {
-  router.push({ name: 'userProfileEdit' });
-}
 
 function onAdminButtonClick() {
   uiStore.enterAdmin();
@@ -146,6 +150,11 @@ function onSignOutClick() {
   cursor: pointer !important;
 }
 
+.user-account-link {
+  white-space: normal;
+  line-height: 1.25;
+}
+
 /* Combined rule for both modes */
 .w4h-nav,
 .w4h-dark-nav {
@@ -155,18 +164,6 @@ function onSignOutClick() {
 
 .navbar-nav .nav-link {
   font-weight: 500;
-}
-
-/* Admin entry keeps original dark background with light text */
-.w4h-dark-nav .admin-entry {
-  background-color: rgb(99, 0, 0) !important;
-  color: whitesmoke !important;
-}
-
-.w4h-nav .admin-entry,
-.w4h-dark-nav .admin-entry {
-  background-color: #767676 !important;
-  color: white !important;
 }
 
 /* Small screen adjustments */
