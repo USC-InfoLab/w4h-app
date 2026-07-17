@@ -14,19 +14,20 @@
 
     <p class="text-muted mb-3">
       <template v-if="callerIsSuper">
-        Super admins can create Team admins and Project users (and other Super admins).
+        Super admins can invite Team admins and Project users (and other Super admins).
         Assign a team for Team admin and Project user roles.
       </template>
       <template v-else>
         Team admins can invite Project users to their own team.
         Project membership is assigned later from the project edit screen.
       </template>
+      The invitee receives a time-limited link to set their own password — credentials are never emailed.
     </p>
 
     <form class="row gy-3" @submit.prevent="onSave">
 
-      <div class="col-12 col-md-6">
-        <div class="card p-3 h-100">
+      <div class="col-12 col-md-8 col-lg-6">
+        <div class="card p-3">
           <h5 class="card-title mb-3">Profile</h5>
 
           <div class="mb-3">
@@ -40,6 +41,7 @@
           <div class="mb-3">
             <label class="form-label">Name</label>
             <input v-model="form.name" type="text" class="form-control" autocomplete="name" />
+            <div class="form-text">Optional — the invitee can set or change this when activating.</div>
           </div>
 
           <div class="mb-3">
@@ -80,48 +82,13 @@
         </div>
       </div>
 
-      <div class="col-12 col-md-6">
-        <div class="card p-3 h-100">
-          <h5 class="card-title mb-3">Temporary password</h5>
-
-          <div class="mb-2">
-            <label class="form-label">Password</label>
-            <div class="input-group">
-              <input
-                :type="showPassword ? 'text' : 'password'"
-                v-model="form.password"
-                class="form-control"
-                autocomplete="new-password"
-              />
-              <button
-                type="button"
-                class="btn btn-outline-secondary"
-                @click="showPassword = !showPassword"
-                tabindex="-1"
-              >
-                <i :class="showPassword ? 'bi bi-eye-slash' : 'bi bi-eye'"></i>
-              </button>
-            </div>
-            <div class="mt-1">
-              <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none" @click="suggestPassword">
-                <i class="bi bi-key me-1"></i>Suggest password
-              </button>
-            </div>
-          </div>
-
-          <div class="form-text">{{ PASSWORD_REQUIREMENTS }}</div>
-          <div v-if="form.password && !isSecurePassword" class="text-danger small mt-2">
-            {{ PASSWORD_REQUIREMENTS }}
-          </div>
-          <div class="form-text mt-2">
-            Share credentials securely. If SMTP is configured, an invitation email is sent automatically.
-          </div>
-        </div>
-      </div>
-
       <div v-if="submitMessage" class="col-12">
         <div class="alert" :class="submitted ? 'alert-success' : 'alert-danger'">
-          {{ submitMessage }}
+          <div>{{ submitMessage }}</div>
+          <div v-if="inviteUrl" class="mt-2">
+            <div class="small text-muted mb-1">Invitation link (share only if email delivery failed):</div>
+            <code class="small user-select-all">{{ inviteUrl }}</code>
+          </div>
         </div>
       </div>
 
@@ -129,9 +96,10 @@
         <button
           v-if="!submitted"
           class="btn btn-primary"
-          :disabled="!canSubmit"
+          :disabled="!canSubmit || sending"
           type="submit"
         >
+          <span v-if="sending" class="spinner-border spinner-border-sm me-2"></span>
           Send Invite
         </button>
 
@@ -149,7 +117,6 @@ import { ref, onMounted, computed, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { storeToRefs } from 'pinia';
 import { api, authHeaders } from '../../utils/api';
-import { validatePassword, PASSWORD_REQUIREMENTS } from '@/utils/password-validator';
 import { APP_NAME } from '@/utils/defs';
 import { isSuperAdmin, isTeamAdmin, USER_ROLES } from '@/utils/roles';
 import { useUserStore } from '@/stores/user';
@@ -163,14 +130,14 @@ const form = ref({
   name: '',
   role: null,
   team_id: null,
-  password: '',
 });
 
 const roleOptions = ref([]);
 const teamOptions = ref([]);
 const submitMessage = ref('');
+const inviteUrl = ref('');
 const submitted = ref(false);
-const showPassword = ref(false);
+const sending = ref(false);
 
 const callerIsSuper = computed(() => isSuperAdmin(currentUser.value?.role));
 const callerIsTeam = computed(() => isTeamAdmin(currentUser.value?.role));
@@ -178,13 +145,11 @@ const callerIsTeam = computed(() => isTeamAdmin(currentUser.value?.role));
 const needsTeam = computed(() => form.value.role && form.value.role !== USER_ROLES.SUPER_ADMIN);
 const teamLocked = computed(() => callerIsTeam.value && !callerIsSuper.value);
 
-const isSecurePassword = computed(() => validatePassword(form.value.password));
 const isValidEmail = computed(() => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.value.email));
 
 const canSubmit = computed(() => {
   if (!form.value.email || !isValidEmail.value) return false;
   if (!form.value.role) return false;
-  if (!form.value.password || !isSecurePassword.value) return false;
   if (needsTeam.value && !form.value.team_id) return false;
   return true;
 });
@@ -200,29 +165,6 @@ watch(
   }
 );
 
-function suggestPassword() {
-  const upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
-  const lower = 'abcdefghjkmnpqrstuvwxyz';
-  const digits = '23456789';
-  const special = '@$!%*?&#^_+-';
-  const all = upper + lower + digits + special;
-  const arr = new Uint32Array(16);
-  crypto.getRandomValues(arr);
-  let pw = [
-    upper[arr[0] % upper.length],
-    lower[arr[1] % lower.length],
-    digits[arr[2] % digits.length],
-    special[arr[3] % special.length],
-  ];
-  for (let i = 4; i < arr.length; i++) pw.push(all[arr[i] % all.length]);
-  for (let i = pw.length - 1; i > 0; i--) {
-    const j = arr[i % arr.length] % (i + 1);
-    [pw[i], pw[j]] = [pw[j], pw[i]];
-  }
-  form.value.password = pw.join('');
-  showPassword.value = true;
-}
-
 async function onReset() {
   const lockedTeam = teamLocked.value && teamOptions.value[0] ? teamOptions.value[0].value : null;
   const defaultRole = roleOptions.value.length === 1 ? roleOptions.value[0].value : null;
@@ -231,35 +173,45 @@ async function onReset() {
     name: '',
     role: defaultRole,
     team_id: lockedTeam,
-    password: '',
   };
   submitMessage.value = '';
+  inviteUrl.value = '';
   submitted.value = false;
 }
 
 async function onSave() {
+  sending.value = true;
+  submitMessage.value = '';
+  inviteUrl.value = '';
   try {
     const payload = {
       email: form.value.email,
       name: form.value.name,
       role: form.value.role,
-      password: form.value.password,
       team_ids: form.value.team_id ? [form.value.team_id] : [],
     };
 
     const response = await api.post('users/add', { user: payload }, authHeaders());
 
-    submitMessage.value =
-      response.status === 201
-        ? (response.data?.mailWarning || 'User invited successfully')
-        : 'Unexpected response';
-
-    submitted.value = true;
+    if (response.status === 201) {
+      inviteUrl.value = response.data?.inviteUrl || '';
+      if (response.data?.mailWarning) {
+        submitMessage.value = `Invitation created, but email may not have been sent: ${response.data.mailWarning}`;
+      } else {
+        submitMessage.value = `Invitation sent to ${form.value.email}. They will set their own password via the link.`;
+      }
+      submitted.value = true;
+    } else {
+      submitMessage.value = 'Unexpected response';
+    }
   } catch (error) {
     submitMessage.value =
       error.response?.status === 409
-        ? `User ${form.value.email} already exists`
-        : (error.response?.data?.error || `Failed to add user: ${error}`);
+        ? (error.response?.data?.error || `A user with email ${form.value.email} already exists`)
+        : (error.response?.data?.error || `Failed to invite user: ${error}`);
+
+  } finally {
+    sending.value = false;
   }
 }
 

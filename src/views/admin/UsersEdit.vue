@@ -62,6 +62,29 @@
 
       <div class="col-12 col-md-6">
         <div class="card p-3 h-100">
+          <h5 class="card-title mb-3">
+            Account
+            <span v-if="user.status" class="badge ms-2" :class="statusBadgeClass">{{ user.status }}</span>
+          </h5>
+
+          <div v-if="user.status === 'invited'" class="mb-3">
+            <p class="small text-muted mb-2">
+              This user has not activated their account yet. You can resend or revoke the invitation link.
+            </p>
+            <div class="d-flex flex-wrap gap-2">
+              <button type="button" class="btn btn-sm btn-outline-primary" :disabled="inviteBusy" @click="onResendInvite">
+                Resend invitation
+              </button>
+              <button type="button" class="btn btn-sm btn-outline-danger" :disabled="inviteBusy" @click="onRevokeInvite">
+                Revoke invitation
+              </button>
+            </div>
+            <div v-if="inviteUrl" class="mt-2">
+              <div class="small text-muted mb-1">Latest invitation link:</div>
+              <code class="small user-select-all">{{ inviteUrl }}</code>
+            </div>
+          </div>
+
           <div class="mb-2">
             <label class="form-label">Password</label>
             <div class="position-relative">
@@ -78,7 +101,11 @@
             </div>
           </div>
 
-          <div class="form-text">Enter a new password to update</div>
+          <div class="form-text">
+            {{ user.status === 'invited'
+              ? 'Optional escape hatch: setting a password here activates the account without the invite link.'
+              : 'Enter a new password to update' }}
+          </div>
           <div v-if="user.password && !isSecurePassword" class="text-danger small mt-2">
             ❗️ Password must be at least 12 characters and include uppercase,
             lowercase, number, and special character.
@@ -87,7 +114,7 @@
       </div>
 
       <div v-if="message" class="col-12">
-        <div class="alert alert-danger">{{ message }}</div>
+        <div class="alert" :class="messageIsError ? 'alert-danger' : 'alert-success'">{{ message }}</div>
       </div>
 
       <div class="d-flex justify-content-end mb-3">
@@ -132,6 +159,9 @@ const userStore = useUserStore();
 const verifyCode = ref('');
 const dirty = ref(false);
 const showPassword = ref(false);
+const inviteBusy = ref(false);
+const inviteUrl = ref('');
+const messageIsError = ref(true);
 
 function suggestPassword() {
   const upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
@@ -210,6 +240,7 @@ onMounted(async () => {
       email: data.email,
       name: data.name,
       role: data.role,
+      status: data.status || 'active',
       password: '',
       team_ids: teamIds,
     };
@@ -244,6 +275,7 @@ onMounted(async () => {
 async function onSave() {
   try {
     if (!user.value || !originalUser) {
+      messageIsError.value = true;
       message.value = 'User is not loaded yet.';
       return;
     }
@@ -262,6 +294,9 @@ async function onSave() {
     };
 
     await api.post('users/set', { user: updates }, authHeaders());
+    if (user.value.password) {
+      user.value.status = 'active';
+    }
     user.value.password = '';
     originalUser = {
       ...user.value,
@@ -269,8 +304,46 @@ async function onSave() {
     };
 
     dirty.value = false;
+    messageIsError.value = false;
+    message.value = 'User saved.';
   } catch (error) {
+    messageIsError.value = true;
     message.value = error.response?.data?.error || error.message;
+  }
+}
+
+async function onResendInvite() {
+  inviteBusy.value = true;
+  inviteUrl.value = '';
+  message.value = '';
+  try {
+    const { data } = await api.post('users/invite/resend', { user_id: user.value.id }, authHeaders());
+    inviteUrl.value = data?.inviteUrl || '';
+    messageIsError.value = !!data?.mailWarning;
+    message.value = data?.mailWarning
+      ? `Invitation recreated, but email may not have been sent: ${data.mailWarning}`
+      : 'Invitation resent.';
+  } catch (error) {
+    messageIsError.value = true;
+    message.value = error.response?.data?.error || error.message;
+  } finally {
+    inviteBusy.value = false;
+  }
+}
+
+async function onRevokeInvite() {
+  inviteBusy.value = true;
+  inviteUrl.value = '';
+  message.value = '';
+  try {
+    await api.post('users/invite/revoke', { user_id: user.value.id }, authHeaders());
+    messageIsError.value = false;
+    message.value = 'Invitation revoked. The previous link will no longer work.';
+  } catch (error) {
+    messageIsError.value = true;
+    message.value = error.response?.data?.error || error.message;
+  } finally {
+    inviteBusy.value = false;
   }
 }
 
@@ -280,6 +353,12 @@ const isSecurePassword = computed(() => {
     return true;
   }
   return validatePassword(password);
+});
+
+const statusBadgeClass = computed(() => {
+  if (user.value?.status === 'invited') return 'text-bg-warning';
+  if (user.value?.status === 'discontinued') return 'text-bg-secondary';
+  return 'text-bg-success';
 });
 </script>
 

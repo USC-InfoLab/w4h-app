@@ -11,6 +11,7 @@ const routes = [
   // Public routes
   { path: '/login', name: 'login', component: Login, meta: { guest: true } },
   { path: '/loginCode', name: 'loginCode', component: LoginWithCode, meta: { guest: true } },
+  { path: '/invite/:token', name: 'acceptInvite', component: () => import('../views/AcceptInviteView.vue'), meta: { guest: true } },
   { path: '/logout', redirect: '/login' },
   { path: '/', name: 'default', component: Login, meta: { guest: true } },
   { path: '/:pathMatch(.*)*', name: 'not-found', component: Login, meta: { guest: true } },

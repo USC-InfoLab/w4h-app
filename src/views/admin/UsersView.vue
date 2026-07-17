@@ -40,6 +40,9 @@
               <a :href="'mailto:' + row.email">{{ row.email }}</a>
             </div>
             <div class="small text-muted mt-1">
+              <span v-if="row.status && row.status !== 'active'" class="badge me-2" :class="row.status === 'invited' ? 'text-bg-warning' : 'text-bg-secondary'">
+                {{ row.status }}
+              </span>
               <span class="me-2">{{ row.roleLabel }}</span>
               <span class="me-2">·</span>
               <span class="me-2">Team: {{ row.teamsLabel }}</span>
