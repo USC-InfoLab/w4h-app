@@ -41,7 +41,7 @@
             </div>
             <div class="small text-muted mt-1">
               <span v-if="row.status && row.status !== 'active'" class="badge me-2" :class="row.status === 'invited' ? 'text-bg-warning' : 'text-bg-secondary'">
-                {{ row.status }}
+                {{ row.status === 'discontinued' ? 'paused' : row.status }}
               </span>
               <span class="me-2">{{ row.roleLabel }}</span>
               <span class="me-2">·</span>

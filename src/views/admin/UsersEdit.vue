@@ -62,20 +62,51 @@
 
       <div class="col-12 col-md-6">
         <div class="card p-3 h-100">
-          <h5 class="card-title mb-3">
-            Account
-            <span v-if="user.status" class="badge ms-2" :class="statusBadgeClass">{{ user.status }}</span>
-          </h5>
+          <h5 class="card-title mb-3">Account</h5>
+
+          <div v-if="!isProtectedSuperAdmin && user.status !== 'invited'" class="mb-3">
+            <div class="d-flex align-items-center justify-content-between gap-3">
+              <div>
+                <div class="fw-semibold">
+                  {{ user.status === 'discontinued' ? 'Paused' : 'Active' }}
+                </div>
+                <div class="form-text mb-0">
+                  {{ user.status === 'discontinued'
+                    ? 'Login and API access will stay suspended until you save with Active on.'
+                    : 'Turn off to pause access (kept on Save). Memberships and history are preserved.' }}
+                </div>
+              </div>
+              <div class="form-check form-switch m-0">
+                <input
+                  id="account-active-switch"
+                  class="form-check-input"
+                  type="checkbox"
+                  role="switch"
+                  :checked="user.status !== 'discontinued'"
+                  @change="onAccountActiveChange"
+                />
+                <label class="form-check-label visually-hidden" for="account-active-switch">
+                  Account active
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div v-else-if="isProtectedSuperAdmin" class="mb-3">
+            <span class="badge text-bg-success">active</span>
+            <div class="form-text mt-1 mb-0">Super admin accounts stay active.</div>
+          </div>
 
           <div v-if="user.status === 'invited'" class="mb-3">
-            <p class="small text-muted mb-2">
-              This user has not activated their account yet. You can resend or revoke the invitation link.
+            <span class="badge text-bg-warning">invited</span>
+            <p class="small text-muted mt-2 mb-2">
+              Waiting for the invitee to set a password. You can resend or revoke the invitation.
             </p>
             <div class="d-flex flex-wrap gap-2">
               <button type="button" class="btn btn-sm btn-outline-primary" :disabled="inviteBusy" @click="onResendInvite">
                 Resend invitation
               </button>
-              <button type="button" class="btn btn-sm btn-outline-danger" :disabled="inviteBusy" @click="onRevokeInvite">
+              <button type="button" class="btn btn-sm btn-outline-secondary" :disabled="inviteBusy" @click="onRevokeInvite">
                 Revoke invitation
               </button>
             </div>
@@ -118,26 +149,10 @@
       </div>
 
       <div class="d-flex justify-content-end mb-3">
-        <button class="btn btn-primary" :disabled="!dirty || !isSecurePassword" @click="onSave">
+        <button class="btn btn-primary" :disabled="!dirty || !isSecurePassword || saving" @click="onSave">
+          <span v-if="saving" class="spinner-border spinner-border-sm me-2"></span>
           Save
         </button>
-      </div>
-
-      <div v-if="!isProtectedSuperAdmin" class="col-12">
-        <div class="card border-danger p-3">
-          <h5 class="text-danger">Danger Zone</h5>
-
-          <p class="mt-2">
-            Deleting is permanent. To confirm, type:
-            <strong>{{ user.email }}</strong>
-          </p>
-
-          <input class="form-control mb-3" type="text" v-model="verifyCode" placeholder="Enter email" />
-
-          <button class="btn btn-danger" :disabled="verifyCode !== user.email" @click="onDelete">
-            Delete User
-          </button>
-        </div>
       </div>
 
     </div>
@@ -156,8 +171,8 @@ const route = useRoute();
 const router = useRouter();
 const userStore = useUserStore();
 
-const verifyCode = ref('');
 const dirty = ref(false);
+const saving = ref(false);
 const showPassword = ref(false);
 const inviteBusy = ref(false);
 const inviteUrl = ref('');
@@ -211,14 +226,12 @@ function normalizeRoleOptions(data) {
   )).filter((r) => r.value);
 }
 
-function onDelete() {
+function onAccountActiveChange(event) {
   if (isProtectedSuperAdmin.value) {
-    message.value = 'Super admin users cannot be deleted.';
+    event.target.checked = true;
     return;
   }
-  api.delete('users/' + user.value.email, authHeaders()).then(() => {
-    router.push('/admin/users');
-  });
+  user.value.status = event.target.checked ? 'active' : 'discontinued';
 }
 
 onMounted(async () => {
@@ -273,15 +286,16 @@ onMounted(async () => {
 });
 
 async function onSave() {
+  if (!user.value || !originalUser) {
+    messageIsError.value = true;
+    message.value = 'User is not loaded yet.';
+    return;
+  }
+
+  saving.value = true;
+  message.value = '';
+
   try {
-    if (!user.value || !originalUser) {
-      messageIsError.value = true;
-      message.value = 'User is not loaded yet.';
-      return;
-    }
-
-    message.value = '';
-
     const role = isProtectedSuperAdmin.value ? originalRole.value : user.value.role;
     const updates = {
       id: user.value.id,
@@ -297,6 +311,15 @@ async function onSave() {
     if (user.value.password) {
       user.value.status = 'active';
     }
+
+    const wasDiscontinued = originalUser.status === 'discontinued';
+    const wantDiscontinued = user.value.status === 'discontinued';
+    if (!isProtectedSuperAdmin.value && wasDiscontinued !== wantDiscontinued) {
+      const endpoint = wantDiscontinued ? 'users/discontinue' : 'users/resume';
+      const { data } = await api.post(endpoint, { user_id: user.value.id }, authHeaders());
+      user.value.status = data?.status || (wantDiscontinued ? 'discontinued' : 'active');
+    }
+
     user.value.password = '';
     originalUser = {
       ...user.value,
@@ -309,6 +332,8 @@ async function onSave() {
   } catch (error) {
     messageIsError.value = true;
     message.value = error.response?.data?.error || error.message;
+  } finally {
+    saving.value = false;
   }
 }
 
@@ -355,11 +380,6 @@ const isSecurePassword = computed(() => {
   return validatePassword(password);
 });
 
-const statusBadgeClass = computed(() => {
-  if (user.value?.status === 'invited') return 'text-bg-warning';
-  if (user.value?.status === 'discontinued') return 'text-bg-secondary';
-  return 'text-bg-success';
-});
 </script>
 
 <style scoped>
