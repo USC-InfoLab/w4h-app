@@ -2,7 +2,7 @@
   <div class="d-flex flex-column justify-content-center">
     <div v-if="showDbConfig" class="card w-100 mx-auto" style="max-width: 450px;">
       <div class="card-body">
-        <img class="mx-auto d-block mt-2" style="width: 180px" :src="logoSrc" :alt="`${APP_NAME} logo`" />
+        <img class="login-mark mx-auto d-block mt-2" src="/w4h-light.svg" :alt="`${APP_NAME} logo`" />
         <h2 class="text-center mt-3">{{ APP_NAME }} Setup</h2>
         <p class="text-muted text-center mb-3"></p>
         <div class="alert alert-info" role="alert">
@@ -72,7 +72,7 @@
 
     <div v-else-if="showAdminSetup" class="card w-100 mx-auto" style="max-width: 450px;">
       <form class="card-body" @submit.prevent="setupInitialAdmin">
-        <img class="mx-auto d-block mt-2" style="width: 180px" :src="logoSrc" :alt="`${APP_NAME} logo`" />
+        <img class="login-mark mx-auto d-block mt-2" src="/w4h-light.svg" :alt="`${APP_NAME} logo`" />
         <h2 class="text-center mt-3">{{ APP_NAME }} Admin Setup</h2>
 
         <div class="mb-3">
@@ -133,7 +133,7 @@
 
     <div v-else-if="backendError" class="card w-100 mx-auto" style="max-width: 450px;">
       <div class="card-body text-center">
-        <img class="mx-auto d-block mt-2" style="width: 180px" :src="logoSrc" :alt="`${APP_NAME} logo`" />
+        <img class="login-mark mx-auto d-block mt-2" src="/w4h-light.svg" :alt="`${APP_NAME} logo`" />
         <h2 class="text-center mt-3">Backend Unavailable</h2>
         <div class="alert alert-danger mt-4" role="alert">
           <div class="fw-bold mb-2">⚠️ Cannot Connect to API Server</div>
@@ -146,7 +146,7 @@
     </div>
 
     <form v-else class="form-signin w-100" @submit.prevent="login()" style="max-width: 360px;">
-      <img class="mt-5 mx-auto d-block" style="width: 230px" :src="logoSrc" :alt="`${APP_NAME} logo`" />
+      <img class="login-mark login-mark-hero mt-5 mx-auto d-block" src="/w4h-light.svg" :alt="`${APP_NAME} logo`" />
       <div class="logotype mb-4 text-center">{{ APP_NAME }}</div>
 
       <label for="inputEmail" class="visually-hidden">Email</label>
@@ -194,8 +194,6 @@ const copyright = import.meta.env.VITE_COPYRIGHT;
 import { useUIStore } from '@/stores/ui';
 import { canAccessAdminUi } from '@/utils/roles';
 const uiStore = useUIStore();
-
-const logoSrc = computed(() => (uiStore.darkMode ? '/w4h-dark.svg' : '/w4h-light.svg'));
 
 const dbConfigured = ref(true);
 const showDbConfig = ref(false);
@@ -309,9 +307,14 @@ const login = async () => {
       localStorage.setItem('w4h.user.token', user.token);
       await userStore.setUser(user);
 
-      if (canAccessAdminUi(user.role)) uiStore.exitAdmin();
-
-      router.push('/home');
+      // Super admins land in Platform Admin; Team admins / others use the app shell.
+      if (canAccessAdminUi(user.role, user.caps)) {
+        uiStore.enterAdmin();
+        router.push({ name: 'adminHome' });
+      } else {
+        uiStore.exitAdmin();
+        router.push('/home');
+      }
     }
   } catch (error) {
     message.value = 'Login failed:' + error;
@@ -510,6 +513,15 @@ onMounted(async () => {
   margin: 20px 0;
   font-size: 1.5em;
   font-weight: bolder;
+}
+
+.login-mark {
+  width: 140px;
+  height: auto;
+}
+
+.login-mark-hero {
+  width: 180px;
 }
 
 .btn-eye-toggle {

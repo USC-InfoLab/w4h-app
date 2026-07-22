@@ -1,5 +1,4 @@
 import { createApp } from 'vue'
-import './style.css'
 import App from './App.vue'
 // import Vueform from '@vueform/vueform'
 // import vueformConfig from './../vueform.config'
@@ -12,6 +11,8 @@ import { createPinia } from 'pinia'
 
 import 'bootstrap/dist/css/bootstrap.min.css'
 import 'bootstrap-icons/font/bootstrap-icons.css'
+// Brand tokens + Bootstrap primary overrides (must load after Bootstrap)
+import './style.css'
 
 import FloatingVue from 'floating-vue'
 import 'floating-vue/dist/style.css'

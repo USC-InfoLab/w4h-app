@@ -8,17 +8,17 @@
         <nav v-if="isAdminUI" aria-label="breadcrumb" class="mb-2">
           <ol class="breadcrumb mb-0">
             <li class="breadcrumb-item">
-              <router-link to="/users">Users</router-link>
+              <router-link :to="{ name: 'adminHome' }">Platform Admin</router-link>
             </li>
             <li class="breadcrumb-item active" aria-current="page">
-              {{ user.email }}
+              Profile
             </li>
           </ol>
         </nav>
 
         <h5 class="mb-3 mt-3">
           <i class="bi bi-person me-1"></i>
-          {{ isAdminUI ? 'Edit User' : 'Profile Settings' }}
+          Profile Settings
         </h5>
 
         <form @submit.prevent="onSave">
@@ -111,9 +111,7 @@ import { useUIStore } from '@/stores/ui';
 import { canAccessAdminUi, isSuperAdmin } from '@/utils/roles';
 const uiStore = useUIStore();
 
-const isAdminUI = computed(() => {
-  return canAccessAdminUi(user.value?.role) && uiStore.isAdminUI;
-});
+const isAdminUI = computed(() => canAccessAdminUi(user.value?.role, user.value?.caps));
 
 const verifyCode = ref('');
 const showPassword = ref(false);

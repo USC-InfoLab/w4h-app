@@ -14,11 +14,13 @@
 
     <p class="text-muted mb-3">
       <template v-if="callerIsSuper">
-        Super admins can invite Team admins and Project users (and other Super admins).
-        Assign a team for Team admin and Project user roles.
+        Super admins can invite Team admins and members (and other Super admins).
+        Team admin vs Member is stored <strong>per team</strong> — choose the invite role and team below.
+        If the email already belongs to an account, they are added to that team instead of creating a duplicate.
       </template>
       <template v-else>
-        Team admins can invite Project users to their own team.
+        Team admins can invite members to their own team.
+        If the email already belongs to someone on one of your teams, they are added to the selected team.
         Project membership is assigned later from the project edit screen.
       </template>
       The invitee receives a time-limited link to set their own password — credentials are never emailed.
@@ -188,7 +190,12 @@ async function onSave() {
       email: form.value.email,
       name: form.value.name,
       role: form.value.role,
-      team_ids: form.value.team_id ? [form.value.team_id] : [],
+      teams: form.value.team_id
+        ? [{
+            team_id: form.value.team_id,
+            role: form.value.role === 'team_admin' ? 'team_admin' : 'member',
+          }]
+        : [],
     };
 
     const response = await api.post('users/add', { user: payload }, authHeaders());
@@ -205,6 +212,31 @@ async function onSave() {
       submitMessage.value = 'Unexpected response';
     }
   } catch (error) {
+    // Existing account: attach to the selected team instead of failing the invite flow.
+    if (error.response?.status === 409 && form.value.team_id) {
+      try {
+        await api.post(
+          `teams/${form.value.team_id}/members`,
+          {
+            email: form.value.email,
+            role: form.value.role === 'team_admin' ? 'team_admin' : 'member',
+          },
+          authHeaders()
+        );
+        submitMessage.value =
+          `A user with email ${form.value.email} already exists — they were added to the selected team ` +
+          `as ${form.value.role === 'team_admin' ? 'Team admin' : 'Member'}.`;
+        submitted.value = true;
+        return;
+      } catch (addError) {
+        submitMessage.value =
+          addError.response?.data?.error
+          || error.response?.data?.error
+          || `A user with email ${form.value.email} already exists`;
+        return;
+      }
+    }
+
     submitMessage.value =
       error.response?.status === 409
         ? (error.response?.data?.error || `A user with email ${form.value.email} already exists`)

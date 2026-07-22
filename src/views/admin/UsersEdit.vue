@@ -23,33 +23,66 @@
           </div>
 
           <div v-if="!isProtectedSuperAdmin" class="mb-3">
-            <label class="form-label">Role</label>
+            <label class="form-label">Platform role</label>
             <select v-model="user.role" class="form-select">
               <option v-for="option in roleOptions" :key="option.value" :value="option.value">
                 {{ option.text }}
               </option>
             </select>
+            <div class="form-text">
+              Super admin is account-wide. Team admin vs Member is set <strong>per team</strong> below
+              (legacy platform Team admin stays in sync with memberships).
+            </div>
           </div>
           <div v-else class="mb-3">
-            <label class="form-label">Role</label>
+            <label class="form-label">Platform role</label>
             <input type="text" class="form-control" :value="roleLabel(user.role)" disabled />
             <div class="form-text">Super admin role cannot be re-assigned</div>
           </div>
 
           <div v-if="needsTeam" class="mb-3">
-            <label class="form-label">Team(s)</label>
-            <select
-              v-model="user.team_ids"
-              class="form-select"
-              multiple
-              :disabled="teamLocked"
+            <label class="form-label">Team memberships</label>
+            <div v-for="(row, idx) in user.teams" :key="idx" class="row g-2 align-items-center mb-2">
+              <div class="col">
+                <select v-model="row.team_id" class="form-select form-select-sm" :disabled="teamLocked">
+                  <option value="">Select team…</option>
+                  <option
+                    v-for="option in availableTeamOptions(row.team_id)"
+                    :key="option.value"
+                    :value="option.value"
+                  >
+                    {{ option.text }}
+                  </option>
+                </select>
+              </div>
+              <div class="col-auto">
+                <select v-model="row.role" class="form-select form-select-sm" :disabled="teamLocked">
+                  <option value="team_admin">Team admin</option>
+                  <option value="member">Member</option>
+                </select>
+              </div>
+              <div class="col-auto">
+                <button
+                  type="button"
+                  class="btn btn-sm btn-outline-danger"
+                  :disabled="teamLocked || user.teams.length <= 1"
+                  @click="user.teams.splice(idx, 1)"
+                >
+                  Remove
+                </button>
+              </div>
+            </div>
+            <button
+              v-if="!teamLocked"
+              type="button"
+              class="btn btn-sm btn-outline-primary"
+              :disabled="!unusedTeamOptions.length"
+              @click="user.teams.push({ team_id: '', role: 'member' })"
             >
-              <option v-for="option in teamOptions" :key="option.value" :value="option.value">
-                {{ option.text }}
-              </option>
-            </select>
-            <div class="form-text">
-              Team membership. Project access is assigned on each project’s Members panel.
+              Add team
+            </button>
+            <div class="form-text mt-2">
+              Same person can be Team admin on one team and Member on another. Project access is on each project’s Members panel.
             </div>
           </div>
           <div v-else class="mb-3">
@@ -163,7 +196,7 @@
 import { ref, onMounted, watch, computed } from 'vue';
 import { api, authHeaders } from '../../utils/api';
 import { validatePassword } from '@/utils/password-validator';
-import { isSuperAdmin, isTeamAdmin, roleLabel, USER_ROLES } from '@/utils/roles';
+import { isSuperAdmin, isTeamAdmin, roleLabel, USER_ROLES, TEAM_MEMBER_ROLES } from '@/utils/roles';
 import { useUserStore } from '@/stores/user';
 
 import { useRoute, useRouter } from 'vue-router';
@@ -217,6 +250,20 @@ const needsTeam = computed(() => {
   return user.value?.role !== USER_ROLES.SUPER_ADMIN && user.value?.role !== 'admin';
 });
 
+const unusedTeamOptions = computed(() => {
+  const used = new Set((user.value?.teams || []).map((t) => String(t.team_id)).filter(Boolean));
+  return teamOptions.value.filter((o) => !used.has(String(o.value)));
+});
+
+function availableTeamOptions(currentId) {
+  const used = new Set(
+    (user.value?.teams || [])
+      .map((t) => String(t.team_id))
+      .filter((id) => id && id !== String(currentId || ''))
+  );
+  return teamOptions.value.filter((o) => !used.has(String(o.value)) || String(o.value) === String(currentId || ''));
+}
+
 function normalizeRoleOptions(data) {
   const roles = Array.isArray(data) ? data : [];
   return roles.map((r) => (
@@ -234,6 +281,13 @@ function onAccountActiveChange(event) {
   user.value.status = event.target.checked ? 'active' : 'discontinued';
 }
 
+function snapshotUser(u) {
+  return {
+    ...u,
+    teams: (u.teams || []).map((t) => ({ team_id: String(t.team_id || ''), role: t.role || TEAM_MEMBER_ROLES.MEMBER })),
+  };
+}
+
 onMounted(async () => {
   try {
     const routeEmail = Array.isArray(route.params.email) ? route.params.email[0] : route.params.email;
@@ -246,7 +300,21 @@ onMounted(async () => {
       return;
     }
 
-    const teamIds = Array.isArray(data.team_ids) ? data.team_ids.map(String) : [];
+    let teams = Array.isArray(data.team_memberships)
+      ? data.team_memberships.map((m) => ({
+          team_id: String(m.team_id),
+          role: m.role === TEAM_MEMBER_ROLES.TEAM_ADMIN
+            ? TEAM_MEMBER_ROLES.TEAM_ADMIN
+            : TEAM_MEMBER_ROLES.MEMBER,
+        }))
+      : (Array.isArray(data.team_ids) ? data.team_ids : []).map((id) => ({
+          team_id: String(id),
+          role: isTeamAdmin(data.role) ? TEAM_MEMBER_ROLES.TEAM_ADMIN : TEAM_MEMBER_ROLES.MEMBER,
+        }));
+
+    if (!teams.length && !isSuperAdmin(data.role)) {
+      teams = [{ team_id: '', role: TEAM_MEMBER_ROLES.MEMBER }];
+    }
 
     user.value = {
       id: data.id,
@@ -255,16 +323,16 @@ onMounted(async () => {
       role: data.role,
       status: data.status || 'active',
       password: '',
-      team_ids: teamIds,
+      teams,
     };
 
-    originalUser = { ...user.value, team_ids: [...teamIds] };
+    originalUser = snapshotUser(user.value);
     originalRole.value = data.role;
 
     watch(
       user,
       (newVal) => {
-        const hasProfileChanges = JSON.stringify(newVal) !== JSON.stringify(originalUser);
+        const hasProfileChanges = JSON.stringify(snapshotUser(newVal)) !== JSON.stringify(originalUser);
         const hasPasswordEntry = user.value.password && user.value.password.length > 0;
         dirty.value = hasProfileChanges || hasPasswordEntry;
       },
@@ -297,13 +365,30 @@ async function onSave() {
 
   try {
     const role = isProtectedSuperAdmin.value ? originalRole.value : user.value.role;
+    const teams = isSuperAdmin(role)
+      ? []
+      : (user.value.teams || [])
+          .filter((t) => t.team_id)
+          .map((t) => ({
+            team_id: t.team_id,
+            role: t.role === TEAM_MEMBER_ROLES.TEAM_ADMIN
+              ? TEAM_MEMBER_ROLES.TEAM_ADMIN
+              : TEAM_MEMBER_ROLES.MEMBER,
+          }));
+
+    if (!isSuperAdmin(role) && !teams.length) {
+      messageIsError.value = true;
+      message.value = 'At least one team membership is required.';
+      return;
+    }
+
     const updates = {
       id: user.value.id,
       original_email: originalUser.email,
       email: user.value.email,
       name: user.value.name,
       role,
-      team_ids: isSuperAdmin(role) ? [] : (user.value.team_ids || []),
+      teams,
       ...(user.value.password ? { password: user.value.password } : {})
     };
 
@@ -321,10 +406,7 @@ async function onSave() {
     }
 
     user.value.password = '';
-    originalUser = {
-      ...user.value,
-      team_ids: [...(user.value.team_ids || [])]
-    };
+    originalUser = snapshotUser(user.value);
 
     dirty.value = false;
     messageIsError.value = false;

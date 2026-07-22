@@ -60,6 +60,25 @@
             <textarea v-model.trim="form.description" class="form-control" rows="3" placeholder="Optional"></textarea>
           </div>
 
+          <div class="mb-3">
+            <div class="form-check form-switch">
+              <input
+                id="discoverable-switch"
+                v-model="form.discoverable"
+                class="form-check-input"
+                type="checkbox"
+                role="switch"
+              />
+              <label class="form-check-label" for="discoverable-switch">
+                Discoverable to other teams
+              </label>
+            </div>
+            <div class="form-text">
+              When on, other teams can see this dataset’s name, description, and owning team under
+              <strong>Others</strong>. Does not grant access — a share is still required to link or query.
+            </div>
+          </div>
+
           <div v-if="message" class="alert" :class="ok ? 'alert-success' : 'alert-danger'">
             {{ message }}
           </div>
@@ -94,7 +113,8 @@ const form = reactive({
   team_id: '',
   id: '',
   name: '',
-  description: ''
+  description: '',
+  discoverable: true,
 });
 
 const teams = ref([]);
@@ -157,7 +177,8 @@ async function onSave() {
         team_id: form.team_id,
         id: form.id || undefined,
         name: form.name,
-        description: form.description || null
+        description: form.description || null,
+        discoverable: form.discoverable,
       },
       authHeaders()
     );

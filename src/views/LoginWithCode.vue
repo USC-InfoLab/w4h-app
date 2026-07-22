@@ -1,7 +1,7 @@
 <template>
   <div class="d-flex flex-column justify-content-center">
     <form class="form-signin w-100" @submit.prevent="emailSent ? login() : sendCode()" style="max-width: 360px;">
-      <img class="mt-5 mx-auto d-block" style="width: 230px" :src="logoSrc" :alt="`${APP_NAME} logo`" />
+      <img class="login-mark login-mark-hero mt-5 mx-auto d-block" src="/w4h-light.svg" :alt="`${APP_NAME} logo`" />
       <div class="logotype mb-4 text-center">{{ APP_NAME }}</div>
 
       <div class="card login-code-card">
@@ -51,7 +51,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { api } from '../utils/api';
 import { APP_NAME } from '@/utils/defs';
@@ -64,7 +64,6 @@ const userStore = useUserStore();
 const uiStore = useUIStore();
 
 const copyright = import.meta.env.VITE_COPYRIGHT;
-const logoSrc = computed(() => (uiStore.darkMode ? '/w4h-dark.svg' : '/w4h-light.svg'));
 
 const email = ref('');
 const code = ref('');
@@ -131,9 +130,13 @@ const login = async () => {
     localStorage.setItem('w4h.user.token', token);
     await userStore.setUser({ ...user, token });
 
-    if (canAccessAdminUi(user.role)) uiStore.exitAdmin();
-
-    router.push('/home');
+    if (canAccessAdminUi(user.role, user.caps)) {
+      uiStore.enterAdmin();
+      router.push({ name: 'adminHome' });
+    } else {
+      uiStore.exitAdmin();
+      router.push('/home');
+    }
   } catch (error) {
     setMessage(extractError(error));
   } finally {
@@ -158,6 +161,15 @@ const login = async () => {
   margin: 20px 0;
   font-size: 1.5em;
   font-weight: bolder;
+}
+
+.login-mark {
+  width: 140px;
+  height: auto;
+}
+
+.login-mark-hero {
+  width: 180px;
 }
 
 .login-code-card {

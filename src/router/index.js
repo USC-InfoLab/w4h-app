@@ -2,8 +2,9 @@ import { createRouter, createWebHistory } from 'vue-router'
 
 import Login from '../views/LoginView.vue'
 import LoginWithCode from '../views/LoginWithCode.vue'
-import { useUserStore } from '@/stores/user';
-import { canAccessAdminUi, isSuperAdmin } from '@/utils/roles';
+import { useUserStore } from '@/stores/user'
+import { canAccessAdminUi, canManageTeam, isSuperAdmin } from '@/utils/roles'
+import { useUIStore } from '@/stores/ui'
 
 import api from '../utils/api'
 
@@ -14,7 +15,6 @@ const routes = [
   { path: '/invite/:token', name: 'acceptInvite', component: () => import('../views/AcceptInviteView.vue'), meta: { guest: true } },
   { path: '/logout', redirect: '/login' },
   { path: '/', name: 'default', component: Login, meta: { guest: true } },
-  { path: '/:pathMatch(.*)*', name: 'not-found', component: Login, meta: { guest: true } },
 
   // User routes
   { path: '/home', name: 'home', component: () => import('../views/HomeView.vue'), meta: { requiresAuth: true } },
@@ -41,26 +41,36 @@ const routes = [
     meta: { requiresAuth: true },
     props: true
   },
-  // Admin routes
+
+  // Platform Admin UI — Super admin only
   { path: '/admin/home', name: 'adminHome', component: () => import('../views/admin/HomeView.vue'), meta: { requiresAuth: true, adminPage: true } },
   { path: '/admin/settings', name: 'adminSettings', component: () => import('../views/admin/SettingsView.vue'), meta: { requiresAuth: true, adminPage: true, superAdminOnly: true } },
+  { path: '/admin/audit-log', name: 'adminAuditLog', component: () => import('../views/admin/AuditLogView.vue'), meta: { requiresAuth: true, adminPage: true, superAdminOnly: true } },
+  { path: '/admin/usage', name: 'adminUsage', component: () => import('../views/admin/UsageView.vue'), meta: { requiresAuth: true, adminPage: true, superAdminOnly: true } },
+  { path: '/admin/api-usage', redirect: '/admin/usage' },
+  { path: '/admin/style-guide', name: 'adminStyleGuide', component: () => import('../views/admin/StyleGuideView.vue'), meta: { requiresAuth: true, adminPage: true, superAdminOnly: true } },
   { path: '/admin/database', name: 'adminDatabase', redirect: '/admin/settings' },
-  { path: '/admin/teams', name: 'adminTeams', component: () => import('../views/admin/TeamsView.vue'), meta: { requiresAuth: true, adminPage: true } },
-  { path: '/admin/teams/add', name: 'adminTeamsAdd', component: () => import('../views/admin/TeamsAdd.vue'), meta: { requiresAuth: true, adminPage: true, superAdminOnly: true } },
-  { path: '/admin/teams/:id/edit', name: 'adminTeamsEdit', component: () => import('../views/admin/TeamsEdit.vue'), props: true, meta: { requiresAuth: true, adminPage: true } },
-  { path: '/admin/projects', name: 'adminProjects', component: () => import('../views/admin/ProjectsView.vue'), meta: { requiresAuth: true, adminPage: true } },
-  { path: '/admin/projects/add', name: 'adminProjectsAdd', component: () => import('../views/admin/ProjectsAdd.vue'), meta: { requiresAuth: true, adminPage: true } },
-  { path: '/admin/projects/:id/edit', name: 'adminProjectsEdit', component: () => import('../views/admin/ProjectsEdit.vue'), props: true, meta: { requiresAuth: true, adminPage: true } },
-  { path: '/admin/datasets', name: 'adminDatasets', component: () => import('../views/admin/DatasetsView.vue'), meta: { requiresAuth: true, adminPage: true } },
-  { path: '/admin/datasets/add', name: 'adminDatasetsAdd', component: () => import('../views/admin/DatasetsAdd.vue'), meta: { requiresAuth: true, adminPage: true } },
-  { path: '/admin/datasets/:id/edit', name: 'adminDatasetsEdit', component: () => import('../views/admin/DatasetsEdit.vue'), props: true, meta: { requiresAuth: true, adminPage: true } },
+  { path: '/admin/teams/add', name: 'adminTeamsAdd', component: () => import('../views/admin/TeamsAdd.vue'), meta: { requiresAuth: true, teamAdminPage: true } },
   { path: '/admin/accounts', name: 'accounts', component: () => import('../views/admin/AccountsView.vue'), meta: { requiresAuth: true, adminPage: true, superAdminOnly: true } },
   { path: '/admin/accounts/:id/edit', name: 'accountsEdit', component: () => import('../views/admin/AccountsEdit.vue'), props: true, meta: { requiresAuth: true, adminPage: true, superAdminOnly: true } },
   { path: '/admin/accounts/add', name: 'accountsAdd', component: () => import('../views/admin/AccountsAdd.vue'), meta: { requiresAuth: true, adminPage: true, superAdminOnly: true } },
-  { path: '/admin/users', name: 'users', component: () => import('../views/admin/UsersView.vue'), meta: { requiresAuth: true, adminPage: true } },
-  { path: '/admin/users/add', name: 'usersAdd', component: () => import('../views/admin/UsersAdd.vue'), meta: { requiresAuth: true, adminPage: true } },
+
+  // Team management — Super admin or Team admin; rendered in the normal app shell (not platform Admin UI)
+  { path: '/admin/teams', name: 'adminTeams', component: () => import('../views/admin/TeamsView.vue'), meta: { requiresAuth: true, teamAdminPage: true } },
+  { path: '/admin/teams/:id/edit', name: 'adminTeamsEdit', component: () => import('../views/admin/TeamsEdit.vue'), props: true, meta: { requiresAuth: true, teamAdminPage: true } },
+  { path: '/admin/projects', name: 'adminProjects', component: () => import('../views/admin/ProjectsView.vue'), meta: { requiresAuth: true, teamAdminPage: true } },
+  { path: '/admin/projects/add', name: 'adminProjectsAdd', component: () => import('../views/admin/ProjectsAdd.vue'), meta: { requiresAuth: true, teamAdminPage: true } },
+  { path: '/admin/projects/:id/edit', name: 'adminProjectsEdit', component: () => import('../views/admin/ProjectsEdit.vue'), props: true, meta: { requiresAuth: true, teamAdminPage: true } },
+  { path: '/admin/datasets', name: 'adminDatasets', component: () => import('../views/admin/DatasetsView.vue'), meta: { requiresAuth: true, teamAdminPage: true } },
+  { path: '/admin/datasets/add', name: 'adminDatasetsAdd', component: () => import('../views/admin/DatasetsAdd.vue'), meta: { requiresAuth: true, teamAdminPage: true } },
+  { path: '/admin/datasets/shares', name: 'adminDatasetsShares', component: () => import('../views/admin/DatasetsSharesView.vue'), meta: { requiresAuth: true, teamAdminPage: true } },
+  { path: '/admin/datasets/:id/edit', name: 'adminDatasetsEdit', component: () => import('../views/admin/DatasetsEdit.vue'), props: true, meta: { requiresAuth: true, teamAdminPage: true } },
+  { path: '/admin/users', name: 'users', component: () => import('../views/admin/UsersView.vue'), meta: { requiresAuth: true, teamAdminPage: true } },
+  { path: '/admin/users/add', name: 'usersAdd', component: () => import('../views/admin/UsersAdd.vue'), meta: { requiresAuth: true, teamAdminPage: true } },
   { path: '/admin/usersAdd', redirect: '/admin/users/add' },
-  { path: '/admin/usersEdit/:email', name: 'usersEdit', component: () => import('../views/admin/UsersEdit.vue'), meta: { requiresAuth: true, adminPage: true } },
+  { path: '/admin/usersEdit/:email', name: 'usersEdit', component: () => import('../views/admin/UsersEdit.vue'), meta: { requiresAuth: true, teamAdminPage: true } },
+
+  { path: '/:pathMatch(.*)*', name: 'not-found', component: Login, meta: { guest: true } },
 ]
 
 const router = createRouter({
@@ -76,7 +86,7 @@ const router = createRouter({
       }
       return {
         el: to.hash,
-        behavior: 'smooth', // smooth scroll to anchor
+        behavior: 'smooth',
       }
     } else {
       return { top: 0 }
@@ -87,12 +97,10 @@ const router = createRouter({
 router.beforeEach(async (to, from, next) => {
   const token = localStorage.getItem('w4h.user.token');
 
-  // 1. Auth required
   if (to.meta.requiresAuth && !token) {
     return next({ path: '/' });
   }
 
-  // 2. Validate token if present
   if (token) {
     try {
       const res = await api.post('users/token-valid', { token });
@@ -108,17 +116,38 @@ router.beforeEach(async (to, from, next) => {
     }
   }
 
-  // 3. Admin check
-  if (to.meta.adminPage) {
-    const userStore = useUserStore();
-    const user = userStore.user;
+  const userStore = useUserStore();
+  const user = userStore.user;
+  const uiStore = useUIStore();
 
-    if (!canAccessAdminUi(user.role)) {
+  // Never leave non–platform-admins stuck in platform Admin UI mode
+  if (token && !canAccessAdminUi(user?.role, user?.caps) && uiStore.isAdminUI) {
+    uiStore.exitAdmin();
+  }
+
+  // Super admin always stays in Platform Admin (bootstrap / ops — not the team app shell)
+  if (token && canAccessAdminUi(user?.role, user?.caps)) {
+    uiStore.enterAdmin();
+    if (to.name === 'home' || to.name === 'projects' || to.name === 'default') {
+      return next({ name: 'adminHome' });
+    }
+  }
+
+  if (to.meta.adminPage) {
+    if (!canAccessAdminUi(user?.role, user?.caps)) {
       return next({ path: '/home' });
     }
-
-    if (to.meta.superAdminOnly && !isSuperAdmin(user.role)) {
+    if (to.meta.superAdminOnly && !isSuperAdmin(user?.role)) {
       return next({ path: '/admin/home' });
+    }
+  }
+
+  if (to.meta.teamAdminPage) {
+    if (!canManageTeam(user?.role, user?.caps)) {
+      return next({ path: '/home' });
+    }
+    if (to.meta.superAdminOnly && !isSuperAdmin(user?.role)) {
+      return next({ path: '/admin/teams' });
     }
   }
 

@@ -15,45 +15,6 @@
           <h5 class="card-title mb-3">Project details</h5>
 
           <div class="mb-3">
-            <label class="form-label">Project ID</label>
-            <input v-model="form.id" class="form-control" disabled />
-            <div class="form-text">Project ID cannot be changed.</div>
-          </div>
-
-          <div class="mb-3">
-            <label class="form-label">Owning team</label>
-            <select
-              v-if="canChangeTeam"
-              v-model="form.team_id"
-              class="form-select"
-            >
-              <option value="">— none —</option>
-              <option v-for="t in teams" :key="t.id" :value="t.id">
-                {{ t.name }}{{ t.slug ? ` (${t.slug})` : '' }}
-              </option>
-            </select>
-            <input
-              v-else
-              :value="teamLabel"
-              class="form-control"
-              disabled
-            />
-            <div class="form-text">
-              Owning team is set on create. Only Super admins can reassign it.
-            </div>
-          </div>
-
-          <div v-if="createdByLabel" class="mb-3">
-            <label class="form-label">Created by</label>
-            <input :value="createdByLabel" class="form-control" disabled />
-          </div>
-
-          <div v-if="createdAtLabel" class="mb-3">
-            <label class="form-label">Created</label>
-            <input :value="createdAtLabel" class="form-control" disabled />
-          </div>
-
-          <div class="mb-3">
             <label class="form-label">Name</label>
             <input v-model.trim="form.name" class="form-control" />
           </div>
@@ -71,11 +32,40 @@
             </select>
           </div>
 
+          <div v-if="canChangeTeam" class="mb-3">
+            <label class="form-label">Owning team</label>
+            <select v-model="form.team_id" class="form-select">
+              <option value="">— none —</option>
+              <option v-for="t in teams" :key="t.id" :value="t.id">
+                {{ t.name }}{{ t.slug ? ` (${t.slug})` : '' }}
+              </option>
+            </select>
+            <div class="form-text">
+              Owning team is set on create. Only Super admins can reassign it.
+            </div>
+          </div>
+
           <div class="d-flex justify-content-end">
             <button class="btn btn-primary" :disabled="savingProject || !form.name" @click="saveProject">
               <span v-if="savingProject" class="spinner-border spinner-border-sm me-2" />
               Save project
             </button>
+          </div>
+
+          <div class="border-top pt-3 mt-3 small text-muted">
+            <div v-if="!canChangeTeam" class="mb-1">
+              Team: {{ teamLabel }}
+            </div>
+            <div v-if="createdByLabel" class="mb-1">
+              Created by {{ createdByLabel }}
+              <template v-if="createdAtLabel"> · {{ createdAtLabel }}</template>
+            </div>
+            <div v-else-if="createdAtLabel" class="mb-1">
+              Created {{ createdAtLabel }}
+            </div>
+            <div class="font-monospace text-break">
+              ID: {{ form.id }}
+            </div>
           </div>
         </div>
 
@@ -85,6 +75,10 @@
             Set an owning team before linking datasets.
           </div>
           <template v-else>
+            <p class="small text-muted mb-3">
+              Link datasets from <strong>{{ teamLabel }}</strong>, inbound shares, and datasets you admin on
+              <em>your other teams</em> (linking those auto-shares them to this team).
+            </p>
             <div v-if="linkedDatasetRows.length === 0" class="small text-muted mb-2">
               No datasets linked yet.
             </div>
@@ -95,7 +89,6 @@
             >
               <div class="small">
                 <strong>{{ row.name }}</strong>
-                <span class="text-muted ms-1">{{ row.id }}</span>
               </div>
               <button
                 type="button"
@@ -112,7 +105,7 @@
                 <select v-model="datasetToAdd" class="form-select form-select-sm" :disabled="savingDatasets">
                   <option value="">Select dataset…</option>
                   <option v-for="d in addableDatasets" :key="d.id" :value="String(d.id)">
-                    {{ d.name || d.id }}
+                    {{ d.name || d.id }}{{ d.source_label && d.source_kind !== 'local' ? ` (${d.source_label})` : '' }}
                   </option>
                 </select>
               </div>
@@ -128,7 +121,10 @@
               </div>
             </div>
             <p v-if="availableDatasets.length === 0" class="small text-muted mb-0 mt-2">
-              No datasets in this team yet. Create one under Datasets.
+              No linkable datasets yet. Create datasets under Datasets, or get a share from another team.
+            </p>
+            <p v-else-if="addableDatasets.length === 0" class="small text-muted mb-0 mt-2">
+              All linkable datasets for this team are already linked.
             </p>
           </template>
         </div>
@@ -138,8 +134,9 @@
         <div class="card p-3">
           <h5 class="card-title mb-3">Members</h5>
           <p class="small text-muted mb-3">
-            Members must belong to the owning team. Roles are owner, editor, or viewer.
-            Platform Super admins who provision projects appear under <strong>Created by</strong>, not here.
+            Members must belong to the owning team. Assign each person as
+            <strong>owner</strong>, <strong>editor</strong>, or <strong>viewer</strong>.
+            At least one owner is recommended.
           </p>
 
           <div v-if="memberRows.length === 0" class="small text-muted mb-2">No members yet.</div>

@@ -130,8 +130,12 @@ function onDocClick(doc) {
 
 .active-link,
 .list-unstyled a.fw-bold {
-  color: var(--bs-primary) !important;
+  /* Never Cardinal text on dark — use readable emphasis + Gold accent */
+  color: var(--w4h-active-fg) !important;
   font-weight: 700 !important;
+  border-left: 3px solid var(--w4h-gold);
+  padding-left: 0.4rem !important;
+  margin-left: -0.4rem;
 }
 
 .sidebar-link:hover,

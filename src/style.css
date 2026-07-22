@@ -1,6 +1,305 @@
 @import 'highlight.js/styles/github-dark.css' screen and (prefers-color-scheme: dark);
 @import 'highlight.js/styles/github.css' screen and (prefers-color-scheme: light);
 
+/*
+ * W4H brand theme (USC Cardinal + Gold)
+ * Global tokens + Bootstrap primary wiring. Light/dark mode stays Bootstrap's
+ * data-bs-theme; this layer only brands primary/accent — not a theme switcher.
+ *
+ * Rules of thumb:
+ * - Cardinal = fills / chrome / light-mode links — never Cardinal *text* on near-black
+ * - Gold = accents / dark-mode links — use official #FFCC00 (tints toward white look neon-yellow)
+ * - Keep --bs-danger untouched so alerts stay distinct from brand CTAs
+ */
+:root,
+[data-bs-theme='light'] {
+  /* Official USC Cardinal HEX #990000 (identity.usc.edu — use HEX for digital/web) */
+  --w4h-cardinal: #990000;
+  --w4h-cardinal-rgb: 153, 0, 0;
+  /* Cardinal shades are permitted (+K); match usc.edu hover / Download CTA feel */
+  --w4h-cardinal-hover: #7a0000;
+  --w4h-cardinal-active: #660000;
+  --w4h-gold: #ffcc00;
+  --w4h-gold-rgb: 255, 204, 0;
+  /* Gray 70K — USC secondary text on light backgrounds */
+  --w4h-gray-70: #767676;
+  /* Slightly deeper cardinal for chrome (nav bars) */
+  --w4h-nav-bg: #630000;
+  /* Brand callout — neutral panel + Cardinal accent bar (not Bootstrap alert-info) */
+  --w4h-callout-bg: #f8f5f5;
+  --w4h-callout-border: var(--bs-border-color, #dee2e6);
+  --w4h-callout-color: var(--bs-body-color, #212529);
+  --w4h-callout-heading: var(--bs-emphasis-color, #212529);
+  /* Active nav / selected item on surfaces (readable in both themes) */
+  --w4h-active-fg: var(--bs-emphasis-color, #212529);
+
+  /*
+   * Must target [data-bs-theme=light] as well as :root — Bootstrap 5.3 sets
+   * --bs-primary on that selector (on <body>), which otherwise wins over :root
+   * and leaves buttons/badges/progress on default blue after refresh.
+   */
+  --bs-primary: #990000;
+  --bs-primary-rgb: 153, 0, 0;
+  --bs-primary-text-emphasis: #5c0000;
+  --bs-primary-bg-subtle: #fce8e8;
+  --bs-primary-border-subtle: #e6a3a3;
+  /* Light links: Cardinal; underline on hover only (same color — mirrors dark Gold links) */
+  --bs-link-color: #990000;
+  --bs-link-hover-color: #990000;
+  --bs-link-color-rgb: 153, 0, 0;
+  --bs-focus-ring-color: rgba(153, 0, 0, 0.25);
+}
+
+[data-bs-theme='dark'] {
+  --bs-primary: var(--w4h-cardinal);
+  --bs-primary-rgb: var(--w4h-cardinal-rgb);
+  /* Do not use primary for on-dark text — keep emphasis readable white/gray */
+  --bs-primary-text-emphasis: #f1c0c1;
+  --bs-primary-bg-subtle: #2b0d0d;
+  --bs-primary-border-subtle: #661a1a;
+  /* Official Gold — stay gold on hover (underline conveys hover, not a color change) */
+  --bs-link-color: var(--w4h-gold);
+  --bs-link-hover-color: var(--w4h-gold);
+  --bs-link-color-rgb: var(--w4h-gold-rgb);
+  --bs-focus-ring-color: rgba(var(--w4h-gold-rgb), 0.35);
+  --w4h-callout-bg: var(--bs-tertiary-bg, #2b3035);
+  --w4h-callout-border: var(--bs-border-color, #495057);
+  --w4h-callout-color: var(--bs-body-color, #dee2e6);
+  --w4h-callout-heading: var(--bs-emphasis-color, #fff);
+  --w4h-active-fg: #ffffff;
+}
+
+/* Precompiled Bootstrap bakes default blues into component locals — re-map explicitly. */
+.btn-primary {
+  --bs-btn-color: #fff;
+  --bs-btn-bg: #990000;
+  --bs-btn-border-color: #990000;
+  --bs-btn-hover-color: #fff;
+  --bs-btn-hover-bg: #7a0000;
+  --bs-btn-hover-border-color: #7a0000;
+  --bs-btn-focus-shadow-rgb: 153, 0, 0;
+  --bs-btn-active-color: #fff;
+  --bs-btn-active-bg: #660000;
+  --bs-btn-active-border-color: #660000;
+  --bs-btn-disabled-color: #fff;
+  --bs-btn-disabled-bg: #990000;
+  --bs-btn-disabled-border-color: #990000;
+}
+
+.btn-outline-primary {
+  --bs-btn-color: #990000;
+  --bs-btn-border-color: #990000;
+  --bs-btn-hover-color: #fff;
+  --bs-btn-hover-bg: #990000;
+  --bs-btn-hover-border-color: #990000;
+  --bs-btn-focus-shadow-rgb: 153, 0, 0;
+  --bs-btn-active-color: #fff;
+  --bs-btn-active-bg: #990000;
+  --bs-btn-active-border-color: #990000;
+  --bs-btn-disabled-color: #990000;
+  --bs-btn-disabled-bg: transparent;
+  --bs-btn-disabled-border-color: #990000;
+}
+
+/* Dark outline: light chrome → fill Cardinal on hover (avoid gold outlines / alert confusion) */
+[data-bs-theme='dark'] .btn-outline-primary {
+  --bs-btn-color: #fff;
+  --bs-btn-border-color: rgba(255, 255, 255, 0.55);
+  --bs-btn-hover-color: #fff;
+  --bs-btn-hover-bg: var(--w4h-cardinal);
+  --bs-btn-hover-border-color: var(--w4h-cardinal);
+  --bs-btn-focus-shadow-rgb: var(--w4h-cardinal-rgb);
+  --bs-btn-active-color: #fff;
+  --bs-btn-active-bg: var(--w4h-cardinal-active);
+  --bs-btn-active-border-color: var(--w4h-cardinal-active);
+  --bs-btn-disabled-color: rgba(255, 255, 255, 0.45);
+  --bs-btn-disabled-border-color: rgba(255, 255, 255, 0.25);
+}
+
+/* Brand callout — body text + Cardinal accent bar; Gold only on links */
+.w4h-callout {
+  background-color: var(--w4h-callout-bg);
+  border: 1px solid var(--w4h-callout-border);
+  border-left: 4px solid var(--w4h-cardinal);
+  color: var(--w4h-callout-color);
+  border-radius: var(--bs-border-radius);
+  padding: 1rem 1.25rem;
+}
+
+.w4h-callout .alert-heading,
+.w4h-callout h5,
+.w4h-callout h6 {
+  color: var(--w4h-callout-heading);
+}
+
+.w4h-callout a {
+  color: var(--bs-link-color);
+  text-decoration: none;
+  text-underline-offset: 0.15em;
+}
+
+.w4h-callout a:hover,
+.w4h-callout a:focus {
+  color: var(--bs-link-hover-color);
+  text-decoration: underline;
+}
+
+/* Global text links: no underline by default; underline on hover */
+a:not(.btn):not(.nav-link):not(.navbar-brand):not(.dropdown-item):not(.page-link):not(.list-group-item) {
+  color: var(--bs-link-color);
+  text-decoration: none;
+  text-underline-offset: 0.15em;
+}
+
+a:not(.btn):not(.nav-link):not(.navbar-brand):not(.dropdown-item):not(.page-link):not(.list-group-item):hover,
+a:not(.btn):not(.nav-link):not(.navbar-brand):not(.dropdown-item):not(.page-link):not(.list-group-item):focus {
+  color: var(--bs-link-hover-color);
+  text-decoration: underline;
+}
+
+/* Alternate auth actions ("Login with email code", etc.) */
+.btn-link {
+  --bs-btn-color: var(--bs-link-color);
+  --bs-btn-hover-color: var(--bs-link-hover-color);
+  --bs-btn-active-color: var(--bs-link-hover-color);
+  color: var(--bs-link-color);
+  text-decoration: none;
+}
+
+.btn-link:hover,
+.btn-link:focus {
+  color: var(--bs-link-hover-color);
+  text-decoration: underline;
+}
+
+/* Active fills — Cardinal + white label (readable; not Cardinal-as-text) */
+.list-group-item.active {
+  z-index: 2;
+  color: #fff;
+  background-color: var(--w4h-cardinal);
+  border-color: var(--w4h-cardinal);
+}
+
+.nav-pills .nav-link.active,
+.nav-pills .show > .nav-link {
+  color: #fff;
+  background-color: var(--w4h-cardinal);
+}
+
+.nav-tabs .nav-link.active {
+  color: var(--w4h-cardinal);
+  border-color: var(--bs-border-color) var(--bs-border-color) var(--bs-body-bg);
+}
+
+[data-bs-theme='dark'] .nav-tabs .nav-link.active {
+  /* Tab label on dark: Gold (never Cardinal text on near-black) */
+  color: var(--w4h-gold);
+  background-color: var(--bs-body-bg);
+  border-color: var(--bs-border-color) var(--bs-border-color) var(--bs-body-bg);
+}
+
+.progress,
+.progress-stacked {
+  --bs-progress-bar-bg: #990000;
+}
+
+.progress-bar,
+.progress-bar.bg-primary {
+  background-color: #990000;
+}
+
+.text-bg-primary {
+  color: #fff !important;
+  background-color: #990000 !important;
+}
+
+.badge.text-bg-primary {
+  background-color: #990000 !important;
+}
+
+/* Checkbox / radio / switch / range — Cardinal in light and dark */
+.form-check-input:focus {
+  border-color: #990000;
+  outline: 0;
+  box-shadow: 0 0 0 0.25rem rgba(153, 0, 0, 0.25);
+}
+
+.form-check-input:checked {
+  background-color: #990000;
+  border-color: #990000;
+}
+
+.form-check-input[type='checkbox']:indeterminate {
+  background-color: #990000;
+  border-color: #990000;
+}
+
+.form-switch .form-check-input:focus:not(:checked) {
+  /* Unchecked focus: visible knob, never Cardinal (that looked like a brand thumb bug) */
+  --bs-form-switch-bg: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='rgba%280, 0, 0, 0.45%29'/%3e%3c/svg%3e");
+}
+
+[data-bs-theme='dark'] .form-switch .form-check-input:focus:not(:checked) {
+  --bs-form-switch-bg: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='rgba%28255, 255, 255, 0.75%29'/%3e%3c/svg%3e");
+}
+
+.form-switch .form-check-input:checked,
+.form-switch .form-check-input:checked:focus {
+  background-color: #990000;
+  border-color: #990000;
+  /* Checked (+ focus after click): white thumb on Cardinal track */
+  --bs-form-switch-bg: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='%23ffffff'/%3e%3c/svg%3e");
+}
+
+.form-range:focus::-webkit-slider-thumb {
+  box-shadow: 0 0 0 1px #fff, 0 0 0 0.25rem rgba(153, 0, 0, 0.25);
+}
+
+.form-range:focus::-moz-range-thumb {
+  box-shadow: 0 0 0 1px #fff, 0 0 0 0.25rem rgba(153, 0, 0, 0.25);
+}
+
+.form-range::-webkit-slider-thumb {
+  background-color: #990000;
+}
+
+.form-range::-webkit-slider-thumb:active {
+  background-color: #7a0000;
+}
+
+.form-range::-moz-range-thumb {
+  background-color: #990000;
+}
+
+.form-range::-moz-range-thumb:active {
+  background-color: #7a0000;
+}
+
+/*
+ * Dark-mode semantic text utilities.
+ * Bootstrap .text-primary uses --bs-primary-rgb (deep Cardinal) — unreadable on black.
+ * Override utilities only; keep --bs-primary-rgb for button/fill backgrounds.
+ */
+[data-bs-theme='dark'] .text-primary {
+  color: #f1b0b2 !important;
+}
+
+[data-bs-theme='dark'] .text-danger {
+  color: #ea868f !important;
+}
+
+[data-bs-theme='dark'] .text-success {
+  color: #75b798 !important;
+}
+
+[data-bs-theme='dark'] .text-warning {
+  color: #ffda6a !important;
+}
+
+[data-bs-theme='dark'] .text-info {
+  color: #6edff6 !important;
+}
+
 #app {
   font-family: 'Avenir', Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -36,31 +335,14 @@ main {
   text-align: left !important;
 }
 
-/* Sets the floating-vue theme to dark when the .dark-mode class is present */
-/* .dark-mode {
-  --v-theme: dark;
-}
-
-/* Optional: You can also set light mode explicitly if you prefer
-.light-mode {
-  --v-theme: light;
-} 
-*/
-
-/* .v-popper--theme-my-theme .v-popper__inner code {
-  color: orange;
-} */
-
-
-/* Multiselect dark mode styles */
-/* Common Bootstrap-like base */
+/* Multiselect */
 .multiselect {
-  --ms-border-radius: 0.375rem; /* .form-select border radius */
+  --ms-border-radius: 0.375rem;
   --ms-border-color: var(--bs-border-color, #dee2e6);
   --ms-bg: var(--bs-body-bg, #fff);
   --ms-color: var(--bs-body-color, #212529);
   --ms-placeholder-color: var(--bs-secondary-color, #6c757d);
-  --ms-tag-bg: var(--bs-primary, #0d6efd);
+  --ms-tag-bg: var(--bs-primary, var(--w4h-cardinal));
   --ms-tag-color: #fff;
 
   display: block;
@@ -75,23 +357,20 @@ main {
   transition: border-color .15s ease-in-out, box-shadow .15s ease-in-out;
 }
 
-/* Focus like Bootstrap */
 .multiselect:focus-within {
   border-color: var(--bs-primary);
-  box-shadow: 0 0 0 0.25rem rgba(13,110,253,.25);
+  box-shadow: 0 0 0 0.25rem rgba(var(--w4h-cardinal-rgb), 0.25);
 }
 
-/* Dropdown menu */
 .multiselect-options {
   background-color: var(--ms-bg);
   color: var(--ms-color);
   border: 1px solid var(--ms-border-color);
   border-radius: var(--ms-border-radius);
   margin-top: 0.25rem;
-  z-index: 1050; /* above modals */
+  z-index: 1050;
 }
 
-/* Tags */
 .multiselect-tag {
   background-color: var(--ms-tag-bg);
   color: var(--ms-tag-color);
@@ -107,6 +386,6 @@ main {
 }
 
 .dark-mode .multiselect-tag {
-  background-color: var(--bs-primary, #0d6efd);
+  background-color: var(--bs-primary, var(--w4h-cardinal));
   color: #fff;
 }

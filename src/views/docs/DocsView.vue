@@ -222,7 +222,7 @@ const leftPane = ref(null);
 const rightPane = ref(null);
 let splitInstance = null;
 
-const isAdminUI = computed(() => canAccessAdminUi(user.value?.role) && uiStore.isAdminUI);
+const isAdminUI = computed(() => canAccessAdminUi(user.value?.role, user.value?.caps));
 const isSearchPage = computed(() => route.params?.slug === 'search');
 const showDocAdminActions = computed(() =>
   isAdminUI.value && selecteddoc.value && !isEditing.value && !isSearchPage.value
@@ -977,9 +977,11 @@ div .alert {
 /* Active state (for all items including Home/Search) */
 .docs-sidebar .active-link,
 .docs-sidebar .list-unstyled a.fw-bold {
-  color: var(--bs-primary) !important;
-  /* Force the bright blue */
+  color: var(--w4h-active-fg) !important;
   font-weight: 700 !important;
+  border-left: 3px solid var(--w4h-gold);
+  padding-left: 0.4rem !important;
+  margin-left: -0.4rem;
 }
 
 /* Hover state */

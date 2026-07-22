@@ -43,11 +43,14 @@
               <span v-if="row.status && row.status !== 'active'" class="badge me-2" :class="row.status === 'invited' ? 'text-bg-warning' : 'text-bg-secondary'">
                 {{ row.status === 'discontinued' ? 'paused' : row.status }}
               </span>
-              <span class="me-2">{{ row.roleLabel }}</span>
-              <span class="me-2">·</span>
-              <span class="me-2">Team: {{ row.teamsLabel }}</span>
-              <span class="me-2">·</span>
-              <span>Projects: {{ row.projectsLabel }}</span>
+              <template v-if="row.isSuperAdmin">
+                <span>{{ row.roleLabel }}</span>
+                <span class="mx-1">·</span>
+                <span>Platform-wide</span>
+              </template>
+              <template v-else>
+                <span>{{ row.teamsLabel }}</span>
+              </template>
             </div>
           </div>
           <button class="btn btn-sm btn-outline-primary flex-shrink-0" @click="onEditButtonClick(row)">
@@ -65,7 +68,7 @@ import { useRouter } from 'vue-router';
 import { api, authHeaders } from '@/utils/api';
 import { useUserStore } from '@/stores/user';
 import { APP_NAME } from '@/utils/defs';
-import { isSuperAdmin, roleLabel } from '@/utils/roles';
+import { isSuperAdmin, roleLabel, teamMemberRoleLabel, TEAM_MEMBER_ROLES } from '@/utils/roles';
 
 const router = useRouter();
 const userStore = useUserStore();
@@ -74,6 +77,32 @@ const allRows = ref([]);
 const teamOptions = ref([]);
 const teamFilter = ref('all');
 const loading = ref(true);
+
+function formatTeamMemberships(u) {
+  const memberships = Array.isArray(u.team_memberships) ? u.team_memberships : [];
+  if (memberships.length) {
+    const byRole = new Map();
+    for (const m of memberships) {
+      const role = m.role === TEAM_MEMBER_ROLES.TEAM_ADMIN
+        ? TEAM_MEMBER_ROLES.TEAM_ADMIN
+        : TEAM_MEMBER_ROLES.MEMBER;
+      const name = m.name || 'Team';
+      if (!byRole.has(role)) byRole.set(role, []);
+      byRole.get(role).push(name);
+    }
+    // Team admin first, then Member — Users screen is about people/teams.
+    const order = [TEAM_MEMBER_ROLES.TEAM_ADMIN, TEAM_MEMBER_ROLES.MEMBER];
+    return order
+      .filter((role) => byRole.has(role))
+      .map((role) => `${teamMemberRoleLabel(role)} (${byRole.get(role).join(', ')})`)
+      .join('; ');
+  }
+  const teamsRaw = String(u.teams || '').trim();
+  if (teamsRaw) {
+    return `${roleLabel(u.role)} (${teamsRaw})`;
+  }
+  return 'No team';
+}
 
 const filteredRows = computed(() => {
   const rows = allRows.value;
@@ -96,8 +125,7 @@ onMounted(async () => {
     const users = Array.isArray(usersRes.data) ? usersRes.data : [];
     allRows.value = users.map((u) => {
       const teamIds = Array.isArray(u.team_ids) ? u.team_ids.map(String) : [];
-      const teamsRaw = String(u.teams || '').trim();
-      const projectsRaw = String(u.projects || '').trim();
+      const superAdmin = isSuperAdmin(u.role);
       return {
         ...u,
         id: u.id,
@@ -105,11 +133,11 @@ onMounted(async () => {
         email: u.email || '',
         role: u.role || '',
         roleLabel: roleLabel(u.role),
+        isSuperAdmin: superAdmin,
         team_ids: teamIds,
-        teamsLabel: isSuperAdmin(u.role)
-          ? (teamsRaw || 'Platform')
-          : (teamsRaw || 'No team'),
-        projectsLabel: projectsRaw || 'None'
+        teamsLabel: superAdmin
+          ? 'Platform-wide'
+          : formatTeamMemberships(u),
       };
     });
 

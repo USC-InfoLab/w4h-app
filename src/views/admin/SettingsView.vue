@@ -63,8 +63,8 @@
           <p class="text-muted small mb-3">
             Export a backup of the documentation pages, or refresh from the source directory.<br>
             <span class="text-muted small">
-              <strong>Warning:</strong> Refreshing docs will <u>overwrite</u> any pages with the same slug as the
-              source. Local-only pages are not affected.
+              Refresh compares the platform to the source repo and prompts per file when pages differ,
+              exist only on the platform, or exist only in the source. Uncommitted source files are warned about only.
             </span>
           </p>
           <div class="gap-2 mt-2 d-flex">
@@ -72,8 +72,7 @@
               <span v-if="backingUpDocs" class="spinner-border spinner-border-sm me-1" />
               Export Docs
             </button>
-            <button class="btn btn-warning" :disabled="refreshingDocs" type="button" @click="refreshDocs">
-              <span v-if="refreshingDocs" class="spinner-border spinner-border-sm me-1" />
+            <button class="btn btn-warning" type="button" @click="openRefreshModal">
               Refresh Docs
             </button>
           </div>
@@ -202,6 +201,12 @@
         </div>
       </div>
     </div>
+
+    <DocsRefreshModal
+      :show="showRefreshModal"
+      @close="showRefreshModal = false"
+      @applied="onDocsRefreshApplied"
+    />
   </main>
 </template>
 
@@ -209,13 +214,14 @@
 import { onMounted, ref } from 'vue';
 import { api, authHeaders } from '@/utils/api';
 import { APP_NAME } from '@/utils/defs';
+import DocsRefreshModal from '@/components/DocsRefreshModal.vue';
 
 const dbConfigured = ref(false);
 const mailerConfigured = ref(false);
 const savingDb = ref(false);
 const testingDb = ref(false);
 const backingUpDocs = ref(false);
-const refreshingDocs = ref(false);
+const showRefreshModal = ref(false);
 const savingMailer = ref(false);
 const testingMailer = ref(false);
 const testRecipient = ref('');
@@ -340,21 +346,15 @@ async function backupDocs() {
   }
 }
 
-async function refreshDocs() {
-  refreshingDocs.value = true;
-  docsMessage.value = '';
-  try {
-    const res = await api.post('docs/refresh', {}, authHeaders());
-    if (res.data.success) {
-      setMessage(docsMessage, docsMessageType, `Docs refreshed (${res.data.count} pages imported)`, 'success', 'docs');
-    } else {
-      setMessage(docsMessage, docsMessageType, res.data.reason || 'Refresh returned no results', 'error', 'docs');
-    }
-  } catch (e) {
-    setMessage(docsMessage, docsMessageType, e.response?.data?.error || e.response?.data?.reason || 'Failed to refresh docs', 'error', 'docs');
-  } finally {
-    refreshingDocs.value = false;
-  }
+async function openRefreshModal() {
+  showRefreshModal.value = true;
+}
+
+function onDocsRefreshApplied(result) {
+  const parts = [`${result.count ?? 0} imported`];
+  if (result.deleted) parts.push(`${result.deleted} deleted`);
+  if (result.skipped) parts.push(`${result.skipped} skipped`);
+  setMessage(docsMessage, docsMessageType, `Docs refreshed (${parts.join(', ')})`, 'success', 'docs');
 }
 
 async function saveMailerSettings() {

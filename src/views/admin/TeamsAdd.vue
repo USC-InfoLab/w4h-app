@@ -13,6 +13,10 @@
       <div class="col-12 col-md-8 col-lg-6">
         <div class="card p-3">
           <h5 class="card-title mb-3">New Team</h5>
+          <p class="small text-muted mb-3">
+            A team is a trial tenancy (members, datasets, projects).
+            After create, invite members and set up datasets and projects from the app.
+          </p>
 
           <div class="mb-3">
             <label class="form-label">Name</label>
