@@ -171,7 +171,12 @@ const handleEditorSave = async (markdown) => {
     .replace(/(?<!\\)\{\{APP_URL\}\}/g, appUrl)
     .replace(/\\(\{\{APP_URL\}\})/g, '$1');
 
-  const finalHtml = md.render(processedMarkdown);
+  let finalHtml = md.render(processedMarkdown);
+  // Align with docs import: media/… → /docs-media/…
+  finalHtml = finalHtml
+    .replace(/\b(src|poster)=(["'])\.?\/?media\//gi, '$1=$2/docs-media/')
+    .replace(/\b(src|poster)=(["'])\/media\//gi, '$1=$2/docs-media/')
+    .replace(/(?:\{\{APP_URL\}\}|%7B%7BAPP_URL%7D%7D)\/docs-media\//gi, '/docs-media/');
 
   const tmp = document.createElement('div');
   tmp.innerHTML = finalHtml;

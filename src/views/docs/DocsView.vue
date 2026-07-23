@@ -60,7 +60,7 @@
 
             <div class="md-preview p-3">
               <h1 v-if="docPageTitle" :id="docPageTitleId">{{ docPageTitle }}</h1>
-              <div :key="selecteddoc.slug" v-html="selecteddoc.html"></div>
+              <div :key="selecteddoc.slug" v-html="displayHtml"></div>
             </div>
 
             <div v-if="selecteddoc.updated_at" class="doc-last-edited px-3 pb-4">
@@ -210,12 +210,16 @@ import { canAccessAdminUi } from '@/utils/roles';
 const uiStore = useUIStore();
 
 import MdDocEditable from '@/components/MdDocEditable.vue';
+import { rewriteDocMediaUrls } from '@/utils/docMedia';
 
 const editMode = ref(false);
 
 const allDocs = ref([]);
 const opendocs = ref([]);
 const selecteddoc = ref(null);
+
+/** HTML with media/ and baked APP_URL docs-media srcs normalized for the browser. */
+const displayHtml = computed(() => rewriteDocMediaUrls(selecteddoc.value?.html || ''));
 
 const splitRoot = ref(null);
 const leftPane = ref(null);
@@ -727,6 +731,24 @@ svg[id^="mermaid-"] {
   transition: transform 0.2s ease;
 }
 
+/* What's New / release-note media — allow taller screenshots & GIFs */
+.md-preview img[src*="/docs-media/whats-new/"],
+.md-preview img[src*="media/whats-new/"] {
+  max-height: 520px;
+  max-width: 100% !important;
+}
+
+.md-preview video {
+  display: block;
+  max-width: 100%;
+  max-height: 520px;
+  margin: 2rem auto;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  background: #111;
+}
+
 /* When zoomed */
 .md-preview img.enlarged {
   cursor: zoom-out;
@@ -866,20 +888,13 @@ div .alert {
   /* darker on hover */
 }
 
-/* .md-preview a[target="_blank"]::after {
-  content: "\f08e";
-  font-family: "bootstrap-icons";
-  display: inline-block;
-  margin-left: 0.25rem;
-  vertical-align: text-bottom;
-} */
-
 .md-preview a[target="_blank"]::after {
-  content: "\F1C5";
-  /* Unicode for box-arrow-up-right */
+  content: "\f144"; /* bi-arrow-up-right — geometric ↗, no box */
   font-family: "bootstrap-icons";
-  margin-left: 0.25rem;
-  vertical-align: text-bottom;
+  font-size: 0.75em;
+  margin-left: 0.2em;
+  vertical-align: baseline;
+  text-decoration: none;
 }
 
 #top {

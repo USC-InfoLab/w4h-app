@@ -67,7 +67,9 @@
                     class="daily-bar-wrap"
                     :title="`${d.day}: ${d.count}`"
                   >
-                    <div class="daily-bar" :style="{ height: barHeight(d.count) }" />
+                    <div class="daily-bar-track">
+                      <div class="daily-bar" :style="{ height: barHeight(d.count) }" />
+                    </div>
                     <div class="daily-label">{{ shortDay(d.day) }}</div>
                   </div>
                 </div>
@@ -528,7 +530,7 @@ onMounted(() => {
 
 .daily-chart {
   display: flex;
-  align-items: flex-end;
+  align-items: stretch;
   gap: 0.35rem;
   height: 160px;
   padding-top: 0.5rem;
@@ -540,8 +542,17 @@ onMounted(() => {
   flex-direction: column;
   align-items: center;
   height: 100%;
-  justify-content: flex-end;
   min-width: 0;
+}
+
+/* Bar % height is relative to this track so labels don't clip tall bars. */
+.daily-bar-track {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
 }
 
 .daily-bar {
@@ -554,6 +565,7 @@ onMounted(() => {
 }
 
 .daily-label {
+  flex-shrink: 0;
   font-size: 0.65rem;
   color: var(--bs-secondary-color);
   margin-top: 0.35rem;
