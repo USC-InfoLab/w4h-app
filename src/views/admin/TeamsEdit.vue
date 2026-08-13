@@ -2,8 +2,17 @@
   <main class="container-fluid">
     <nav aria-label="breadcrumb" class="mb-3">
       <ol class="breadcrumb">
-        <li class="breadcrumb-item">
+        <li v-if="isSuperAdmin(user.role)" class="breadcrumb-item">
           <router-link to="/admin/teams">Teams</router-link>
+        </li>
+        <li v-else class="breadcrumb-item">
+          <router-link
+            v-if="activeProject?.slug || activeProject?.id"
+            :to="{ name: 'adminProjectsEdit', params: { id: activeProject.slug || activeProject.id } }"
+          >
+            Project
+          </router-link>
+          <span v-else>Project</span>
         </li>
         <li class="breadcrumb-item active" aria-current="page">
           {{ team?.name || 'Team' }}
@@ -25,7 +34,7 @@
 
           <div class="mb-3">
             <label class="form-label">Name</label>
-            <input v-model.trim="form.name" class="form-control" />
+            <input v-model.trim="form.name" class="form-control" :disabled="!canEditTeam" />
           </div>
 
           <div class="mb-3">
@@ -49,7 +58,7 @@
             {{ message }}
           </div>
 
-          <div class="d-flex justify-content-end">
+          <div v-if="canEditTeam" class="d-flex justify-content-end">
             <button class="btn btn-primary" :disabled="saving || !form.name" @click="onSave">
               Save
             </button>
@@ -61,20 +70,20 @@
         <div class="card p-3 h-100">
           <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
             <h5 class="card-title mb-0">Members</h5>
-            <div class="ms-auto d-flex flex-wrap gap-2">
+            <div v-if="canEditTeam" class="ms-auto d-flex flex-wrap gap-2">
               <button
                 type="button"
                 class="btn btn-sm btn-outline-primary"
                 @click="$router.push({ name: 'usersAdd', query: { team_id: team.id, role: 'team_admin' } })"
               >
-                Invite Team admin
+                Invite Project admin
               </button>
               <button
                 type="button"
                 class="btn btn-sm btn-outline-secondary"
                 @click="$router.push({ name: 'usersAdd', query: { team_id: team.id, role: 'project_user' } })"
               >
-                Invite member
+                Invite user
               </button>
             </div>
           </div>
@@ -98,13 +107,14 @@
                     class="form-select form-select-sm"
                     style="width: auto; min-width: 8rem"
                     :value="m.team_role || 'member'"
-                    :disabled="memberBusy"
+                    :disabled="memberBusy || !canEditTeam"
                     @change="changeMemberRole(m, $event.target.value)"
                   >
-                    <option value="team_admin">Team admin</option>
-                    <option value="member">Member</option>
+                    <option value="team_admin">Project admin</option>
+                    <option value="member">User</option>
                   </select>
                   <button
+                    v-if="canEditTeam"
                     type="button"
                     class="btn btn-sm btn-outline-danger"
                     :disabled="memberBusy"
@@ -118,7 +128,7 @@
             </li>
           </ul>
 
-          <div class="border-top pt-3">
+          <div v-if="canEditTeam" class="border-top pt-3">
             <label class="form-label">Add existing user</label>
             <div class="row g-2 align-items-end">
               <div class="col">
@@ -135,8 +145,8 @@
               </div>
               <div class="col-auto">
                 <select v-model="selectedTeamRole" class="form-select form-select-sm">
-                  <option value="team_admin">Team admin</option>
-                  <option value="member">Member</option>
+                  <option value="team_admin">Project admin</option>
+                  <option value="member">User</option>
                 </select>
               </div>
               <div class="col-auto">
@@ -151,12 +161,12 @@
               </div>
             </div>
             <p class="small text-muted mt-2 mb-0">
-              Role is <strong>per team</strong> — the same person can be Team admin here and Member on another team.
+              Role is <strong>per team</strong> — the same person can be Project admin here and User on another team.
             </p>
             <p v-if="!addableUsers.length" class="small text-muted mt-2 mb-0">
               No eligible users to add.
               <template v-if="isSuperAdmin(user.role)">
-                Invite a new Team admin or member instead.
+                Invite a new Project admin or User instead.
               </template>
               <template v-else>
                 You can only add users who already belong to one of your teams.
@@ -173,17 +183,23 @@
 </template>
 
 <script setup>
-import { computed, reactive, ref, onMounted } from 'vue';
-import { useRoute } from 'vue-router';
+import { computed, reactive, ref, onMounted, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { storeToRefs } from 'pinia';
 import { api, authHeaders } from '@/utils/api';
 import { APP_NAME } from '@/utils/defs';
 import { isSuperAdmin, TEAM_MEMBER_ROLES } from '@/utils/roles';
 import { useUserStore } from '@/stores/user';
+import { useTeamContext } from '@/composables/useTeamContext';
 
 const route = useRoute();
+const router = useRouter();
 const userStore = useUserStore();
 const { user } = storeToRefs(userStore);
+const { isActiveProjectAdmin, activeProject } = useTeamContext();
+const canEditTeam = computed(
+  () => isSuperAdmin(user.value?.role) || isActiveProjectAdmin.value
+);
 
 const team = ref(null);
 const allUsers = ref([]);
@@ -208,12 +224,14 @@ const addableUsers = computed(() => {
   });
 });
 
-onMounted(async () => {
-  document.title = `${APP_NAME} Edit Team`;
+async function loadTeam() {
+  loading.value = true;
   try {
     const [teamRes, usersRes] = await Promise.all([
       api.get(`teams/${route.params.id}`, authHeaders()),
-      api.get('users', authHeaders()),
+      canEditTeam.value
+        ? api.get('users', authHeaders()).catch(() => ({ data: [] }))
+        : Promise.resolve({ data: [] }),
     ]);
     team.value = teamRes.data;
     form.name = teamRes.data.name;
@@ -225,7 +243,29 @@ onMounted(async () => {
   } finally {
     loading.value = false;
   }
+}
+
+onMounted(async () => {
+  document.title = `${APP_NAME} Team`;
+  await loadTeam();
 });
+
+watch(
+  () => activeProject.value?.teamId,
+  (teamId) => {
+    if (isSuperAdmin(user.value?.role)) return;
+    if (teamId && String(teamId) !== String(route.params.id)) {
+      router.replace({ name: 'adminTeamsEdit', params: { id: teamId } });
+    }
+  }
+);
+
+watch(
+  () => route.params.id,
+  () => {
+    if (!isSuperAdmin(user.value?.role)) loadTeam();
+  }
+);
 
 async function onSave() {
   saving.value = true;

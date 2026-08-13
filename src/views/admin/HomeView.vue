@@ -315,7 +315,7 @@ onMounted(async () => {
 
 <style scoped>
 .main-content {
-  min-height: calc(100vh - 56px);
+  min-height: calc(100vh - var(--app-navbar-height, 44px));
 }
 
 .kpi-card {

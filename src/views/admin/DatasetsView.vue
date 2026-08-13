@@ -5,9 +5,10 @@
         <h5 class="mb-0">
           <i class="bi bi-database me-1"></i>
           Datasets
+          <span v-if="activeProjectName" class="text-muted fw-normal fs-6">· {{ activeProjectName }}</span>
         </h5>
       </div>
-      <div class="col-auto ms-auto">
+      <div v-if="isActiveProjectAdmin" class="col-auto ms-auto">
         <button class="btn btn-sm btn-primary my-2" @click="$router.push({ name: 'adminDatasetsAdd' })">
           <i class="bi bi-plus"></i> Add Dataset
         </button>
@@ -102,12 +103,15 @@
           </div>
         </div>
         <button
-          v-if="dataset.source_kind === 'local'"
+          v-if="dataset.source_kind === 'local' && isActiveProjectAdmin"
           class="btn btn-sm btn-outline-primary flex-shrink-0"
           @click="goEdit(dataset.id)"
         >
           Edit
         </button>
+        <span v-else-if="dataset.source_kind === 'local'" class="small text-muted flex-shrink-0">
+          View only
+        </span>
         <span v-else class="small text-muted flex-shrink-0">
           {{ dataset.source_kind === 'shared' ? 'Shared' : 'Listed' }}
         </span>
@@ -121,7 +125,7 @@
         <template v-else>No datasets shared with your team.</template>
       </p>
       <button
-        v-if="filter === 'all' || filter === 'mine'"
+        v-if="(filter === 'all' || filter === 'mine') && isActiveProjectAdmin"
         class="btn btn-primary btn-sm"
         @click="$router.push({ name: 'adminDatasetsAdd' })"
       >
@@ -135,8 +139,10 @@
 import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { api, authHeaders } from '@/utils/api';
+import { useTeamContext } from '@/composables/useTeamContext';
 
 const router = useRouter();
+const { activeProjectName, isActiveProjectAdmin } = useTeamContext();
 const datasets = ref([]);
 const loading = ref(true);
 const errorMessage = ref('');

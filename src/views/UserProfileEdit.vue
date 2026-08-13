@@ -62,16 +62,31 @@
 
           <!-- Actions -->
           <div class="d-flex justify-content-between mt-4">
-            <!-- <button type="button" class="btn btn-secondary" @click="$router.back()">
-              Cancel
-            </button> -->
-
             <button id="save-profile" type="submit" class="btn btn-primary" :disabled="!dirty || !isSecurePassword">
               Save
             </button>
           </div>
 
         </form>
+
+        <!-- Appearance (applies immediately; client preference) -->
+        <div class="mt-4 pt-3 border-top">
+          <h6 class="mb-2">Appearance</h6>
+          <label class="form-label" for="profileThemeMode">Theme</label>
+          <select
+            id="profileThemeMode"
+            class="form-select"
+            :value="themeMode"
+            @change="onThemeModeChange"
+          >
+            <option value="light">Light</option>
+            <option value="dark">Dark</option>
+            <option value="system">System</option>
+          </select>
+          <small class="text-muted d-block mt-1">
+            Resolved: {{ darkMode ? 'dark' : 'light' }}. Saves on this device.
+          </small>
+        </div>
 
         <!-- Danger zone -->
         <div v-if="isSuperAdmin(user.role) && newUser.email !== user.email" class="card mt-4 border-danger p-3">
@@ -110,11 +125,16 @@ const { user } = storeToRefs(userStore);
 import { useUIStore } from '@/stores/ui';
 import { canAccessAdminUi, isSuperAdmin } from '@/utils/roles';
 const uiStore = useUIStore();
+const { darkMode, themeMode } = storeToRefs(uiStore);
 
 const isAdminUI = computed(() => canAccessAdminUi(user.value?.role, user.value?.caps));
 
 const verifyCode = ref('');
 const showPassword = ref(false);
+
+function onThemeModeChange(event) {
+  uiStore.setThemeMode(event.target.value);
+}
 
 function suggestPassword() {
   const upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ';

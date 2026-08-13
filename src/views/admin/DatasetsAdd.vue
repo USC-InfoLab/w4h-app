@@ -3,7 +3,13 @@
     <nav aria-label="breadcrumb" class="mb-3">
       <ol class="breadcrumb">
         <li class="breadcrumb-item">
-          <router-link to="/admin/datasets">Datasets</router-link>
+          <router-link
+            v-if="returnProjectId"
+            :to="{ name: 'adminProjectsEdit', params: { id: returnProjectId } }"
+          >
+            Project
+          </router-link>
+          <router-link v-else to="/admin/datasets">Datasets</router-link>
         </li>
         <li class="breadcrumb-item active" aria-current="page">Add Dataset</li>
       </ol>
@@ -101,13 +107,16 @@
 
 <script setup>
 import { onMounted, reactive, ref } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { api, authHeaders } from '@/utils/api';
 import { useUserStore } from '@/stores/user';
 import { isSuperAdmin, isTeamAdmin } from '@/utils/roles';
+import { useTeamContext } from '@/composables/useTeamContext';
 
+const route = useRoute();
 const router = useRouter();
 const userStore = useUserStore();
+const { activeTeamId } = useTeamContext();
 
 const form = reactive({
   team_id: '',
@@ -124,6 +133,7 @@ const saving = ref(false);
 const message = ref('');
 const ok = ref(false);
 const idTouched = ref(false);
+const returnProjectId = String(route.query.project_id || '').trim();
 
 function slugify(input) {
   return String(input || '')
@@ -149,7 +159,13 @@ onMounted(async () => {
   try {
     const res = await api.get('teams', authHeaders());
     teams.value = Array.isArray(res.data) ? res.data : [];
-    if (
+    const qTeam = String(route.query.team_id || activeTeamId.value || '').trim();
+    if (qTeam && teams.value.some((t) => String(t.id) === qTeam)) {
+      form.team_id = qTeam;
+      if (!isSuperAdmin(userStore.user?.role)) {
+        teamLocked.value = true;
+      }
+    } else if (
       isTeamAdmin(userStore.user?.role) &&
       !isSuperAdmin(userStore.user?.role) &&
       teams.value.length === 1
@@ -185,7 +201,31 @@ async function onSave() {
     ok.value = true;
     message.value = 'Dataset created.';
     const id = created.data?.id;
-    if (id) {
+    if (returnProjectId && id) {
+      try {
+        const overview = await api.get(
+          `projects/${encodeURIComponent(returnProjectId)}`,
+          authHeaders()
+        );
+        const existing = Array.isArray(overview.data?.datasets)
+          ? overview.data.datasets.map((d) => String(d.dataset_id || d.id)).filter(Boolean)
+          : [];
+        if (!existing.includes(String(id))) existing.push(String(id));
+        await api.put(
+          `projects/${encodeURIComponent(returnProjectId)}/datasets`,
+          {
+            datasets: existing.map((dataset_id) => ({
+              dataset_id,
+              access_type: 'read'
+            }))
+          },
+          authHeaders()
+        );
+      } catch {
+        /* still return to the project */
+      }
+      router.push({ name: 'adminProjectsEdit', params: { id: returnProjectId } });
+    } else if (id) {
       router.push({ name: 'adminDatasetsEdit', params: { id } });
     } else {
       router.push({ name: 'adminDatasets' });

@@ -17,16 +17,16 @@ export const TEAM_MEMBER_ROLES = {
 
 export const ROLE_LABELS = {
   [USER_ROLES.SUPER_ADMIN]: 'Super admin',
-  [USER_ROLES.TEAM_ADMIN]: 'Team admin',
-  [USER_ROLES.PROJECT_USER]: 'Project user',
+  [USER_ROLES.TEAM_ADMIN]: 'Project admin',
+  [USER_ROLES.PROJECT_USER]: 'User',
   [USER_ROLES.ADMIN]: 'Super admin',
-  [USER_ROLES.RESEARCHER]: 'Project user',
-  [USER_ROLES.CLINICIAN]: 'Project user',
+  [USER_ROLES.RESEARCHER]: 'User',
+  [USER_ROLES.CLINICIAN]: 'User',
 };
 
 export const TEAM_MEMBER_ROLE_LABELS = {
-  [TEAM_MEMBER_ROLES.TEAM_ADMIN]: 'Team admin',
-  [TEAM_MEMBER_ROLES.MEMBER]: 'Member',
+  [TEAM_MEMBER_ROLES.TEAM_ADMIN]: 'Project admin',
+  [TEAM_MEMBER_ROLES.MEMBER]: 'User',
 };
 
 export function isSuperAdmin(role) {
@@ -58,5 +58,19 @@ export function roleLabel(role) {
 }
 
 export function teamMemberRoleLabel(role) {
-  return TEAM_MEMBER_ROLE_LABELS[role] || role || 'Member';
+  return TEAM_MEMBER_ROLE_LABELS[role] || role || 'User';
+}
+
+/** Stored project_members.role → UI. Super admin is platform-only, not a project membership. */
+export function projectMemberUiValue(storedRole) {
+  return storedRole === 'owner' ? 'owner' : 'editor';
+}
+
+export function projectMemberRoleLabel(storedRole) {
+  return storedRole === 'owner' ? 'Project admin' : 'User';
+}
+
+/** UI labels for the project switcher. */
+export function projectAccessRoleLabel(isAdmin) {
+  return isAdmin ? 'Project admin' : 'User';
 }

@@ -60,9 +60,17 @@ import { onBeforeRouteLeave } from 'vue-router';
 import { api, authHeaders } from '@/utils/api';
 import mermaid from 'mermaid';
 import { docsHeadingHashId } from '@/utils/docsHeadingId';
+import { useUIStore } from '@/stores/ui';
+import { storeToRefs } from 'pinia';
 
 // Initialize Mermaid
-mermaid.initialize({ startOnLoad: false, theme: 'default' });
+const uiStore = useUIStore();
+const { darkMode } = storeToRefs(uiStore);
+
+function applyEditorTheme() {
+  mdEditorTheme.value = darkMode.value ? 'dark' : 'light';
+  mermaid.initialize({ startOnLoad: false, theme: darkMode.value ? 'dark' : 'default' });
+}
 
 function extractTocFromHtml(root) {
   const toc = [];
@@ -298,10 +306,7 @@ function slugify(str) {
 }
 
 onMounted(async () => {
-  // Theme logic
-  const prefersDarkTheme = window.matchMedia('(prefers-color-scheme: dark)');
-  prefersDarkTheme.addEventListener('change', updateTheme);
-  updateTheme(prefersDarkTheme);
+  applyEditorTheme();
 
   // Initialize Markdown-it with Shiki
   md = new MarkdownIt({ html: true, breaks: true })
@@ -353,20 +358,19 @@ onMounted(async () => {
 });
 
 onBeforeUnmount(() => {
-  const prefersDarkTheme = window.matchMedia('(prefers-color-scheme: dark)');
-  prefersDarkTheme.removeEventListener('change', updateTheme);
+  // no-op
 });
 
-function updateTheme(prefersDarkTheme) {
-  mdEditorTheme.value = prefersDarkTheme.matches ? 'dark' : 'light';
-}
+watch(darkMode, () => {
+  applyEditorTheme();
+});
 </script>
 
 <style scoped>
 /* Keeping your existing styles ... */
 .editor-fullscreen {
   width: 100% !important;
-  min-height: calc(100vh - 56px) !important;
+  min-height: calc(100vh - var(--app-navbar-height, 44px)) !important;
 }
 
 .code-block {

@@ -60,8 +60,16 @@
           </div>
 
           <div class="mb-3">
-            <label class="form-label">Description</label>
-            <textarea v-model.trim="form.description" class="form-control" rows="4" placeholder="Optional"></textarea>
+            <label class="form-label">Copy members from (optional)</label>
+            <select v-model="form.seed_from_project_id" class="form-select">
+              <option value="">Start with me only</option>
+              <option v-for="p in seedProjectOptions" :key="p.id" :value="p.id">
+                {{ p.name }}{{ p.team_name ? ` · ${p.team_name}` : '' }}
+              </option>
+            </select>
+            <div class="form-text">
+              One-time copy of that project's roster onto this project. Later joins are per-project — they are not kept in sync.
+            </div>
           </div>
 
           <div v-if="message" class="alert" :class="ok ? 'alert-success' : 'alert-danger'">
@@ -85,7 +93,7 @@
 </template>
 
 <script setup>
-import { onMounted, reactive, ref } from 'vue';
+import { onMounted, reactive, ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { api, authHeaders } from '@/utils/api';
 import { useUserStore } from '@/stores/user';
@@ -98,10 +106,18 @@ const form = reactive({
   team_id: '',
   slug: '',
   name: '',
-  description: ''
+  description: '',
+  seed_from_project_id: ''
 });
 
 const teams = ref([]);
+const seedProjects = ref([]);
+const seedProjectOptions = computed(() => {
+  const tid = form.team_id;
+  const rows = seedProjects.value;
+  if (!tid) return rows;
+  return rows.filter((p) => String(p.team_id) === String(tid));
+});
 const loadingTeams = ref(true);
 const teamLocked = ref(false);
 const saving = ref(false);
@@ -132,8 +148,12 @@ function onSlugInput() {
 onMounted(async () => {
   document.title = 'Add Project';
   try {
-    const res = await api.get('teams', authHeaders());
-    teams.value = Array.isArray(res.data) ? res.data : [];
+    const [teamsRes, projectsRes] = await Promise.all([
+      api.get('teams', authHeaders()),
+      api.get('projects', authHeaders()).catch(() => ({ data: [] })),
+    ]);
+    teams.value = Array.isArray(teamsRes.data) ? teamsRes.data : [];
+    seedProjects.value = Array.isArray(projectsRes.data) ? projectsRes.data : [];
     if (
       isTeamAdmin(userStore.user?.role) &&
       !callerIsSuper &&
@@ -161,7 +181,8 @@ async function onSave() {
         team_id: form.team_id,
         slug: form.slug || undefined,
         name: form.name,
-        description: form.description || null
+        description: form.description || null,
+        seed_from_project_id: form.seed_from_project_id || undefined
       },
       authHeaders()
     );

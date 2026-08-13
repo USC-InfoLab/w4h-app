@@ -1,19 +1,19 @@
 <template>
   <nav ref="navEl" :class="['navbar', 'navbar-expand-md', 'navbar-dark', 'fixed-top', navbarColorClass]">
     <div class="container-fluid">
-      <RouterLink
-        class="navbar-brand"
-        :class="{ active: isHomeActive }"
-        :to="{ name: 'home' }"
-        data-bs-toggle="tooltip"
-        data-bs-placement="bottom"
-        data-bs-title="W4H Toolkit"
-        aria-label="W4H Toolkit home"
-      >
-        <img class="app-icon" src="/w4h-mark.svg" alt="" />
-        <span class="brand-text d-none d-xl-inline">W4H Toolkit</span>
-        <span class="brand-text d-none d-md-inline d-xl-none">W4H</span>
-      </RouterLink>
+      <div class="d-flex align-items-center navbar-context">
+        <RouterLink
+          class="navbar-brand"
+          :to="{ name: 'home' }"
+          aria-label="W4H home"
+        >
+          <img class="app-icon" src="/w4h-mark.svg" alt="" />
+          <span class="brand-text d-none d-md-inline">W4H</span>
+        </RouterLink>
+
+        <TeamProjectSwitcher />
+        <div class="nav-context-divider d-none d-md-block" aria-hidden="true"></div>
+      </div>
 
       <button
         class="navbar-toggler"
@@ -40,7 +40,7 @@
               :aria-label="item.label"
             >
               <i :class="item.icon" aria-hidden="true"></i>
-              <span class="nav-link-label">{{ item.label }}</span>
+              <span class="nav-link-label" :data-text="item.label">{{ item.label }}</span>
             </RouterLink>
           </li>
         </ul>
@@ -105,10 +105,11 @@ import { useRouter, useRoute } from 'vue-router';
 import { useUserStore } from '../stores/user';
 import { useUIStore } from '../stores/ui';
 import { storeToRefs } from 'pinia';
-import { canManageTeam } from '@/utils/roles';
 import AboutModal from '@/components/AboutModal.vue';
 import ReportIssueModal from '@/components/ReportIssueModal.vue';
+import TeamProjectSwitcher from '@/components/TeamProjectSwitcher.vue';
 import { clearUsageSessionFlags } from '@/utils/clientUsage';
+import { useTeamContext } from '@/composables/useTeamContext';
 
 const router = useRouter();
 const route = useRoute();
@@ -116,6 +117,10 @@ const route = useRoute();
 const userStore = useUserStore();
 const { user } = storeToRefs(userStore);
 const uiStore = useUIStore();
+const {
+  isActiveProjectAdmin,
+  activeProject,
+} = useTeamContext();
 
 const tooltipInstances = ref([]);
 const navEl = ref(null);
@@ -123,7 +128,7 @@ const showAbout = ref(false);
 const showReportIssue = ref(false);
 
 const navbarColorClass = computed(() => (uiStore.darkMode ? 'w4h-dark-nav' : 'w4h-nav'));
-const showTeamNav = computed(() => canManageTeam(user.value?.role, user.value?.caps));
+const showAdminNav = computed(() => isActiveProjectAdmin.value);
 
 const displayName = computed(() => {
   const name = String(user.value?.name || '').trim();
@@ -134,59 +139,39 @@ const displayName = computed(() => {
   return name;
 });
 
-const isHomeActive = computed(() => route.name === 'home');
-const isProjectsActive = computed(() =>
+const isProjectActive = computed(() =>
   route.name === 'projects' ||
   route.name === 'projectWorkspace' ||
   route.name === 'adminProjects' ||
   route.name === 'adminProjectsAdd' ||
-  route.name === 'adminProjectsEdit'
-);
-const isUsersActive = computed(() =>
-  route.name === 'users' || route.name === 'usersAdd' || route.name === 'usersEdit'
-);
-const isDatasetsActive = computed(() =>
-  route.name === 'adminDatasets' ||
-  route.name === 'adminDatasetsAdd' ||
-  route.name === 'adminDatasetsEdit'
-);
-const isTeamsActive = computed(() =>
-  route.name === 'adminTeams' || route.name === 'adminTeamsEdit'
+  route.name === 'adminProjectsEdit' ||
+  route.name === 'adminTeamsEdit'
 );
 const isHelpActive = computed(() => route.name === 'docs' || route.name === 'docNew');
+const isAuditActive = computed(() => route.name === 'adminAuditLog');
+
+const projectTo = computed(() => {
+  const p = activeProject.value;
+  if (!p) return { name: 'adminProjects' };
+  return { name: 'adminProjectsEdit', params: { id: p.slug || p.id } };
+});
 
 const navItems = computed(() => [
   {
-    key: 'projects',
-    label: 'Projects',
+    key: 'project',
+    label: 'Project',
     icon: 'bi bi-beaker',
-    to: showTeamNav.value ? { name: 'adminProjects' } : { name: 'projects' },
-    active: isProjectsActive.value,
+    to: projectTo.value,
+    active: isProjectActive.value,
     show: true,
   },
   {
-    key: 'datasets',
-    label: 'Datasets',
-    icon: 'bi bi-database',
-    to: { name: 'adminDatasets' },
-    active: isDatasetsActive.value,
-    show: showTeamNav.value,
-  },
-  {
-    key: 'teams',
-    label: 'Teams',
-    icon: 'bi bi-people-fill',
-    to: { name: 'adminTeams' },
-    active: isTeamsActive.value,
-    show: showTeamNav.value,
-  },
-  {
-    key: 'users',
-    label: 'Users',
-    icon: 'bi bi-people',
-    to: { name: 'users' },
-    active: isUsersActive.value,
-    show: showTeamNav.value,
+    key: 'audit',
+    label: 'Audit',
+    icon: 'bi bi-journal-text',
+    to: { name: 'adminAuditLog' },
+    active: isAuditActive.value,
+    show: showAdminNav.value,
   },
   {
     key: 'help',
@@ -200,8 +185,42 @@ const navItems = computed(() => [
 
 const visibleNavItems = computed(() => navItems.value.filter((item) => item.show));
 
+watch(isActiveProjectAdmin, (admin) => {
+  if (admin) return;
+  const memberBlocked = new Set([
+    'adminTeams',
+    'adminTeamsAdd',
+    'users',
+    'usersAdd',
+    'usersEdit',
+    'adminProjects',
+    'adminProjectsAdd',
+    'adminDatasetsAdd',
+    'adminDatasetsShares',
+    'adminUsage',
+    'adminSettings',
+    'adminStyleGuide',
+  ]);
+  if (memberBlocked.has(route.name)) {
+    router.push({ name: 'home' });
+  }
+});
+
+function safeDisposeTooltip(t) {
+  try {
+    // Avoid Bootstrap hide-transition callbacks on a disposed instance
+    // (_isWithActiveTrigger → Object.values(null)).
+    if (t?._activeTrigger) {
+      t._activeTrigger = {};
+    }
+    t?.dispose?.();
+  } catch {
+    /* tip node may already be gone */
+  }
+}
+
 function disposeTooltips() {
-  tooltipInstances.value.forEach((t) => t.dispose());
+  tooltipInstances.value.forEach(safeDisposeTooltip);
   tooltipInstances.value = [];
 }
 
@@ -210,23 +229,33 @@ function shouldShowNavLinkTooltips() {
   return window.matchMedia('(min-width: 768px) and (max-width: 1199.98px)').matches;
 }
 
-function shouldShowBrandTooltip() {
-  return window.matchMedia('(max-width: 767.98px)').matches;
-}
-
-function initTooltips() {
-  disposeTooltips();
+/** Add tips for new links only — never dispose/recreate living instances (team switch). */
+function syncTooltips() {
   const root = navEl.value;
   if (!root) return;
 
-  const linkTips = shouldShowNavLinkTooltips();
-  const brandTip = shouldShowBrandTooltip();
+  if (!shouldShowNavLinkTooltips()) {
+    disposeTooltips();
+    return;
+  }
 
-  root.querySelectorAll('[data-bs-toggle="tooltip"]').forEach((el) => {
-    const isBrand = el.classList.contains('navbar-brand');
-    if (isBrand && !brandTip) return;
-    if (!isBrand && !linkTips) return;
+  tooltipInstances.value = tooltipInstances.value.filter((t) => {
+    const el = t?._element;
+    if (!el || !el.isConnected) {
+      safeDisposeTooltip(t);
+      return false;
+    }
+    return true;
+  });
 
+  const tracked = new Set(tooltipInstances.value.map((t) => t._element));
+  root.querySelectorAll('.nav-link[data-bs-toggle="tooltip"]').forEach((el) => {
+    if (!el.isConnected || tracked.has(el)) return;
+    const existing = Tooltip.getInstance(el);
+    if (existing) {
+      tooltipInstances.value.push(existing);
+      return;
+    }
     tooltipInstances.value.push(
       new Tooltip(el, {
         placement: 'bottom',
@@ -239,31 +268,28 @@ function initTooltips() {
 }
 
 function onViewportChange() {
-  nextTick(() => initTooltips());
+  nextTick(() => syncTooltips());
 }
 
 let tooltipMqLink;
-let tooltipMqBrand;
 
 onMounted(() => {
   nextTick(() => {
-    document.querySelectorAll('[data-bs-toggle="dropdown"]').forEach((el) => new Dropdown(el));
-    initTooltips();
+    const accountToggle = navEl.value?.querySelector('#menuDropdown');
+    if (accountToggle) Dropdown.getOrCreateInstance(accountToggle);
+    syncTooltips();
   });
   tooltipMqLink = window.matchMedia('(min-width: 768px) and (max-width: 1199.98px)');
-  tooltipMqBrand = window.matchMedia('(max-width: 767.98px)');
   tooltipMqLink.addEventListener('change', onViewportChange);
-  tooltipMqBrand.addEventListener('change', onViewportChange);
 });
 
 onBeforeUnmount(() => {
   disposeTooltips();
   tooltipMqLink?.removeEventListener('change', onViewportChange);
-  tooltipMqBrand?.removeEventListener('change', onViewportChange);
 });
 
 watch(visibleNavItems, () => {
-  nextTick(() => initTooltips());
+  nextTick(() => syncTooltips());
 });
 
 function onSignOutClick() {
@@ -300,7 +326,19 @@ function onSignOutClick() {
   gap: 0.65rem;
   padding-top: 0.4rem;
   padding-bottom: 0.4rem;
-  margin-right: 1rem;
+  margin-right: 0.35rem;
+}
+
+.navbar-context {
+  min-width: 0;
+}
+
+.nav-context-divider {
+  width: 1px;
+  height: 1.15rem;
+  margin: 0 0.65rem 0 0.35rem;
+  background: rgba(255, 255, 255, 0.55);
+  flex-shrink: 0;
 }
 
 .brand-text {
@@ -315,30 +353,30 @@ function onSignOutClick() {
   text-decoration: none;
 }
 
-.navbar-brand.active {
-  text-decoration: none;
+.navbar-nav .nav-link i {
+  font-weight: 400;
 }
 
-.navbar-brand.active .brand-text {
-  text-decoration: underline;
-  text-decoration-thickness: 2px;
-  text-underline-offset: 0.35em;
+.nav-link-label {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  font-weight: 500;
 }
 
-.navbar-nav .nav-link.active {
+.nav-link-label::after {
+  content: attr(data-text);
+  height: 0;
+  overflow: hidden;
   font-weight: 600;
+  visibility: hidden;
+  pointer-events: none;
+  user-select: none;
+  display: block;
 }
 
-.navbar-nav .nav-link.active::after {
-  content: '';
-  position: absolute;
-  left: 0.55rem;
-  right: 0.55rem;
-  bottom: 0.35em;
-  height: 2px;
-  background: currentColor;
-  border-radius: 1px;
-  pointer-events: none;
+.navbar-nav .nav-link.active .nav-link-label {
+  font-weight: 600;
 }
 
 .nav-item,
@@ -388,11 +426,16 @@ function onSignOutClick() {
     padding-left: 0.65rem;
     padding-right: 0.65rem;
   }
+
+  .navbar-nav .nav-link.active {
+    background: rgba(255, 255, 255, 0.12);
+    border-radius: 0.35rem;
+  }
 }
 
 @media (max-width: 767.98px) {
   .nav-link-label {
-    display: inline;
+    display: inline-flex;
   }
 
   .navbar-nav {
@@ -410,12 +453,7 @@ function onSignOutClick() {
     padding-right: 1rem;
   }
 
-  .navbar-nav .nav-link.active::after {
-    left: 1rem;
-    right: 1rem;
-  }
-
-  .dropdown {
+  .navbar-collapse .dropdown {
     width: 100%;
   }
 
@@ -426,12 +464,7 @@ function onSignOutClick() {
 
 @media (min-width: 1200px) {
   .nav-link-label {
-    display: inline;
-  }
-
-  .navbar-nav .nav-link.active::after {
-    left: 0.5rem;
-    right: 0.5rem;
+    display: inline-flex;
   }
 }
 </style>

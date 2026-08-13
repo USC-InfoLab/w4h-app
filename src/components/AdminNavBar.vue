@@ -7,12 +7,12 @@
         :to="{ name: 'adminHome' }"
         data-bs-toggle="tooltip"
         data-bs-placement="bottom"
-        data-bs-title="W4H Toolkit Admin"
-        aria-label="W4H Toolkit Admin home"
+        :data-bs-title="homeBrandTooltip"
+        :title="homeBrandTooltip"
+        :aria-label="homeBrandAriaLabel"
       >
         <img class="app-icon" src="/w4h-mark.svg" alt="" />
-        <span class="brand-text d-none d-xl-inline">W4H</span>
-        <span class="brand-text d-none d-md-inline d-xl-none">W4H</span>
+        <span class="brand-text d-none d-md-inline">W4H</span>
       </RouterLink>
 
       <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse"
@@ -33,7 +33,7 @@
               :aria-label="item.label"
             >
               <i :class="item.icon" aria-hidden="true"></i>
-              <span class="nav-link-label">{{ item.label }}</span>
+              <span class="nav-link-label" :data-text="item.label">{{ item.label }}</span>
             </RouterLink>
           </li>
         </ul>
@@ -62,6 +62,7 @@
                 >
                   {{ user.email }}
                 </div>
+                <div v-if="userRoleLabel" class="small text-secondary mt-1">{{ userRoleLabel }}</div>
               </RouterLink>
             </li>
             <li><hr class="dropdown-divider" /></li>
@@ -100,7 +101,7 @@ const userStore = useUserStore();
 const { user } = storeToRefs(userStore);
 
 import { useUIStore } from '../stores/ui';
-import { isSuperAdmin, isTeamAdmin } from '@/utils/roles';
+import { isSuperAdmin, roleLabel } from '@/utils/roles';
 import AboutModal from '@/components/AboutModal.vue';
 import { clearUsageSessionFlags } from '@/utils/clientUsage';
 const uiStore = useUIStore();
@@ -126,7 +127,35 @@ const displayName = computed(() => {
   return name;
 });
 
-const showTeams = computed(() => isSuperAdmin(user.value?.role) || isTeamAdmin(user.value?.role));
+const userRoleLabel = computed(() => roleLabel(user.value?.role));
+
+const homeBrandTooltip = computed(() => 'W4H home');
+const homeBrandAriaLabel = computed(() => 'W4H home');
+
+const brandTip = ref(null);
+
+function syncBrandTooltip() {
+  const root = navEl.value;
+  const el = root?.querySelector('.navbar-brand');
+  if (!el) return;
+  el.setAttribute('data-bs-title', homeBrandTooltip.value);
+  el.setAttribute('title', homeBrandTooltip.value);
+  let tip = Tooltip.getInstance(el);
+  if (!tip) {
+    tip = new Tooltip(el, {
+      placement: 'bottom',
+      fallbackPlacements: ['bottom'],
+      trigger: 'hover focus',
+      container: 'body',
+      title: homeBrandTooltip.value,
+    });
+    brandTip.value = tip;
+  } else if (typeof tip.setContent === 'function') {
+    tip.setContent({ '.tooltip-inner': homeBrandTooltip.value });
+  }
+}
+
+const showTeams = computed(() => isSuperAdmin(user.value?.role));
 const showSettings = computed(() => isSuperAdmin(user.value?.role));
 
 const isAdminHomeActive = computed(() => route.name === 'adminHome');
@@ -145,6 +174,12 @@ const isUsersActive = computed(() =>
   route.name === 'users' ||
   route.name === 'usersEdit' ||
   route.name === 'usersAdd'
+);
+const isDatasetsActive = computed(() =>
+  route.name === 'adminDatasets' ||
+  route.name === 'adminDatasetsAdd' ||
+  route.name === 'adminDatasetsEdit' ||
+  route.name === 'adminDatasetsShares'
 );
 const isHelpActive = computed(() =>
   route.name === 'docs' || route.name === 'docNew'
@@ -165,6 +200,14 @@ const navItems = computed(() => [
     icon: 'bi bi-people',
     to: { name: 'users' },
     active: isUsersActive.value,
+    show: true,
+  },
+  {
+    key: 'datasets',
+    label: 'Datasets',
+    icon: 'bi bi-database',
+    to: { name: 'adminDatasets' },
+    active: isDatasetsActive.value,
     show: true,
   },
   {
@@ -222,8 +265,19 @@ const navbarColorClass = computed(() =>
   uiStore.darkMode ? 'w4h-dark-nav' : 'w4h-nav'
 );
 
+function safeDisposeTooltip(t) {
+  try {
+    if (t?._activeTrigger) {
+      t._activeTrigger = {};
+    }
+    t?.dispose?.();
+  } catch {
+    /* tip node may already be gone */
+  }
+}
+
 function disposeTooltips() {
-  tooltipInstances.value.forEach((t) => t.dispose());
+  tooltipInstances.value.forEach(safeDisposeTooltip);
   tooltipInstances.value = [];
 }
 
@@ -232,24 +286,33 @@ function shouldShowNavLinkTooltips() {
   return window.matchMedia('(min-width: 768px) and (max-width: 1199.98px)').matches;
 }
 
-function shouldShowBrandTooltip() {
-  // Brand wordmark hidden below md
-  return window.matchMedia('(max-width: 767.98px)').matches;
-}
-
-function initTooltips() {
-  disposeTooltips();
+/** Add tips for new links only — never dispose/recreate living instances (team switch). */
+function syncTooltips() {
   const root = navEl.value;
   if (!root) return;
 
-  const linkTips = shouldShowNavLinkTooltips();
-  const brandTip = shouldShowBrandTooltip();
+  if (!shouldShowNavLinkTooltips()) {
+    disposeTooltips();
+    return;
+  }
 
-  root.querySelectorAll('[data-bs-toggle="tooltip"]').forEach((el) => {
-    const isBrand = el.classList.contains('navbar-brand');
-    if (isBrand && !brandTip) return;
-    if (!isBrand && !linkTips) return;
+  tooltipInstances.value = tooltipInstances.value.filter((t) => {
+    const el = t?._element;
+    if (!el || !el.isConnected) {
+      safeDisposeTooltip(t);
+      return false;
+    }
+    return true;
+  });
 
+  const tracked = new Set(tooltipInstances.value.map((t) => t._element));
+  root.querySelectorAll('.nav-link[data-bs-toggle="tooltip"]').forEach((el) => {
+    if (!el.isConnected || tracked.has(el)) return;
+    const existing = Tooltip.getInstance(el);
+    if (existing) {
+      tooltipInstances.value.push(existing);
+      return;
+    }
     tooltipInstances.value.push(
       new Tooltip(el, {
         placement: 'bottom',
@@ -262,33 +325,37 @@ function initTooltips() {
 }
 
 function onViewportChange() {
-  nextTick(() => initTooltips());
+  nextTick(() => syncTooltips());
 }
 
 let tooltipMqLink;
-let tooltipMqBrand;
 
 onMounted(() => {
   nextTick(() => {
-    document.querySelectorAll('[data-bs-toggle="dropdown"]').forEach((el) => {
-      new Dropdown(el);
-    });
-    initTooltips();
+    const accountToggle = navEl.value?.querySelector('#adminMenuDropdown');
+    if (accountToggle) Dropdown.getOrCreateInstance(accountToggle);
+    syncTooltips();
+    syncBrandTooltip();
   });
   tooltipMqLink = window.matchMedia('(min-width: 768px) and (max-width: 1199.98px)');
-  tooltipMqBrand = window.matchMedia('(max-width: 767.98px)');
   tooltipMqLink.addEventListener('change', onViewportChange);
-  tooltipMqBrand.addEventListener('change', onViewportChange);
 });
 
 onBeforeUnmount(() => {
   disposeTooltips();
+  safeDisposeTooltip(brandTip.value);
+  brandTip.value = null;
+  const brand = navEl.value?.querySelector('.navbar-brand');
+  safeDisposeTooltip(brand ? Tooltip.getInstance(brand) : null);
   tooltipMqLink?.removeEventListener('change', onViewportChange);
-  tooltipMqBrand?.removeEventListener('change', onViewportChange);
 });
 
 watch(visibleNavItems, () => {
-  nextTick(() => initTooltips());
+  nextTick(() => syncTooltips());
+});
+
+watch(homeBrandTooltip, () => {
+  nextTick(() => syncBrandTooltip());
 });
 </script>
 
@@ -333,35 +400,30 @@ watch(visibleNavItems, () => {
   text-decoration: none;
 }
 
-/* Match nav-link active underline (text only) — avoid a bar under the logo */
-.navbar-brand.active {
-  text-decoration: none;
+.navbar-nav .nav-link i {
+  font-weight: 400;
 }
 
-.navbar-brand.active .brand-text {
-  text-decoration: underline;
-  text-decoration-thickness: 2px;
-  text-underline-offset: 0.35em;
+.nav-link-label {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  font-weight: 500;
 }
 
-/*
- * Active cue under the icon/label — same visual baseline as Admin text
- * (text-underline-offset: 0.35em), not flush to the navbar bottom edge.
- */
-.navbar-nav .nav-link.active {
+.nav-link-label::after {
+  content: attr(data-text);
+  height: 0;
+  overflow: hidden;
   font-weight: 600;
+  visibility: hidden;
+  pointer-events: none;
+  user-select: none;
+  display: block;
 }
 
-.navbar-nav .nav-link.active::after {
-  content: '';
-  position: absolute;
-  left: 0.55rem;
-  right: 0.55rem;
-  bottom: 0.35em;
-  height: 2px;
-  background: currentColor;
-  border-radius: 1px;
-  pointer-events: none;
+.navbar-nav .nav-link.active .nav-link-label {
+  font-weight: 600;
 }
 
 .nav-item,
@@ -411,11 +473,16 @@ watch(visibleNavItems, () => {
     padding-left: 0.65rem;
     padding-right: 0.65rem;
   }
+
+  .navbar-nav .nav-link.active {
+    background: rgba(255, 255, 255, 0.12);
+    border-radius: 0.35rem;
+  }
 }
 
 @media (max-width: 767.98px) {
   .nav-link-label {
-    display: inline;
+    display: inline-flex;
   }
 
   .navbar-nav {
@@ -433,11 +500,6 @@ watch(visibleNavItems, () => {
     padding-right: 1rem;
   }
 
-  .navbar-nav .nav-link.active::after {
-    left: 1rem;
-    right: 1rem;
-  }
-
   .dropdown {
     width: 100%;
   }
@@ -449,13 +511,7 @@ watch(visibleNavItems, () => {
 
 @media (min-width: 1200px) {
   .nav-link-label {
-    display: inline;
-  }
-
-  /* With labels, span the underline under icon + text like a text underline */
-  .navbar-nav .nav-link.active::after {
-    left: 0.5rem;
-    right: 0.5rem;
+    display: inline-flex;
   }
 }
 </style>

@@ -28,6 +28,9 @@ export const useUserStore = defineStore('user', () => {
       api_key: newuser.api_key,
       team_id: newuser.team_id ?? null,
       team_ids: Array.isArray(newuser.team_ids) ? newuser.team_ids : [],
+      team_memberships: Array.isArray(newuser.team_memberships)
+        ? newuser.team_memberships
+        : (Array.isArray(user.value?.team_memberships) ? user.value.team_memberships : []),
       // Server-issued capability split (platform_admin vs team_admin)
       caps: newuser.caps && typeof newuser.caps === 'object' ? newuser.caps : null,
       firstTimeLogin: nextFirstTime,

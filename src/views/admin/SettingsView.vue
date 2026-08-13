@@ -103,7 +103,7 @@
               </div>
               <div class="col-md-6">
                 <label class="form-label">Username</label>
-                <input v-model="mailer.user" class="form-control" autocomplete="username" />
+                <input v-model="mailer.user" class="form-control" placeholder="noreply@example.com" autocomplete="username" />
               </div>
               <div class="col-md-6">
                 <label class="form-label">Password</label>

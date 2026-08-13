@@ -30,7 +30,7 @@
               </option>
             </select>
             <div class="form-text">
-              Super admin is account-wide. Team admin vs Member is set <strong>per team</strong> below
+              Super admin is account-wide. Project admin vs User is set <strong>per team</strong> below
               (legacy platform Team admin stays in sync with memberships).
             </div>
           </div>
@@ -57,8 +57,8 @@
               </div>
               <div class="col-auto">
                 <select v-model="row.role" class="form-select form-select-sm" :disabled="teamLocked">
-                  <option value="team_admin">Team admin</option>
-                  <option value="member">Member</option>
+                  <option value="team_admin">Project admin</option>
+                  <option value="member">User</option>
                 </select>
               </div>
               <div class="col-auto">
@@ -82,7 +82,7 @@
               Add team
             </button>
             <div class="form-text mt-2">
-              Same person can be Team admin on one team and Member on another. Project access is on each project’s Members panel.
+              Same person can be Project admin on one team and User on another. Project access is on each project’s Members panel.
             </div>
           </div>
           <div v-else class="mb-3">
@@ -269,7 +269,7 @@ function normalizeRoleOptions(data) {
   return roles.map((r) => (
     typeof r === 'string'
       ? { text: roleLabel(r), value: r }
-      : { text: r.text || roleLabel(r.value), value: r.value }
+      : { text: roleLabel(r.value) || r.text, value: r.value }
   )).filter((r) => r.value);
 }
 

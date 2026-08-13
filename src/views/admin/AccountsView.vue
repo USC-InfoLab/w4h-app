@@ -72,17 +72,18 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount } from 'vue';
+import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { api, authHeaders } from '../../utils/api';
 import { APP_NAME } from '@/utils/defs';
 import { VueGoodTable } from 'vue-good-table-next';
 import 'vue-good-table-next/dist/vue-good-table-next.css';
 import CopyBox from '@/components/CopyBox.vue';
+import { useVgtTheme } from '@/composables/useVgtTheme';
 
 const router = useRouter();
 const rows = ref([]);
-const tableTheme = ref('');
+const { tableTheme } = useVgtTheme();
 
 const columns = [
   { label: 'Account', field: 'name' },
@@ -99,10 +100,6 @@ const columns = [
 onMounted(async () => {
   document.title = `${APP_NAME} Accounts`;
 
-  const mql = window.matchMedia('(prefers-color-scheme: dark)');
-  updateTheme(mql);
-  mql.addEventListener('change', updateTheme);
-
   try {
     const res = await api.get('users/accounts', authHeaders());
 
@@ -117,16 +114,6 @@ onMounted(async () => {
   }
 });
 
-onBeforeUnmount(() => {
-  window
-    .matchMedia('(prefers-color-scheme: dark)')
-    .removeEventListener('change', updateTheme);
-});
-
-function updateTheme(e) {
-  tableTheme.value = e.matches ? 'nocturnal bg-dark' : '';
-}
-
 function onEdit(account) {
   router.push({
     name: 'accountsEdit',
@@ -134,9 +121,3 @@ function onEdit(account) {
   });
 }
 </script>
-
-<style scoped>
-:deep(.vgt-table.nocturnal) {
-  background-color: #343a40 !important;
-}
-</style>

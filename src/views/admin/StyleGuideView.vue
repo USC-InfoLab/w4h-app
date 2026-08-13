@@ -16,18 +16,19 @@
         </p>
       </div>
       <div class="card p-3">
-        <div class="form-check form-switch mb-0">
-          <input
-            id="styleGuideDark"
-            v-model="darkMode"
-            class="form-check-input"
-            type="checkbox"
-            role="switch"
-          />
-          <label class="form-check-label" for="styleGuideDark">
-            Dark mode
-            <span class="text-muted small">({{ darkMode ? 'dark' : 'light' }})</span>
-          </label>
+        <label class="form-label small text-muted mb-1" for="styleGuideThemeMode">Theme mode</label>
+        <select
+          id="styleGuideThemeMode"
+          :value="themeMode"
+          class="form-select form-select-sm"
+          @change="setThemeMode(($event.target).value)"
+        >
+          <option value="light">Light</option>
+          <option value="dark">Dark</option>
+          <option value="system">System</option>
+        </select>
+        <div class="small text-muted mt-1">
+          Resolved theme: <strong>{{ darkMode ? 'dark' : 'light' }}</strong>
         </div>
       </div>
     </div>
@@ -61,6 +62,45 @@
         <p class="mb-0">
           <button type="button" class="btn btn-link p-0">btn-link control</button>
         </p>
+      </div>
+    </section>
+
+    <!-- Tooltips -->
+    <section class="mb-4">
+      <h2 class="h5">Tooltips</h2>
+      <p class="text-muted small mb-2">
+        Tokens: <code>--w4h-tooltip-bg</code> / <code>--w4h-tooltip-fg</code>
+        (map to Bootstrap emphasis / body; invert with dark mode).
+      </p>
+      <div class="row g-2 mb-3">
+        <div v-for="swatch in tooltipSwatches" :key="swatch.name" class="col-6 col-md-3 col-xl-2">
+          <div class="border rounded overflow-hidden h-100">
+            <div class="token-swatch" :style="{ background: swatch.css }" />
+            <div class="p-2 small">
+              <div class="fw-semibold">{{ swatch.name }}</div>
+              <code class="d-block text-muted">{{ swatch.token }}</code>
+              <code class="d-block">{{ swatch.hex }}</code>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="card p-3 d-flex flex-wrap gap-3 align-items-center">
+        <button
+          type="button"
+          class="btn btn-outline-primary btn-sm"
+          data-bs-toggle="tooltip"
+          data-bs-placement="top"
+          title="Bootstrap tooltip — bg follows emphasis / body tokens"
+        >
+          Bootstrap tooltip
+        </button>
+        <button
+          type="button"
+          class="btn btn-outline-secondary btn-sm"
+          v-tooltip="'Floating Vue tooltip — same tokens'"
+        >
+          Floating Vue tooltip
+        </button>
       </div>
     </section>
 
@@ -121,13 +161,13 @@
         <div class="row g-3">
           <div class="col-md-6">
             <label class="form-label" for="sgEmail">Email</label>
-            <input id="sgEmail" type="email" class="form-control" placeholder="you@usc.edu" />
+            <input id="sgEmail" type="email" class="form-control" placeholder="you@example.com" />
           </div>
           <div class="col-md-6">
             <label class="form-label" for="sgSelect">Select</label>
             <select id="sgSelect" class="form-select">
-              <option>Team admin</option>
-              <option>Member</option>
+              <option>Project admin</option>
+              <option>User</option>
             </select>
           </div>
           <div class="col-md-6">
@@ -225,13 +265,13 @@
               <tbody>
                 <tr>
                   <td>Ada Lovelace</td>
-                  <td>Team admin</td>
+                  <td>Project admin</td>
                   <td><span class="badge text-bg-success">Active</span></td>
                   <td><button type="button" class="btn btn-sm btn-outline-primary">Edit</button></td>
                 </tr>
                 <tr>
                   <td>Alan Turing</td>
-                  <td>Member</td>
+                  <td>User</td>
                   <td><span class="badge text-bg-secondary">Invited</span></td>
                   <td><button type="button" class="btn btn-sm btn-outline-primary">Edit</button></td>
                 </tr>
@@ -270,6 +310,7 @@
         <p class="text-muted mb-1">text-muted</p>
         <p class="text-primary mb-1">text-primary <span class="text-muted small">(dark: lightened — never deep Cardinal on black)</span></p>
         <p class="text-danger mb-1">text-danger</p>
+        <p class="text-warning mb-1">text-warning</p>
         <p class="text-success mb-0">text-success</p>
       </div>
     </section>
@@ -287,12 +328,33 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, onBeforeUnmount, ref, watch, nextTick } from 'vue';
 import { useUIStore } from '@/stores/ui';
 import { storeToRefs } from 'pinia';
+import { Tooltip } from 'bootstrap';
 
 const uiStore = useUIStore();
-const { darkMode } = storeToRefs(uiStore);
+const { darkMode, themeMode } = storeToRefs(uiStore);
+
+const tooltipInstances = ref([]);
+
+function disposeTooltips() {
+  tooltipInstances.value.forEach((t) => t.dispose());
+  tooltipInstances.value = [];
+}
+
+function initTooltips() {
+  disposeTooltips();
+  document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach((el) => {
+    tooltipInstances.value.push(
+      new Tooltip(el, {
+        placement: el.getAttribute('data-bs-placement') || 'top',
+        trigger: 'hover focus',
+        container: 'body',
+      })
+    );
+  });
+}
 
 /** Resolve a CSS color (var or hex) to a computed hex for display. */
 function cssColorToHex(value) {
@@ -315,8 +377,12 @@ const swatchDefs = [
   { name: 'Cardinal hover', token: '--w4h-cardinal-hover', css: 'var(--w4h-cardinal-hover)', fallback: '#7a0000' },
   { name: 'Gold', token: '--w4h-gold', css: 'var(--w4h-gold)', fallback: '#ffcc00' },
   { name: 'Nav bg', token: '--w4h-nav-bg', css: 'var(--w4h-nav-bg)', fallback: '#630000' },
+  { name: 'Muted text', token: '--w4h-muted', css: 'var(--w4h-muted)', fallback: '#595959' },
+  { name: 'Accent', token: '--w4h-accent', css: 'var(--w4h-accent)', fallback: '#990000' },
   { name: 'Link', token: '--bs-link-color', css: 'var(--bs-link-color)', fallback: '#990000' },
   { name: 'Primary', token: '--bs-primary', css: 'var(--bs-primary)', fallback: '#990000' },
+  { name: 'Tooltip bg', token: '--w4h-tooltip-bg', css: 'var(--w4h-tooltip-bg)', fallback: '#212529' },
+  { name: 'Tooltip text', token: '--w4h-tooltip-fg', css: 'var(--w4h-tooltip-fg)', fallback: '#ffffff' },
 ];
 
 const resolvedHex = ref({});
@@ -340,10 +406,26 @@ const swatches = computed(() =>
   }))
 );
 
-onMounted(refreshHex);
+const tooltipSwatches = computed(() =>
+  swatches.value.filter((s) => s.token.includes('tooltip'))
+);
+
+onMounted(() => {
+  refreshHex();
+  nextTick(() => initTooltips());
+});
+
+onBeforeUnmount(() => {
+  disposeTooltips();
+});
+
 watch(darkMode, () => {
   requestAnimationFrame(refreshHex);
 });
+
+function setThemeMode(mode) {
+  uiStore.setThemeMode(mode);
+}
 </script>
 
 <style scoped>

@@ -14,12 +14,12 @@
 
     <p class="text-muted mb-3">
       <template v-if="callerIsSuper">
-        Super admins can invite Team admins and members (and other Super admins).
-        Team admin vs Member is stored <strong>per team</strong> — choose the invite role and team below.
+        Super admins can invite Project admins and Users (and other Super admins).
+        Project admin vs User is stored <strong>per team</strong> — choose the invite role and team below.
         If the email already belongs to an account, they are added to that team instead of creating a duplicate.
       </template>
       <template v-else>
-        Team admins can invite members to their own team.
+        Project admins can invite Users to their own team.
         If the email already belongs to someone on one of your teams, they are added to the selected team.
         Project membership is assigned later from the project edit screen.
       </template>
@@ -120,7 +120,7 @@ import { useRoute } from 'vue-router';
 import { storeToRefs } from 'pinia';
 import { api, authHeaders } from '../../utils/api';
 import { APP_NAME } from '@/utils/defs';
-import { isSuperAdmin, isTeamAdmin, USER_ROLES } from '@/utils/roles';
+import { isSuperAdmin, isTeamAdmin, USER_ROLES, roleLabel } from '@/utils/roles';
 import { useUserStore } from '@/stores/user';
 
 const route = useRoute();
@@ -225,7 +225,7 @@ async function onSave() {
         );
         submitMessage.value =
           `A user with email ${form.value.email} already exists — they were added to the selected team ` +
-          `as ${form.value.role === 'team_admin' ? 'Team admin' : 'Member'}.`;
+          `as ${form.value.role === 'team_admin' ? 'Project admin' : 'User'}.`;
         submitted.value = true;
         return;
       } catch (addError) {
@@ -255,8 +255,8 @@ onMounted(async () => {
     const roles = Array.isArray(rolesRes.data) ? rolesRes.data : [];
     roleOptions.value = roles.map(r => (
       typeof r === 'string'
-        ? { text: r, value: r }
-        : { text: r.text || r.value, value: r.value }
+        ? { text: roleLabel(r), value: r }
+        : { text: roleLabel(r.value) || r.text || r.value, value: r.value }
     ));
   } catch (e) {
     console.error(e);

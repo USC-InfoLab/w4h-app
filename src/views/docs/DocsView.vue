@@ -123,14 +123,6 @@ import { docsHeadingHashId } from '@/utils/docsHeadingId';
 
 const { fetchDocTypes } = useDocTypes();
 
-const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-mermaid.initialize({ startOnLoad: false, theme: prefersDark ? 'dark' : 'default' });
-
-// Re-initialise mermaid if the OS color-scheme changes at runtime
-window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
-  mermaid.initialize({ startOnLoad: false, theme: e.matches ? 'dark' : 'default' });
-});
-
 const showDeleteModal = ref(false);
 const docToDelete = ref(null);
 
@@ -208,6 +200,13 @@ const { user } = storeToRefs(userStore);
 import { useUIStore } from '@/stores/ui';
 import { canAccessAdminUi } from '@/utils/roles';
 const uiStore = useUIStore();
+const { darkMode } = storeToRefs(uiStore);
+
+function applyMermaidTheme() {
+  mermaid.initialize({ startOnLoad: false, theme: darkMode.value ? 'dark' : 'default' });
+}
+
+applyMermaidTheme();
 
 import MdDocEditable from '@/components/MdDocEditable.vue';
 import { rewriteDocMediaUrls } from '@/utils/docMedia';
@@ -548,6 +547,11 @@ watch(
   { flush: 'post' }
 );
 
+watch(darkMode, async () => {
+  applyMermaidTheme();
+  await refreshMermaidInPreview();
+});
+
 /**
  * Safe querySelector for anchors: CSS selectors cannot start with a digit
  * (e.g. `#1-overview` is invalid). Fall back to getElementById which has
@@ -599,7 +603,7 @@ onBeforeUnmount(() => {
 .docs-content h3,
 .docs-content h4,
 #top {
-  scroll-margin-top: 56px;
+  scroll-margin-top: var(--app-navbar-height, 44px);
 }
 
 @media (max-width: 767.98px) {
@@ -608,7 +612,7 @@ onBeforeUnmount(() => {
   .docs-content h3,
   .docs-content h4,
   #top {
-    scroll-margin-top: calc(56px + var(--docs-subnav-height, 2.5rem));
+    scroll-margin-top: calc(var(--app-navbar-height, 44px) + var(--docs-subnav-height, 2.5rem));
   }
 }
 
@@ -974,7 +978,7 @@ div .alert {
   top: 70px !important;
   /* was 56px — adds breathing room below navbar */
   height: calc(100vh - 70px) !important;
-  /* was calc(100vh - 56px) */
+  /* was calc(100vh - var(--app-navbar-height, 44px)) */
   z-index: 1050 !important;
 }
 
@@ -1038,7 +1042,7 @@ div .alert {
 /* Layout for Split.js panes */
 .docs-split {
   display: flex;
-  height: calc(100vh - 56px);
+  height: calc(100vh - var(--app-navbar-height, 44px));
   /* <--- THIS IS THE FIX */
   /* adjust to taste */
   gap: 0;
@@ -1077,7 +1081,7 @@ div .alert {
 .docs-subnav {
   --docs-subnav-height: 2.5rem;
   position: fixed;
-  top: 56px;
+  top: var(--app-navbar-height, 44px);
   left: 0;
   right: 0;
   z-index: 1020;

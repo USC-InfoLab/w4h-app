@@ -1,7 +1,13 @@
 <template>
   <main class="ProjectsView">
     <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-      <h3 class="mb-0">My Projects</h3>
+      <div>
+        <h3 class="mb-0">
+          My Projects
+          <span v-if="activeTeamName" class="text-muted fw-normal fs-6">· {{ activeTeamName }}</span>
+        </h3>
+        <p class="small text-muted mb-0 mt-1">Projects on your active team. Open one to enter the workspace.</p>
+      </div>
       <button
         v-if="canCreateProject"
         type="button"
@@ -20,21 +26,24 @@
       {{ errorMessage }}
     </div>
 
-    <ul v-else-if="projects.length" class="list-group">
+    <ul v-else-if="visibleProjects.length" class="list-group">
       <li
-        v-for="project in projects"
+        v-for="project in visibleProjects"
         :key="project.id"
         class="list-group-item d-flex justify-content-between align-items-center list-group-item-action"
         role="button"
         @click="openProject(project.slug || project.id)"
       >
-        <span class="text-truncate">{{ project.name || project.id }}</span>
+        <span class="text-truncate">
+          {{ project.name || project.id }}
+          <small v-if="project.my_role" class="text-muted ms-2">{{ project.my_role }}</small>
+        </span>
         <span class="badge text-bg-secondary text-truncate" style="max-width: 12rem">{{ project.slug || project.id }}</span>
       </li>
     </ul>
 
     <div v-else class="alert alert-secondary" role="alert">
-      No projects yet.{{ canCreateProject ? ' Create one to get started.' : '' }}
+      No projects yet{{ activeTeamName ? ` on ${activeTeamName}` : '' }}.{{ canCreateProject ? ' Create one to get started.' : '' }}
     </div>
 
     <div class="modal fade" tabindex="-1" ref="createModalEl" aria-hidden="true">
@@ -81,10 +90,12 @@ import { APP_NAME } from '@/utils/defs';
 import { useUserStore } from '@/stores/user';
 import { useUIStore } from '@/stores/ui';
 import { canAccessAdminUi } from '@/utils/roles';
+import { useTeamContext } from '@/composables/useTeamContext';
 
 const router = useRouter();
 const userStore = useUserStore();
 const uiStore = useUIStore();
+const { activeTeamId, activeTeamName } = useTeamContext();
 
 const isLoading = ref(true);
 const errorMessage = ref('');
@@ -99,6 +110,13 @@ const canCreateProject = computed(() =>
   canAccessAdminUi(userStore.user?.role) && uiStore.isAdminUI
 );
 
+const visibleProjects = computed(() => {
+  const tid = activeTeamId.value;
+  const rows = Array.isArray(projects.value) ? projects.value : [];
+  if (!tid) return rows;
+  return rows.filter((p) => String(p.team_id) === String(tid));
+});
+
 function clearLocalProjectDrafts() {
   const keysToDelete = [];
   for (let i = 0; i < localStorage.length; i += 1) {
@@ -111,7 +129,7 @@ function clearLocalProjectDrafts() {
 }
 
 function openProject(projectRef) {
-  router.push({ name: 'projectWorkspace', params: { id: projectRef } });
+  router.push({ name: 'adminProjectsEdit', params: { id: projectRef } });
 }
 
 function openCreateModal() {

@@ -2,7 +2,7 @@
   <main class="container-fluid">
     <nav aria-label="breadcrumb" class="mb-3">
       <ol class="breadcrumb">
-        <li class="breadcrumb-item">
+        <li v-if="isPlatformAdmin" class="breadcrumb-item">
           <router-link to="/admin/home">Admin</router-link>
         </li>
         <li class="breadcrumb-item active" aria-current="page">Audit log</li>
@@ -11,10 +11,17 @@
 
     <div class="d-flex flex-wrap align-items-start justify-content-between gap-2 mb-3">
       <div>
-        <h5 class="mb-0">HIPAA audit log</h5>
+        <h5 class="mb-0">{{ isPlatformAdmin ? 'HIPAA audit log' : 'Project audit' }}</h5>
         <p class="text-muted small mb-0">
-          Append-only ledger of authentication, ACL, and privileged actions (H-11 / ADR-011).
-          Not the Usage dashboard.
+          <template v-if="isPlatformAdmin">
+            Append-only ledger of authentication, ACL, and privileged actions (H-11 / ADR-011).
+            Not the Usage dashboard.
+          </template>
+          <template v-else>
+            Access events for
+            <strong>{{ activeProjectName || 'the active project' }}</strong>,
+            including project-admin access to this study’s data — not the platform-wide HIPAA ledger.
+          </template>
         </p>
       </div>
       <div class="d-flex flex-wrap gap-2">
@@ -178,6 +185,7 @@
                   <td>
                     <div class="small fw-semibold">{{ row.user_name || '—' }}</div>
                     <div class="small text-muted">{{ row.user_email || (row.user_id ? `#${row.user_id}` : 'system') }}</div>
+                    <div v-if="row.actor_role_label" class="small text-muted">{{ row.actor_role_label }}</div>
                   </td>
                   <td>
                     <code class="small">{{ row.action }}</code>
@@ -241,7 +249,16 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue';
+import { storeToRefs } from 'pinia';
 import { api, authHeaders } from '@/utils/api';
+import { useUserStore } from '@/stores/user';
+import { isSuperAdmin } from '@/utils/roles';
+import { useTeamContext } from '@/composables/useTeamContext';
+
+const userStore = useUserStore();
+const { user } = storeToRefs(userStore);
+const isPlatformAdmin = computed(() => isSuperAdmin(user.value?.role));
+const { activeProjectId, activeProjectName } = useTeamContext();
 
 const loading = ref(false);
 const exporting = ref(false);
@@ -315,6 +332,9 @@ function queryParams({ forExport = false } = {}) {
   if (filters.action) params.action = filters.action;
   if (filters.resource_type) params.resource_type = filters.resource_type;
   if (filters.q) params.q = filters.q;
+  if (!isPlatformAdmin.value && activeProjectId.value) {
+    params.project_id = activeProjectId.value;
+  }
   if (forExport) params.format = 'csv';
   return params;
 }

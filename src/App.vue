@@ -9,7 +9,7 @@
 </template>
 
 <script setup>
-import { onMounted, onBeforeUnmount, computed, watch } from 'vue'
+import { computed, watch } from 'vue'
 import NavBar from '@/components/NavBar.vue'
 import AdminNavBar from '@/components/AdminNavBar.vue'
 import { trackPageView, trackSessionStart } from '@/utils/clientUsage'
@@ -31,13 +31,14 @@ const isGuest = computed(() => route.meta.guest === true);
 // Super admin always uses Platform Admin chrome — no toggle into the team app shell.
 const isAdminUI = computed(() => canAccessAdminUi(user.value?.role, user.value?.caps));
 
-function syncBootstrapTheme(isDark) {
-  document.body.dataset.bsTheme = isDark ? 'dark' : 'light';
+function syncBootstrapTheme(theme) {
+  document.body.dataset.bsTheme = theme;
+  document.documentElement.dataset.w4hTheme = theme;
 }
 
 watch(
-  () => uiStore.darkMode,
-  (isDark) => syncBootstrapTheme(isDark),
+  () => uiStore.resolvedTheme,
+  (theme) => syncBootstrapTheme(theme),
   { immediate: true }
 );
 
@@ -51,22 +52,5 @@ watch(
   },
   { immediate: true }
 );
-
-onMounted(() => {
-  const prefersDarkTheme = window.matchMedia('(prefers-color-scheme: dark)')
-  prefersDarkTheme.addEventListener('change', handleThemeChange)
-})
-
-onBeforeUnmount(() => {
-  const prefersDarkTheme = window.matchMedia('(prefers-color-scheme: dark)')
-  prefersDarkTheme.removeEventListener('change', handleThemeChange)
-})
-
-function handleThemeChange(event) {
-  // Only follow system when user has not set an explicit preference.
-  if (localStorage.getItem('darkMode') === null) {
-    uiStore.darkMode = event.matches;
-  }
-}
 
 </script>

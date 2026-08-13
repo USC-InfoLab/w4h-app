@@ -21,10 +21,16 @@
   --w4h-cardinal-active: #660000;
   --w4h-gold: #ffcc00;
   --w4h-gold-rgb: 255, 204, 0;
-  /* Gray 70K — USC secondary text on light backgrounds */
+  /* Gray 70K — USC secondary text on light backgrounds (~4.5:1 on white) */
   --w4h-gray-70: #767676;
+  /* Muted text: WCAG AA 4.5:1 on body and cards (solid — no alpha wash) */
+  --w4h-muted: #595959;
+  /* Icon/check accent that must contrast on surfaces (Cardinal on light) */
+  --w4h-accent: var(--w4h-cardinal);
   /* Slightly deeper cardinal for chrome (nav bars) */
   --w4h-nav-bg: #630000;
+  /* Fixed top chrome height (keep layout offsets in sync) */
+  --app-navbar-height: 44px;
   /* Brand callout — neutral panel + Cardinal accent bar (not Bootstrap alert-info) */
   --w4h-callout-bg: #f8f5f5;
   --w4h-callout-border: var(--bs-border-color, #dee2e6);
@@ -48,6 +54,11 @@
   --bs-link-hover-color: #990000;
   --bs-link-color-rgb: 153, 0, 0;
   --bs-focus-ring-color: rgba(153, 0, 0, 0.25);
+  /* Tooltip tokens (Bootstrap + Floating Vue) */
+  --w4h-tooltip-bg: var(--bs-emphasis-color);
+  --w4h-tooltip-fg: var(--bs-body-bg);
+  --bs-secondary-color: var(--w4h-muted);
+  --bs-tertiary-color: #6c6c6c;
 }
 
 [data-bs-theme='dark'] {
@@ -67,9 +78,31 @@
   --w4h-callout-color: var(--bs-body-color, #dee2e6);
   --w4h-callout-heading: var(--bs-emphasis-color, #fff);
   --w4h-active-fg: #ffffff;
+  --w4h-tooltip-bg: var(--bs-emphasis-color);
+  --w4h-tooltip-fg: var(--bs-body-bg);
+  /* Solid muted (not rgba) so captions stay ≥4.5:1 on charcoal cards/menus */
+  --w4h-muted: #c5cad0;
+  --w4h-accent: var(--w4h-gold);
+  --bs-secondary-color: var(--w4h-muted);
+  --bs-tertiary-color: #adb5bd;
 }
 
 /* Precompiled Bootstrap bakes default blues into component locals — re-map explicitly. */
+.dropdown-menu {
+  --bs-dropdown-link-active-bg: var(--w4h-cardinal);
+  --bs-dropdown-link-active-color: #fff;
+}
+
+.text-muted,
+.text-secondary {
+  color: var(--w4h-muted) !important;
+}
+
+.nav-link:focus-visible {
+  outline: 0;
+  box-shadow: 0 0 0 0.25rem var(--bs-focus-ring-color);
+}
+
 .btn-primary {
   --bs-btn-color: #fff;
   --bs-btn-bg: #990000;
@@ -308,7 +341,18 @@ a:not(.btn):not(.nav-link):not(.navbar-brand):not(.dropdown-item):not(.page-link
 }
 
 body {
-  padding-top: 56px; /* for .navbar height */
+  padding-top: var(--app-navbar-height, 44px);
+}
+
+/* Compact top chrome — both user + admin navbars */
+.navbar {
+  --bs-navbar-padding-y: 0.15rem;
+  --bs-navbar-brand-padding-y: 0.15rem;
+  min-height: var(--app-navbar-height, 44px);
+}
+
+.navbar .navbar-nav {
+  --bs-nav-link-padding-y: 0.3rem;
 }
 
 main {
@@ -333,6 +377,131 @@ main {
 /* Optional: left-align list items too */
 .tooltip-inner li {
   text-align: left !important;
+}
+
+/*
+ * Tooltips — follow Bootstrap theme tokens (not hardcoded black).
+ * Bootstrap .tooltip already uses --bs-tooltip-*; Floating Vue defaults to rgba(0,0,0,.8).
+ */
+.tooltip {
+  --bs-tooltip-bg: var(--w4h-tooltip-bg);
+  --bs-tooltip-color: var(--w4h-tooltip-fg);
+}
+
+.v-popper--theme-tooltip .v-popper__inner {
+  background: var(--w4h-tooltip-bg);
+  color: var(--w4h-tooltip-fg);
+  border-radius: var(--bs-border-radius, 0.375rem);
+  padding: 0.35rem 0.65rem;
+  font-size: 0.875rem;
+}
+
+.v-popper--theme-tooltip .v-popper__arrow-outer {
+  border-color: var(--w4h-tooltip-bg);
+}
+
+/* VueGoodTable — brand accents + Bootstrap surfaces (theme via uiStore → :theme) */
+.vgt-table thead th.sorting-asc button:after {
+  border-bottom-color: var(--w4h-cardinal) !important;
+}
+
+.vgt-table thead th.sorting-desc button:before {
+  border-top-color: var(--w4h-cardinal) !important;
+}
+
+.vgt-table.nocturnal {
+  border-color: var(--bs-border-color) !important;
+  background-color: var(--bs-body-bg) !important;
+  color: var(--bs-body-color);
+}
+
+.vgt-table.nocturnal td {
+  border-bottom-color: var(--bs-border-color) !important;
+  color: var(--bs-body-color) !important;
+}
+
+.vgt-table.nocturnal thead th,
+.vgt-table.nocturnal th.line-numbers,
+.vgt-table.nocturnal th.vgt-checkbox-col {
+  color: var(--bs-body-color) !important;
+  border-color: var(--bs-border-color) !important;
+  background: var(--bs-tertiary-bg) !important;
+}
+
+.vgt-table.nocturnal thead th.sortable.sorting-asc:after,
+.vgt-table.nocturnal thead th.sorting-asc button:after {
+  border-bottom-color: var(--w4h-gold) !important;
+}
+
+.vgt-table.nocturnal thead th.sortable.sorting-desc:before,
+.vgt-table.nocturnal thead th.sorting-desc button:before {
+  border-top-color: var(--w4h-gold) !important;
+}
+
+.vgt-table.nocturnal .vgt-input,
+.vgt-table.nocturnal .vgt-select {
+  color: var(--bs-body-color) !important;
+  background-color: var(--bs-body-bg) !important;
+  border-color: var(--bs-border-color) !important;
+}
+
+.vgt-wrap.nocturnal .vgt-global-search {
+  background: var(--bs-tertiary-bg) !important;
+  border-color: var(--bs-border-color) !important;
+}
+
+.vgt-wrap.nocturnal .vgt-global-search__input .vgt-input,
+.vgt-wrap.nocturnal .vgt-global-search__input .vgt-select {
+  color: var(--bs-body-color) !important;
+  background-color: var(--bs-body-bg) !important;
+  border-color: var(--bs-border-color) !important;
+}
+
+.vgt-wrap.nocturnal .vgt-wrap__footer {
+  background: var(--bs-tertiary-bg) !important;
+  border-color: var(--bs-border-color) !important;
+  color: var(--bs-body-color) !important;
+}
+
+.vgt-wrap.nocturnal .vgt-selection-info-row {
+  background-color: var(--bs-primary-bg-subtle);
+  color: var(--bs-body-color);
+  border: 1px solid var(--bs-border-color);
+}
+
+.vgt-wrap.nocturnal .vgt-selection-info-row a {
+  color: var(--bs-link-color);
+}
+
+.vgt-wrap:not(.nocturnal) .vgt-selection-info-row {
+  background-color: var(--bs-tertiary-bg);
+  color: var(--bs-body-color);
+  border-bottom: 1px solid var(--bs-border-color);
+}
+
+.vgt-wrap:not(.nocturnal) .vgt-selection-info-row a {
+  color: var(--bs-link-color);
+}
+
+/*
+ * VueDatePicker — replace Material blue with Cardinal / Gold.
+ */
+.dp__theme_light {
+  --dp-primary-color: var(--w4h-cardinal);
+  --dp-primary-disabled-color: #c08080;
+  --dp-primary-text-color: #fff;
+  --dp-highlight-color: rgba(var(--w4h-cardinal-rgb), 0.12);
+  --dp-border-color-focus: var(--w4h-cardinal);
+  --dp-loader: 5px solid var(--w4h-cardinal);
+}
+
+.dp__theme_dark {
+  --dp-primary-color: var(--w4h-gold);
+  --dp-primary-disabled-color: #c4a84a;
+  --dp-primary-text-color: #212121;
+  --dp-highlight-color: rgba(var(--w4h-gold-rgb), 0.2);
+  --dp-border-color-focus: var(--w4h-gold);
+  --dp-loader: 5px solid var(--w4h-gold);
 }
 
 /* Multiselect */

@@ -387,7 +387,8 @@
           </div>
           <div class="modal-body">
             <p class="small text-muted">
-              At least one <strong>owner</strong> is required. Use account email addresses from your organization.
+              At least one <strong>Project admin</strong> is required.
+              Super admin is a platform role — it is not assigned here.
             </p>
             <div v-for="(row, idx) in memberRows" :key="idx" class="row g-2 align-items-end mb-2">
               <div class="col-md-6">
@@ -397,10 +398,8 @@
               <div class="col-md-4">
                 <label class="form-label small mb-0">Role</label>
                 <select v-model="row.role" class="form-select form-select-sm">
-                  <option value="owner">owner</option>
-                  <option value="admin">admin</option>
-                  <option value="editor">editor</option>
-                  <option value="viewer">viewer</option>
+                  <option value="owner">Project admin</option>
+                  <option value="editor">User</option>
                 </select>
               </div>
               <div class="col-md-2">
@@ -428,6 +427,7 @@ import { useRoute, useRouter } from 'vue-router';
 
 import { api, authHeaders } from '@/utils/api';
 import { APP_NAME } from '@/utils/defs';
+import { projectMemberUiValue } from '@/utils/roles';
 
 const route = useRoute();
 const router = useRouter();
@@ -815,10 +815,10 @@ function copyText(text) {
 function openMembersModal() {
   memberRows.value = (project.value.members || []).map((m) => ({
     email: m.email || '',
-    role: m.role || 'viewer'
+    role: projectMemberUiValue(m.role)
   }));
   if (!memberRows.value.length) {
-    memberRows.value.push({ email: '', role: 'viewer' });
+    memberRows.value.push({ email: '', role: 'editor' });
   }
   membersModal?.show();
 }
@@ -828,7 +828,7 @@ function closeMembersModal() {
 }
 
 function addMemberRow() {
-  memberRows.value.push({ email: '', role: 'viewer' });
+  memberRows.value.push({ email: '', role: 'editor' });
 }
 
 function removeMemberRow(idx) {
