@@ -14,7 +14,7 @@
         <div class="card p-3">
           <h5 class="card-title mb-3">Dataset</h5>
           <p class="small text-muted mb-3">
-            A dataset is a catalog of related tables (subjects, wearables, demographics, …), not a single table.
+            A dataset is a set of tables (subjects, weight, heart rate, calories, …) in its own PostgreSQL schema.
           </p>
 
           <div class="mb-3">
@@ -65,6 +65,14 @@
             <div class="form-label mb-0">Slug</div>
             <div class="font-monospace">{{ form.id || '—' }}</div>
             <div class="form-text">Stable identifier used in links and APIs. Set at creation; cannot be changed.</div>
+          </div>
+
+          <div class="mb-3">
+            <div class="form-label mb-0">PostgreSQL schema</div>
+            <div class="font-monospace">{{ schemaName || '—' }}</div>
+            <div class="form-text">
+              Generated when the dataset is created. Tables (subjects, weight, heart_rate, …) live in this schema.
+            </div>
           </div>
 
           <div class="mb-3">
@@ -208,17 +216,23 @@
         <div class="card p-3">
           <h5 class="card-title mb-3">Tables</h5>
           <p class="small text-muted mb-3">
-            Tables in this dataset (e.g. subjects, wearables, demographics).
-            Added by ingestion — not one row per device.
+            Each ingested signal becomes a SQL table in this dataset schema
+            (e.g. <span class="font-monospace">subjects</span>,
+            <span class="font-monospace">weight</span>,
+            <span class="font-monospace">heart_rate</span>,
+            <span class="font-monospace">calories</span>).
           </p>
 
           <div v-if="tables.length === 0" class="small text-muted mb-2">
-            No tables yet. Ingest CSV / JSON / REDCap (coming next) to populate this dataset.
+            No tables yet. CSV ingest adds <span class="font-monospace">subjects</span> and signal tables to this schema. JSON and REDCap ingest are not available yet.
           </div>
           <ul v-else class="list-group list-group-flush">
-            <li v-for="t in tables" :key="t.name" class="list-group-item px-0">
-              <div class="fw-semibold">{{ t.name }}</div>
-              <small v-if="t.source_name" class="text-muted">{{ t.source_name }}</small>
+            <li v-for="t in tables" :key="t.table_name || t.name" class="list-group-item px-0">
+              <div class="fw-semibold font-monospace">{{ t.table_name || t.name }}</div>
+              <small class="text-muted">
+                {{ t.signal_type || t.name }}
+                <template v-if="columnSummary(t)"> · {{ columnSummary(t) }}</template>
+              </small>
             </li>
           </ul>
         </div>
@@ -243,6 +257,7 @@ const message = ref('');
 const ok = ref(false);
 const teams = ref([]);
 const tables = ref([]);
+const schemaName = ref('');
 const teamName = ref('');
 const linkedProjects = ref([]);
 const outboundShares = ref([]);
@@ -295,6 +310,12 @@ function formatWhen(iso) {
   }
 }
 
+function columnSummary(table) {
+  const columns = table?.columns_def;
+  if (!Array.isArray(columns) || !columns.length) return '';
+  return columns.map((c) => c.name || c).join(', ');
+}
+
 function applyDataset(d) {
   form.id = d.id || '';
   form.team_id = d.team_id || '';
@@ -302,6 +323,7 @@ function applyDataset(d) {
   form.description = d.description || '';
   form.discoverable = d.discoverable !== false;
   teamName.value = d.team_name || '';
+  schemaName.value = d.schema_name || '';
   tables.value = Array.isArray(d.tables) ? d.tables : [];
   if (Array.isArray(d.projects) && d.projects.length) {
     linkedProjects.value = d.projects.map((p) => ({

@@ -20,8 +20,8 @@
         <div class="card p-3">
           <h5 class="card-title mb-3">New Dataset</h5>
           <p class="small text-muted mb-3">
-            A dataset is a team-owned catalog of related tables (e.g. subjects, Fitbit, demographics).
-            You create the catalog entry here; tables are added when you ingest data.
+            A dataset is a team-owned set of tables (e.g. subjects, weight, heart_rate).
+            You create the catalog entry here; tables are added when you ingest CSVs.
           </p>
 
           <div class="mb-3">
