@@ -45,7 +45,7 @@ Do not change these product rules without an explicit product-level request.
 - Stack: Vue 3, Vite, Pinia, Vue Router, Bootstrap 5 + bootstrap-icons.
 - App code lives under `src/` (`views`, `components`, `utils`, etc.).
 - Preserve existing design-system and nearby component patterns.
-- Environment: copy `.env.example` → `.env`.
+- Environment: copy `.env.example` → `.env`. `VITE_*` only. Screenshot / Playwright accounts are seeded in **w4h-api** and configured in **w4h-docs** (`dev/docs-fixtures.md`), not in this file.
 - Local development requires a running **w4h-api**.
 
 Common scripts:

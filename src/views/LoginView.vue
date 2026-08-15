@@ -425,8 +425,16 @@ const resetMessage = () => {
   message.value = '';
 };
 
-const devEmail = import.meta.env.DEV ? import.meta.env.VITE_APP_ADMIN_EMAIL?.trim() : '';
-const devPassword = import.meta.env.DEV ? import.meta.env.VITE_APP_ADMIN_PASSWORD?.trim() : '';
+function isDocsCapture() {
+  try {
+    return sessionStorage.getItem('w4h.docsCapture') === '1';
+  } catch {
+    return false;
+  }
+}
+
+const devEmail = import.meta.env.DEV && !isDocsCapture() ? import.meta.env.VITE_APP_ADMIN_EMAIL?.trim() : '';
+const devPassword = import.meta.env.DEV && !isDocsCapture() ? import.meta.env.VITE_APP_ADMIN_PASSWORD?.trim() : '';
 
 const email = ref(devEmail || '');
 const password = ref(devPassword || '');
@@ -440,7 +448,7 @@ function isLoginFormVisible() {
 
 /** Prefill sign-in from `.env` in dev only (`VITE_APP_ADMIN_*`, same as admin setup). */
 function applyDevLoginPrefill() {
-  if (!import.meta.env.DEV || !isLoginFormVisible()) return;
+  if (!import.meta.env.DEV || isDocsCapture() || !isLoginFormVisible()) return;
   if (devEmail) email.value = devEmail;
   if (devPassword) password.value = devPassword;
 }
