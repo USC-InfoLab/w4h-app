@@ -108,9 +108,7 @@
 
             <ul class="list-group list-group-flush">
               <li v-for="doc in project.docs" :key="doc.id" class="list-group-item px-0 d-flex justify-content-between align-items-center">
-                <RouterLink :to="{ name: 'docs', params: { slug: doc.slug } }" class="text-decoration-none">
-                  {{ doc.title }}
-                </RouterLink>
+                <span>{{ doc.title }}</span>
                 <small class="text-muted">edited {{ relativeDate(doc.updatedAt) }}</small>
               </li>
             </ul>
@@ -387,7 +385,7 @@
           </div>
           <div class="modal-body">
             <p class="small text-muted">
-              At least one <strong>Project admin</strong> is required.
+              At least one <strong>Admin</strong> is required.
               Super admin is a platform role — it is not assigned here.
             </p>
             <div v-for="(row, idx) in memberRows" :key="idx" class="row g-2 align-items-end mb-2">
@@ -398,7 +396,7 @@
               <div class="col-md-4">
                 <label class="form-label small mb-0">Role</label>
                 <select v-model="row.role" class="form-select form-select-sm">
-                  <option value="owner">Project admin</option>
+                  <option value="owner">Admin</option>
                   <option value="editor">User</option>
                 </select>
               </div>
@@ -614,12 +612,12 @@ function mapOverviewToProject(overview) {
           launchers: Array.isArray(n.launchers) ? n.launchers : ['jupyter']
         }))
       : base.notebooks,
-    docs: Array.isArray(overview?.docs)
-      ? overview.docs.map((d, i) => ({
+    docs: Array.isArray(overview?.pages)
+      ? overview.pages.map((d, i) => ({
           id: d.slug || `doc-${i}`,
           title: d.title || d.slug || 'Document',
           slug: d.slug || 'home',
-          updatedAt: d.updated_at || d.linked_at || new Date().toISOString()
+          updatedAt: d.updated_at || new Date().toISOString()
         }))
       : base.docs,
     launchers: {

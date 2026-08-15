@@ -1,6 +1,6 @@
 <template>
   <main class="container-fluid" v-if="loaded">
-    <nav aria-label="breadcrumb" class="mb-3">
+    <nav v-if="canManageThisProject" aria-label="breadcrumb" class="mb-3">
       <ol class="breadcrumb">
         <li v-if="isSuperAdmin(userStore.user?.role)" class="breadcrumb-item">
           <router-link to="/admin/projects">Projects</router-link>
@@ -9,255 +9,53 @@
       </ol>
     </nav>
 
-    <div class="row g-3">
-      <div class="col-12 col-lg-7">
-        <div class="card p-3">
-          <h5 class="card-title mb-3">Project details</h5>
+    <ProjectAdminPanel
+      v-if="canManageThisProject"
+      :form="form"
+      :teams="teams"
+      :can-change-team="canChangeTeam"
+      :team-label="teamLabel"
+      :created-by-label="createdByLabel"
+      :created-at-label="createdAtLabel"
+      :member-rows="memberRows"
+      :addable-members="addableMembers"
+      :eligible-members="eligibleMembers"
+      :linked-dataset-rows="linkedDatasetRows"
+      :addable-datasets="addableDatasets"
+      :dataset-to-add="datasetToAdd"
+      :new-dataset-name="newDatasetName"
+      :new-member="newMember"
+      :saving-project="savingProject"
+      :saving-members="savingMembers"
+      :saving-datasets="savingDatasets"
+      :current-user-id="userStore.user?.id"
+      :pages="projectPages"
+      :can-edit-pages="canEditPages"
+      @save-project="saveProject"
+      @add-member="addMember"
+      @change-member-role="changeMemberRole"
+      @delete-member="deleteMember"
+      @update:dataset-to-add="datasetToAdd = $event"
+      @update:new-dataset-name="newDatasetName = $event"
+      @dataset-pick="onDatasetPick"
+      @create-dataset="createDatasetForProject"
+      @unlink-dataset="unlinkDataset"
+    />
 
-          <div class="mb-3">
-            <label class="form-label">Name</label>
-            <input v-model.trim="form.name" class="form-control" :disabled="!canManageThisProject" />
-          </div>
-
-          <div class="mb-3">
-            <label class="form-label">Description</label>
-            <textarea
-              v-model.trim="form.description"
-              class="form-control"
-              rows="3"
-              placeholder="Optional"
-              :disabled="!canManageThisProject"
-            ></textarea>
-          </div>
-
-          <div class="mb-3">
-            <label class="form-label">Status</label>
-            <select
-              v-model="form.status"
-              class="form-select"
-              style="max-width: 16rem;"
-              :disabled="!canManageThisProject"
-            >
-              <option value="active">active</option>
-              <option value="archived">archived</option>
-            </select>
-          </div>
-
-          <div v-if="canChangeTeam" class="mb-3">
-            <label class="form-label">Owning team</label>
-            <select v-model="form.team_id" class="form-select">
-              <option value="">— none —</option>
-              <option v-for="t in teams" :key="t.id" :value="t.id">
-                {{ t.name }}{{ t.slug ? ` (${t.slug})` : '' }}
-              </option>
-            </select>
-            <div class="form-text">
-              Owning team is set on create. Only Super admins can reassign it.
-            </div>
-          </div>
-
-          <div v-if="canManageThisProject" class="d-flex justify-content-end">
-            <button class="btn btn-primary" :disabled="savingProject || !form.name" @click="saveProject">
-              <span v-if="savingProject" class="spinner-border spinner-border-sm me-2" />
-              Save project
-            </button>
-          </div>
-
-          <div class="border-top pt-3 mt-3 small text-muted">
-            <div v-if="!canChangeTeam" class="mb-1">
-              Team: {{ teamLabel }}
-            </div>
-            <div v-if="createdByLabel" class="mb-1">
-              Created by {{ createdByLabel }}
-              <template v-if="createdAtLabel"> · {{ createdAtLabel }}</template>
-            </div>
-            <div v-else-if="createdAtLabel" class="mb-1">
-              Created {{ createdAtLabel }}
-            </div>
-            <div v-if="canManageThisProject" class="font-monospace text-break">
-              ID: {{ form.id }}
-            </div>
-          </div>
-        </div>
-
-        <div class="card p-3 mt-3">
-          <h5 class="card-title mb-3">Datasets</h5>
-          <div v-if="!form.team_id" class="alert alert-warning small mb-0">
-            Set an owning team before assigning datasets.
-          </div>
-          <template v-else>
-            <div v-if="linkedDatasetRows.length === 0" class="small text-muted mb-2">
-              None linked yet.
-            </div>
-            <div
-              v-for="row in linkedDatasetRows"
-              :key="row.id"
-              class="d-flex align-items-center justify-content-between gap-2 mb-2"
-            >
-              <div class="small">
-                <strong>{{ row.name }}</strong>
-              </div>
-              <button
-                v-if="canManageThisProject"
-                type="button"
-                class="btn btn-sm btn-outline-danger"
-                :disabled="savingDatasets"
-                @click="unlinkDataset(row.id)"
-              >
-                Remove
-              </button>
-            </div>
-
-            <template v-if="canManageThisProject">
-              <div class="row g-2 align-items-end mt-2">
-                <div class="col">
-                  <label class="form-label small mb-0">Add dataset</label>
-                  <select
-                    v-model="datasetToAdd"
-                    class="form-select form-select-sm"
-                    :disabled="savingDatasets"
-                    @change="onDatasetPick"
-                  >
-                    <option value="">Select…</option>
-                    <optgroup v-if="addableDatasets.length" label="Available">
-                      <option v-for="d in addableDatasets" :key="d.id" :value="String(d.id)">
-                        {{ d.name || d.id }}
-                      </option>
-                    </optgroup>
-                    <option value="__new__">Add new</option>
-                  </select>
-                </div>
-              </div>
-              <div v-if="datasetToAdd === '__new__'" class="row g-2 align-items-end mt-2">
-                <div class="col">
-                  <input
-                    v-model.trim="newDatasetName"
-                    class="form-control form-control-sm"
-                    placeholder="Dataset name"
-                    :disabled="savingDatasets"
-                    @keyup.enter="createDatasetForProject"
-                  />
-                </div>
-                <div class="col-auto">
-                  <button
-                    type="button"
-                    class="btn btn-sm btn-primary"
-                    :disabled="savingDatasets || !newDatasetName"
-                    @click="createDatasetForProject"
-                  >
-                    Create
-                  </button>
-                </div>
-              </div>
-            </template>
-            <p v-else class="small text-muted mb-0 mt-2">
-              Assigned to this project. Browse them from Home.
-            </p>
-          </template>
-        </div>
-      </div>
-
-      <div class="col-12 col-lg-5">
-        <div class="card p-3">
-          <h5 class="card-title mb-3">Members</h5>
-          <p v-if="canManageThisProject" class="small text-muted mb-3">
-            People on this project. <strong>Project admin</strong> can manage the study;
-            <strong>User</strong> can work in it.
-            Super admin is a platform role — it is not assigned here.
-            At least one Project admin is required, and a Project admin cannot remove themselves.
-          </p>
-          <p v-else class="small text-muted mb-3">
-            People on this project. Contact a <strong>Project admin</strong> if you need help or a change in access.
-          </p>
-
-          <div v-if="sortedMemberRows.length === 0" class="small text-muted mb-2">No members yet.</div>
-
-          <template v-if="canManageThisProject">
-            <div v-for="row in memberRows" :key="row.user_id" class="row g-2 align-items-end mb-2">
-              <div class="col-7">
-                <label class="form-label small mb-0">{{ memberDisplayName(row) }}</label>
-                <input :value="row.email" type="email" class="form-control form-control-sm" disabled />
-              </div>
-              <div class="col-3">
-                <label class="form-label small mb-0">Role</label>
-                <select
-                  class="form-select form-select-sm"
-                  :value="projectMemberUiValue(row.role)"
-                  :disabled="savingMembers || isLastProjectAdmin(row)"
-                  @change="changeMemberRole(row, $event.target.value)"
-                >
-                  <option value="owner">Project admin</option>
-                  <option value="editor">User</option>
-                </select>
-              </div>
-              <div class="col-2">
-                <button
-                  type="button"
-                  class="btn btn-sm btn-outline-danger w-100"
-                  :disabled="savingMembers || !canRemoveMember(row)"
-                  :title="removeMemberTitle(row)"
-                  @click="deleteMember(row)"
-                >
-                  Remove
-                </button>
-              </div>
-            </div>
-
-            <div class="border-top pt-3 mt-2">
-              <div class="row g-2 align-items-end">
-                <div class="col-7">
-                  <label class="form-label small mb-0">Add user</label>
-                  <select v-model="newMember.user_id" class="form-select form-select-sm">
-                    <option value="">Select user…</option>
-                    <option
-                      v-for="u in addableMembers"
-                      :key="u.user_id"
-                      :value="String(u.user_id)"
-                    >
-                      {{ u.name ? `${u.name} (${u.email})` : u.email }}
-                    </option>
-                  </select>
-                </div>
-                <div class="col-3">
-                  <label class="form-label small mb-0">Role</label>
-                  <select v-model="newMember.role" class="form-select form-select-sm">
-                    <option value="owner">Project admin</option>
-                    <option value="editor">User</option>
-                  </select>
-                </div>
-                <div class="col-2">
-                  <button
-                    type="button"
-                    class="btn btn-sm btn-primary w-100"
-                    :disabled="savingMembers || !newMember.user_id"
-                    @click="addMember"
-                  >
-                    Add
-                  </button>
-                </div>
-              </div>
-              <p v-if="form.team_id && !eligibleMembers.length" class="small text-muted mt-2 mb-0">
-                No other people to add yet. Invite them when you create the project, or copy a roster from another project you administer.
-              </p>
-            </div>
-          </template>
-
-          <ul v-else class="list-unstyled mb-0">
-            <li
-              v-for="row in sortedMemberRows"
-              :key="row.user_id"
-              class="d-flex justify-content-between align-items-start gap-2 py-2 border-bottom"
-            >
-              <div class="min-w-0">
-                <div class="fw-semibold">{{ memberDisplayName(row) }}</div>
-                <a v-if="row.email" class="small" :href="`mailto:${row.email}`">{{ row.email }}</a>
-              </div>
-              <span class="badge text-bg-secondary flex-shrink-0">{{ projectMemberRoleLabel(row.role) }}</span>
-            </li>
-          </ul>
-        </div>
-      </div>
-    </div>
+    <ProjectUserPanel
+      v-else
+      :project-id="form.id"
+      :name="form.name"
+      :description="form.description"
+      :status="form.status"
+      :team-label="teamLabel"
+      :created-by-label="createdByLabel"
+      :created-at-label="createdAtLabel"
+      :members="memberRows"
+      :datasets="linkedDatasetRows"
+      :pages="projectPages"
+      :can-edit-pages="canEditPages"
+    />
 
     <div v-if="message" class="alert mt-3" :class="ok ? 'alert-success' : 'alert-danger'">
       {{ message }}
@@ -270,8 +68,10 @@ import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { api, authHeaders } from '@/utils/api';
 import { useUserStore } from '@/stores/user';
-import { isSuperAdmin, projectMemberRoleLabel, projectMemberUiValue } from '@/utils/roles';
+import { isSuperAdmin } from '@/utils/roles';
 import { useTeamContext } from '@/composables/useTeamContext';
+import ProjectAdminPanel from '@/components/project/ProjectAdminPanel.vue';
+import ProjectUserPanel from '@/components/project/ProjectUserPanel.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -306,6 +106,8 @@ const createdAtLabel = ref('');
 const teamName = ref('');
 const teamSlug = ref('');
 const canManageThisProject = ref(false);
+const canEditPages = ref(false);
+const projectPages = ref([]);
 
 const newMember = reactive({
   user_id: '',
@@ -326,22 +128,6 @@ const addableMembers = computed(() => {
   return (eligibleMembers.value || []).filter((u) => !existing.has(String(u.user_id)));
 });
 
-const sortedMemberRows = computed(() => {
-  return [...memberRows.value].sort((a, b) => {
-    const ao = projectMemberUiValue(a.role) === 'owner' ? 0 : 1;
-    const bo = projectMemberUiValue(b.role) === 'owner' ? 0 : 1;
-    if (ao !== bo) return ao - bo;
-    return memberDisplayName(a).localeCompare(memberDisplayName(b));
-  });
-});
-
-function memberDisplayName(row) {
-  const name = String(row?.name || '').trim();
-  const email = String(row?.email || '').trim();
-  if (name && (!email || name.toLowerCase() !== email.toLowerCase())) return name;
-  return email || name || 'Unknown';
-}
-
 function mapMemberRows(rows) {
   if (!Array.isArray(rows)) return [];
   return rows.map((m) => ({
@@ -350,30 +136,6 @@ function mapMemberRows(rows) {
     email: m.email || '',
     role: m.role === 'owner' ? 'owner' : 'editor'
   }));
-}
-
-const projectAdminCount = computed(
-  () => memberRows.value.filter((m) => projectMemberUiValue(m.role) === 'owner').length
-);
-
-function isSelfMember(row) {
-  return row?.user_id != null && String(row.user_id) === String(userStore.user?.id);
-}
-
-function isLastProjectAdmin(row) {
-  return projectMemberUiValue(row?.role) === 'owner' && projectAdminCount.value <= 1;
-}
-
-function canRemoveMember(row) {
-  if (isSelfMember(row)) return false;
-  if (isLastProjectAdmin(row)) return false;
-  return true;
-}
-
-function removeMemberTitle(row) {
-  if (isSelfMember(row)) return 'You cannot remove yourself from the project';
-  if (isLastProjectAdmin(row)) return 'At least one Project admin is required';
-  return 'Remove from project';
 }
 
 const linkedDatasetRows = computed(() => {
@@ -386,7 +148,13 @@ const linkedDatasetRows = computed(() => {
     const meta = byId.get(String(id));
     return {
       id: String(id),
-      name: meta?.name || id
+      name: meta?.name || id,
+      description: meta?.description || '',
+      summary: meta?.summary ?? null,
+      summary_updated_at: meta?.summary_updated_at ?? null,
+      table_count: meta?.table_count ?? meta?.summary?.table_count ?? 0,
+      physical_table_count:
+        meta?.physical_table_count ?? meta?.summary?.physical_table_count ?? 0,
     };
   });
 });
@@ -414,8 +182,8 @@ function formatProjectDate(value) {
   });
 }
 
-function onDatasetPick() {
-  const id = String(datasetToAdd.value || '');
+function onDatasetPick(selected) {
+  const id = String(selected ?? datasetToAdd.value ?? '');
   if (!id || id === '__new__') return;
   linkDatasetById(id);
   datasetToAdd.value = '';
@@ -494,7 +262,6 @@ async function persistLinkedDatasets(successMessage) {
     setMessage(true, successMessage);
   } catch (error) {
     setMessage(false, error.response?.data?.error || error.message || 'Failed to update linked datasets.');
-    // Reload to resync if persist failed
     try {
       const refreshed = await api.get(`projects/${encodeURIComponent(form.id)}`, authHeaders());
       mapOverviewToForm(refreshed.data);
@@ -536,13 +303,35 @@ function mapOverviewToForm(data) {
     !!data?.capabilities?.can_manage || isSuperAdmin(userStore.user?.role);
 
   memberRows.value = mapMemberRows(data?.members);
+
+  // Doc-11: anyone with access to this project can edit its docs, unless the server denies it.
+  canEditPages.value = data?.capabilities?.can_edit_pages !== false;
+
+  projectPages.value = Array.isArray(data?.pages)
+    ? data.pages.map((p) => ({
+        id: p.id,
+        slug: p.slug,
+        title: p.title || p.slug || 'Document',
+        doc_type: p.doc_type || 'guide',
+        updated_at: p.updated_at || null,
+        updated_by: p.updated_by || '',
+      }))
+    : [];
 }
 
-onMounted(async () => {
+function routeProjectRef() {
+  const id = route.params.id;
+  return Array.isArray(id) ? id[0] : id;
+}
+
+async function loadProjectOverview(projectRef) {
+  const id = String(projectRef || '').trim();
+  if (!id) return;
+  loaded.value = false;
+  setMessage(false, '');
   try {
-    const id = Array.isArray(route.params.id) ? route.params.id[0] : route.params.id;
-    const requests = [api.get(`projects/${encodeURIComponent(id || '')}`, authHeaders())];
-    if (isSuperAdmin(userStore.user?.role)) {
+    const requests = [api.get(`projects/${encodeURIComponent(id)}`, authHeaders())];
+    if (isSuperAdmin(userStore.user?.role) && !teams.value.length) {
       requests.push(api.get('teams', authHeaders()));
     }
     const [projectRes, teamsRes] = await Promise.all(requests);
@@ -556,15 +345,33 @@ onMounted(async () => {
   } finally {
     loaded.value = true;
   }
+}
+
+onMounted(() => {
+  loadProjectOverview(routeProjectRef());
 });
+
+watch(
+  () => routeProjectRef(),
+  (id, prev) => {
+    if (!id || String(id) === String(prev || '')) return;
+    loadProjectOverview(id);
+  }
+);
 
 watch(
   () => activeProject.value?.id,
   (id) => {
     if (isSuperAdmin(userStore.user?.role)) return;
-    if (!id || !form.id) return;
-    if (String(id) !== String(form.id)) {
-      router.replace({ name: 'adminProjectsEdit', params: { id: activeProject.value.slug || id } });
+    if (!id) return;
+    const current = routeProjectRef();
+    const target = activeProject.value?.slug || id;
+    if (
+      String(id) !== String(form.id) &&
+      String(current) !== String(id) &&
+      String(current) !== String(activeProject.value?.slug || '')
+    ) {
+      router.replace({ name: 'adminProjectsEdit', params: { id: target } });
     }
   }
 );
@@ -594,7 +401,6 @@ async function saveProject() {
     if (patchRes.data?.team_name) teamName.value = patchRes.data.team_name;
     if (patchRes.data?.team_slug) teamSlug.value = patchRes.data.team_slug;
 
-    // Refresh linkable set after team change
     const refreshed = await api.get(`projects/${encodeURIComponent(form.id)}`, authHeaders());
     mapOverviewToForm(refreshed.data);
 
@@ -653,10 +459,6 @@ async function changeMemberRole(row, nextRole) {
 async function deleteMember(row) {
   if (!canManageThisProject.value) return;
   if (!row?.user_id) return;
-  if (!canRemoveMember(row)) {
-    setMessage(false, removeMemberTitle(row));
-    return;
-  }
   if (!window.confirm(`Remove ${row.email || 'this member'} from the project?`)) return;
   savingMembers.value = true;
   setMessage(false, '');

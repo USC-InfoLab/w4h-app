@@ -14,12 +14,12 @@
 
     <p class="text-muted mb-3">
       <template v-if="callerIsSuper">
-        Super admins can invite Project admins and Users (and other Super admins).
-        Project admin vs User is stored <strong>per team</strong> — choose the invite role and team below.
+        Super admins can invite Admins and Users (and other Super admins).
+        Admin vs User is stored <strong>per team</strong> — choose the invite role and team below.
         If the email already belongs to an account, they are added to that team instead of creating a duplicate.
       </template>
       <template v-else>
-        Project admins can invite Users to their own team.
+        Admins can invite Users to their own team.
         If the email already belongs to someone on one of your teams, they are added to the selected team.
         Project membership is assigned later from the project edit screen.
       </template>
@@ -225,7 +225,7 @@ async function onSave() {
         );
         submitMessage.value =
           `A user with email ${form.value.email} already exists — they were added to the selected team ` +
-          `as ${form.value.role === 'team_admin' ? 'Project admin' : 'User'}.`;
+          `as ${form.value.role === 'team_admin' ? 'Admin' : 'User'}.`;
         submitted.value = true;
         return;
       } catch (addError) {

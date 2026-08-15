@@ -166,7 +166,7 @@
           <div class="col-md-6">
             <label class="form-label" for="sgSelect">Select</label>
             <select id="sgSelect" class="form-select">
-              <option>Project admin</option>
+              <option>Admin</option>
               <option>User</option>
             </select>
           </div>
@@ -265,7 +265,7 @@
               <tbody>
                 <tr>
                   <td>Ada Lovelace</td>
-                  <td>Project admin</td>
+                  <td>Admin</td>
                   <td><span class="badge text-bg-success">Active</span></td>
                   <td><button type="button" class="btn btn-sm btn-outline-primary">Edit</button></td>
                 </tr>

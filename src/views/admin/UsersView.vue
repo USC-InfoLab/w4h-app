@@ -23,7 +23,7 @@
     </div>
 
     <div v-if="!canInvite && !isPlatformAdmin" class="alert alert-secondary py-2 small">
-      You are a User on the active team — inviting and editing users requires Project admin on that team.
+      You are a User on the active team — inviting and editing users requires Admin on that team.
       Switch labs with the team switcher next to <strong>W4H</strong>.
     </div>
 

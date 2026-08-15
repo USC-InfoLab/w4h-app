@@ -248,7 +248,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue';
+import { ref, reactive, computed, onMounted, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import { api, authHeaders } from '@/utils/api';
 import { useUserStore } from '@/stores/user';
@@ -407,6 +407,13 @@ async function exportCsv() {
 
 onMounted(() => {
   document.title = 'Audit log';
+  load();
+});
+
+watch(activeProjectId, (id, prev) => {
+  if (isPlatformAdmin.value) return;
+  if (String(id || '') === String(prev || '')) return;
+  page.value = 1;
   load();
 });
 </script>

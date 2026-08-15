@@ -17,7 +17,7 @@ export const TEAM_MEMBER_ROLES = {
 
 export const ROLE_LABELS = {
   [USER_ROLES.SUPER_ADMIN]: 'Super admin',
-  [USER_ROLES.TEAM_ADMIN]: 'Project admin',
+  [USER_ROLES.TEAM_ADMIN]: 'Admin',
   [USER_ROLES.PROJECT_USER]: 'User',
   [USER_ROLES.ADMIN]: 'Super admin',
   [USER_ROLES.RESEARCHER]: 'User',
@@ -25,7 +25,7 @@ export const ROLE_LABELS = {
 };
 
 export const TEAM_MEMBER_ROLE_LABELS = {
-  [TEAM_MEMBER_ROLES.TEAM_ADMIN]: 'Project admin',
+  [TEAM_MEMBER_ROLES.TEAM_ADMIN]: 'Admin',
   [TEAM_MEMBER_ROLES.MEMBER]: 'User',
 };
 
@@ -67,10 +67,10 @@ export function projectMemberUiValue(storedRole) {
 }
 
 export function projectMemberRoleLabel(storedRole) {
-  return storedRole === 'owner' ? 'Project admin' : 'User';
+  return storedRole === 'owner' ? 'Admin' : 'User';
 }
 
 /** UI labels for the project switcher. */
 export function projectAccessRoleLabel(isAdmin) {
-  return isAdmin ? 'Project admin' : 'User';
+  return isAdmin ? 'Admin' : 'User';
 }

@@ -76,7 +76,7 @@
                 class="btn btn-sm btn-outline-primary"
                 @click="$router.push({ name: 'usersAdd', query: { team_id: team.id, role: 'team_admin' } })"
               >
-                Invite Project admin
+                Invite Admin
               </button>
               <button
                 type="button"
@@ -110,7 +110,7 @@
                     :disabled="memberBusy || !canEditTeam"
                     @change="changeMemberRole(m, $event.target.value)"
                   >
-                    <option value="team_admin">Project admin</option>
+                    <option value="team_admin">Admin</option>
                     <option value="member">User</option>
                   </select>
                   <button
@@ -145,7 +145,7 @@
               </div>
               <div class="col-auto">
                 <select v-model="selectedTeamRole" class="form-select form-select-sm">
-                  <option value="team_admin">Project admin</option>
+                  <option value="team_admin">Admin</option>
                   <option value="member">User</option>
                 </select>
               </div>
@@ -161,12 +161,12 @@
               </div>
             </div>
             <p class="small text-muted mt-2 mb-0">
-              Role is <strong>per team</strong> — the same person can be Project admin here and User on another team.
+              Role is <strong>per team</strong> — the same person can be Admin here and User on another team.
             </p>
             <p v-if="!addableUsers.length" class="small text-muted mt-2 mb-0">
               No eligible users to add.
               <template v-if="isSuperAdmin(user.role)">
-                Invite a new Project admin or User instead.
+                Invite a new Admin or User instead.
               </template>
               <template v-else>
                 You can only add users who already belong to one of your teams.

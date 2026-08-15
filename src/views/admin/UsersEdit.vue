@@ -30,7 +30,7 @@
               </option>
             </select>
             <div class="form-text">
-              Super admin is account-wide. Project admin vs User is set <strong>per team</strong> below
+              Super admin is account-wide. Admin vs User is set <strong>per team</strong> below
               (legacy platform Team admin stays in sync with memberships).
             </div>
           </div>
@@ -57,7 +57,7 @@
               </div>
               <div class="col-auto">
                 <select v-model="row.role" class="form-select form-select-sm" :disabled="teamLocked">
-                  <option value="team_admin">Project admin</option>
+                  <option value="team_admin">Admin</option>
                   <option value="member">User</option>
                 </select>
               </div>
@@ -82,7 +82,7 @@
               Add team
             </button>
             <div class="form-text mt-2">
-              Same person can be Project admin on one team and User on another. Project access is on each project’s Members panel.
+              Same person can be Admin on one team and User on another. Project access is on each project’s Members panel.
             </div>
           </div>
           <div v-else class="mb-3">

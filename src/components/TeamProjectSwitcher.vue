@@ -21,32 +21,18 @@
         <span class="dropdown-item-text small text-danger">{{ loadError }}</span>
       </li>
       <template v-else>
-        <li v-if="currentChoice">
-          <button
-            type="button"
-            class="dropdown-item team-context-item is-current"
-            @click.prevent="onSelectProject(currentChoice)"
-          >
-            <span class="team-context-item-body">
-              <span class="team-context-item-name">{{ currentChoice.name }}</span>
-              <span v-if="currentChoice.roleLabel" class="team-context-item-role">{{ currentChoice.roleLabel }}</span>
-            </span>
-            <i class="bi bi-check2 team-context-check" aria-hidden="true"></i>
-          </button>
-        </li>
-        <li v-if="currentChoice && otherChoices.length">
-          <hr class="dropdown-divider" />
-        </li>
-        <li v-for="project in otherChoices" :key="'proj-' + project.id">
+        <li v-for="project in projectChoices" :key="'proj-' + project.id">
           <button
             type="button"
             class="dropdown-item team-context-item"
+            :class="{ 'is-current': isCurrent(project) }"
             @click.prevent="onSelectProject(project)"
           >
             <span class="team-context-item-body">
               <span class="team-context-item-name">{{ project.name }}</span>
               <span v-if="project.roleLabel" class="team-context-item-role">{{ project.roleLabel }}</span>
             </span>
+            <i v-if="isCurrent(project)" class="bi bi-check2 team-context-check" aria-hidden="true"></i>
           </button>
         </li>
       </template>
@@ -56,12 +42,15 @@
 
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { Dropdown } from 'bootstrap';
 import { storeToRefs } from 'pinia';
 import { useUserStore } from '@/stores/user';
 import { isSuperAdmin } from '@/utils/roles';
 import { useTeamContext } from '@/composables/useTeamContext';
 
+const route = useRoute();
+const router = useRouter();
 const userStore = useUserStore();
 const { user } = storeToRefs(userStore);
 const isPlatformAdmin = computed(() => isSuperAdmin(user.value?.role));
@@ -81,25 +70,28 @@ const {
   setActiveProject,
 } = useTeamContext();
 
-const currentChoice = computed(() =>
-  projectChoices.value.find(
-    (p) => String(activeProjectId.value) === p.id || String(activeProjectId.value) === p.slug
-  ) || null
-);
-
-const otherChoices = computed(() => {
-  const currentId = currentChoice.value?.id;
-  return projectChoices.value.filter((p) => p.id !== currentId);
-});
-
 const triggerAria = computed(() =>
   activeProjectName.value
     ? `Active project: ${activeProjectName.value}${activeProjectRoleLabel.value ? ` (${activeProjectRoleLabel.value})` : ''}`
     : 'Select project'
 );
 
+function isCurrent(project) {
+  const id = String(activeProjectId.value || '');
+  return !!id && (id === project.id || id === project.slug);
+}
+
 function onSelectProject(project) {
   setActiveProject(String(project.id));
+  const projectRef = project.slug || project.id;
+  // Stay on Project when switching — update the open study in place.
+  if (
+    route.name === 'adminProjectsEdit' ||
+    route.name === 'projectWorkspace' ||
+    route.name === 'adminProjects'
+  ) {
+    router.replace({ name: 'adminProjectsEdit', params: { id: projectRef } });
+  }
   try {
     rootDropdown?.hide?.();
   } catch {

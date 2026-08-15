@@ -34,9 +34,6 @@
               :to="item.to"
               class="nav-link nav-link-compact"
               :class="{ active: item.active }"
-              data-bs-toggle="tooltip"
-              data-bs-placement="bottom"
-              :data-bs-title="item.label"
               :aria-label="item.label"
             >
               <i :class="item.icon" aria-hidden="true"></i>
@@ -99,8 +96,8 @@
 </template>
 
 <script setup>
-import { onMounted, onBeforeUnmount, computed, watch, nextTick, ref } from 'vue';
-import { Dropdown, Tooltip } from 'bootstrap';
+import { onMounted, computed, watch, nextTick, ref } from 'vue';
+import { Dropdown } from 'bootstrap';
 import { useRouter, useRoute } from 'vue-router';
 import { useUserStore } from '../stores/user';
 import { useUIStore } from '../stores/ui';
@@ -122,7 +119,6 @@ const {
   activeProject,
 } = useTeamContext();
 
-const tooltipInstances = ref([]);
 const navEl = ref(null);
 const showAbout = ref(false);
 const showReportIssue = ref(false);
@@ -206,90 +202,11 @@ watch(isActiveProjectAdmin, (admin) => {
   }
 });
 
-function safeDisposeTooltip(t) {
-  try {
-    // Avoid Bootstrap hide-transition callbacks on a disposed instance
-    // (_isWithActiveTrigger → Object.values(null)).
-    if (t?._activeTrigger) {
-      t._activeTrigger = {};
-    }
-    t?.dispose?.();
-  } catch {
-    /* tip node may already be gone */
-  }
-}
-
-function disposeTooltips() {
-  tooltipInstances.value.forEach(safeDisposeTooltip);
-  tooltipInstances.value = [];
-}
-
-/** Icon-only strip (md–lg): tooltips help. Small / xl+ show labels — tooltips are redundant. */
-function shouldShowNavLinkTooltips() {
-  return window.matchMedia('(min-width: 768px) and (max-width: 1199.98px)').matches;
-}
-
-/** Add tips for new links only — never dispose/recreate living instances (team switch). */
-function syncTooltips() {
-  const root = navEl.value;
-  if (!root) return;
-
-  if (!shouldShowNavLinkTooltips()) {
-    disposeTooltips();
-    return;
-  }
-
-  tooltipInstances.value = tooltipInstances.value.filter((t) => {
-    const el = t?._element;
-    if (!el || !el.isConnected) {
-      safeDisposeTooltip(t);
-      return false;
-    }
-    return true;
-  });
-
-  const tracked = new Set(tooltipInstances.value.map((t) => t._element));
-  root.querySelectorAll('.nav-link[data-bs-toggle="tooltip"]').forEach((el) => {
-    if (!el.isConnected || tracked.has(el)) return;
-    const existing = Tooltip.getInstance(el);
-    if (existing) {
-      tooltipInstances.value.push(existing);
-      return;
-    }
-    tooltipInstances.value.push(
-      new Tooltip(el, {
-        placement: 'bottom',
-        fallbackPlacements: ['bottom'],
-        trigger: 'hover focus',
-        container: 'body',
-      })
-    );
-  });
-}
-
-function onViewportChange() {
-  nextTick(() => syncTooltips());
-}
-
-let tooltipMqLink;
-
 onMounted(() => {
   nextTick(() => {
     const accountToggle = navEl.value?.querySelector('#menuDropdown');
     if (accountToggle) Dropdown.getOrCreateInstance(accountToggle);
-    syncTooltips();
   });
-  tooltipMqLink = window.matchMedia('(min-width: 768px) and (max-width: 1199.98px)');
-  tooltipMqLink.addEventListener('change', onViewportChange);
-});
-
-onBeforeUnmount(() => {
-  disposeTooltips();
-  tooltipMqLink?.removeEventListener('change', onViewportChange);
-});
-
-watch(visibleNavItems, () => {
-  nextTick(() => syncTooltips());
 });
 
 function onSignOutClick() {
@@ -417,22 +334,6 @@ function onSignOutClick() {
   white-space: nowrap;
 }
 
-@media (min-width: 768px) and (max-width: 1199.98px) {
-  .nav-link-label {
-    display: none;
-  }
-
-  .nav-link-compact {
-    padding-left: 0.65rem;
-    padding-right: 0.65rem;
-  }
-
-  .navbar-nav .nav-link.active {
-    background: rgba(255, 255, 255, 0.12);
-    border-radius: 0.35rem;
-  }
-}
-
 @media (max-width: 767.98px) {
   .nav-link-label {
     display: inline-flex;
@@ -459,12 +360,6 @@ function onSignOutClick() {
 
   .dropdown-menu {
     width: 100%;
-  }
-}
-
-@media (min-width: 1200px) {
-  .nav-link-label {
-    display: inline-flex;
   }
 }
 </style>

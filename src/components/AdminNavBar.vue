@@ -27,9 +27,6 @@
               :to="item.to"
               class="nav-link nav-link-compact"
               :class="{ active: item.active }"
-              data-bs-toggle="tooltip"
-              data-bs-placement="bottom"
-              :data-bs-title="item.label"
               :aria-label="item.label"
             >
               <i :class="item.icon" aria-hidden="true"></i>
@@ -106,7 +103,6 @@ import AboutModal from '@/components/AboutModal.vue';
 import { clearUsageSessionFlags } from '@/utils/clientUsage';
 const uiStore = useUIStore();
 
-const tooltipInstances = ref([]);
 const navEl = ref(null);
 const showAbout = ref(false);
 
@@ -276,82 +272,19 @@ function safeDisposeTooltip(t) {
   }
 }
 
-function disposeTooltips() {
-  tooltipInstances.value.forEach(safeDisposeTooltip);
-  tooltipInstances.value = [];
-}
-
-/** Icon-only strip (md–lg): tooltips help. Small / xl+ show labels — tooltips are redundant. */
-function shouldShowNavLinkTooltips() {
-  return window.matchMedia('(min-width: 768px) and (max-width: 1199.98px)').matches;
-}
-
-/** Add tips for new links only — never dispose/recreate living instances (team switch). */
-function syncTooltips() {
-  const root = navEl.value;
-  if (!root) return;
-
-  if (!shouldShowNavLinkTooltips()) {
-    disposeTooltips();
-    return;
-  }
-
-  tooltipInstances.value = tooltipInstances.value.filter((t) => {
-    const el = t?._element;
-    if (!el || !el.isConnected) {
-      safeDisposeTooltip(t);
-      return false;
-    }
-    return true;
-  });
-
-  const tracked = new Set(tooltipInstances.value.map((t) => t._element));
-  root.querySelectorAll('.nav-link[data-bs-toggle="tooltip"]').forEach((el) => {
-    if (!el.isConnected || tracked.has(el)) return;
-    const existing = Tooltip.getInstance(el);
-    if (existing) {
-      tooltipInstances.value.push(existing);
-      return;
-    }
-    tooltipInstances.value.push(
-      new Tooltip(el, {
-        placement: 'bottom',
-        fallbackPlacements: ['bottom'],
-        trigger: 'hover focus',
-        container: 'body',
-      })
-    );
-  });
-}
-
-function onViewportChange() {
-  nextTick(() => syncTooltips());
-}
-
-let tooltipMqLink;
-
 onMounted(() => {
   nextTick(() => {
     const accountToggle = navEl.value?.querySelector('#adminMenuDropdown');
     if (accountToggle) Dropdown.getOrCreateInstance(accountToggle);
-    syncTooltips();
     syncBrandTooltip();
   });
-  tooltipMqLink = window.matchMedia('(min-width: 768px) and (max-width: 1199.98px)');
-  tooltipMqLink.addEventListener('change', onViewportChange);
 });
 
 onBeforeUnmount(() => {
-  disposeTooltips();
   safeDisposeTooltip(brandTip.value);
   brandTip.value = null;
   const brand = navEl.value?.querySelector('.navbar-brand');
   safeDisposeTooltip(brand ? Tooltip.getInstance(brand) : null);
-  tooltipMqLink?.removeEventListener('change', onViewportChange);
-});
-
-watch(visibleNavItems, () => {
-  nextTick(() => syncTooltips());
 });
 
 watch(homeBrandTooltip, () => {
@@ -460,26 +393,6 @@ watch(homeBrandTooltip, () => {
   word-break: break-all;
 }
 
-/*
- * md–lg: icon-only (tooltips) so the fixed bar stays one row.
- * xl+: show labels — same ::after underline baseline.
- */
-@media (min-width: 768px) and (max-width: 1199.98px) {
-  .nav-link-label {
-    display: none;
-  }
-
-  .nav-link-compact {
-    padding-left: 0.65rem;
-    padding-right: 0.65rem;
-  }
-
-  .navbar-nav .nav-link.active {
-    background: rgba(255, 255, 255, 0.12);
-    border-radius: 0.35rem;
-  }
-}
-
 @media (max-width: 767.98px) {
   .nav-link-label {
     display: inline-flex;
@@ -506,12 +419,6 @@ watch(homeBrandTooltip, () => {
 
   .dropdown-menu {
     width: 100%;
-  }
-}
-
-@media (min-width: 1200px) {
-  .nav-link-label {
-    display: inline-flex;
   }
 }
 </style>

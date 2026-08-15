@@ -12,7 +12,8 @@
     "preview": "vite preview",
     "test:e2e": "playwright test",
     "lint": "eslint . --fix --cache",
-    "format": "prettier --write --experimental-cli src/"
+    "format": "prettier --write --experimental-cli src/",
+    "index:ui": "node scripts/generate-ui-index.mjs"
   },
   "dependencies": {
     "@highlightjs/vue-plugin": "^2.1.0",
