@@ -11,13 +11,19 @@
             The database and the schema will be created automatically if they don't exist
             — the Postgres user must have <strong>CREATEDB privilege</strong> for that.
           </div>
+          <div class="mt-2 small">
+            <strong>Docker:</strong> if Postgres runs on your machine (not in this compose stack), use host
+            <code>host.docker.internal</code> — not <code>localhost</code> or <code>127.0.0.1</code>
+            (those point at the API container itself).
+          </div>
         </div>
 
         <form @submit.prevent="testAndSaveConnection">
           <div class="row g-2 mb-3">
             <div class="col-md-9">
               <label class="form-label">Host</label>
-              <input v-model="db.host" class="form-control" placeholder="localhost" required />
+              <input v-model="db.host" class="form-control" placeholder="host.docker.internal" required />
+              <small class="form-text text-muted">On Docker Desktop (Mac/Windows), use <code>host.docker.internal</code> for Postgres on your laptop.</small>
             </div>
             <div class="col-md-3">
               <label class="form-label">Port</label>
@@ -266,7 +272,7 @@ const checkDbStatus = async () => {
     console.log(res);
     dbConfigured.value = !!res.data.configured;
     showDbConfig.value = !dbConfigured.value;
-    showAdminSetup.value = false;
+    showAdminSetup.value = dbConfigured.value && !!res.data.requiresAdminSetup;
     backendError.value = '';
 
     // If database config is needed, prefill any existing settings from the status response

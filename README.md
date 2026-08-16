@@ -1,131 +1,109 @@
 # W4H Web App
 
-The [Wearables for Health (W4H) Toolkit](https://infolab.usc.edu/projects/W4H/) is a suite of open-source tools for managing, analyzing, and visualizing wearable data used in health applications. This repository provides the [W4H Web App](https://github.com/USC-InfoLab/w4h-app), the primary interface for setting up the toolkit and managing workflows.
+Vue 3 + Vite front end for the [Wearables for Health (W4H) Toolkit](https://infolab.usc.edu/projects/W4H/). This SPA is the day-to-day shell for **Admins** and **Users** (projects, datasets, docs browser, project workspace). **Super admins** use the separate **Platform Admin** shell after login.
 
----
+Product requirements and roles live in sibling repo **`w4h-docs`** (`dev/mvp.md`, `dev/ADR-004-acl-roles.md`). The app does not run standalone — it needs a running **`w4h-api`** instance.
 
-## 📋 Prerequisites
+## Stack
 
-Ensure you have Postgres 16.14 or later installed:
+- Vue 3, Vite, Pinia, Vue Router
+- Bootstrap 5 + bootstrap-icons
+- Axios → `VITE_API_URL`
 
-- **PostgreSQL:** [Postgres Docker Image](https://hub.docker.com/_/postgres) or [Postgres.app](https://postgresapp.com/) (Mac)
-- **Management:** [pgAdmin](https://www.pgadmin.org/) is recommended for managing the instance.
+Structural map (generated): [`UI_INDEX.md`](./UI_INDEX.md) — run `npm run index:ui` when routes or components change.
 
-## 🛠️ Development Setup
+## Prerequisites
 
-This project is built with **Vue 3** and **Vite**. To run the front-end you will need the following dependencies:
+- Node.js 20+ (22 recommended, matches Docker images)
+- PostgreSQL reachable via **`w4h-api`** (the UI never connects to Postgres directly)
+- Sibling repos for full local work:
+  - [`w4h-api`](https://github.com/USC-InfoLab/w4h-api) — required
+  - [`w4h-docs`](https://github.com/USC-InfoLab/w4h-docs) — platform Help content (served/imported by the API)
+  - [`w4h-datasets`](https://github.com/USC-InfoLab/w4h-datasets), [`w4h-notebooks`](https://github.com/USC-InfoLab/w4h-notebooks) — optional for sample data and analysis workflows
 
-- [w4h-api](https://github.com/USC-InfoLab/w4h-api) services
-- [w4h-docs](https://github.com/USC-InfoLab/w4h-docs) documentation
-- [w4h-notebooks](https://github.com/USC-InfoLab/w4h-notebooks) Python and R notebooks
-- [w4h-datasets](https://github.com/USC-InfoLab/w4h-datasets) sample datasets
+Open the multi-repo workspace via `w4h-repos.code-workspace` in `w4h-docs` when changing cross-cutting behavior.
 
-### Recommended IDE Setup
-
-- **Editor:** [VS Code](https://code.visualstudio.com/) + [Vue - Official](https://marketplace.visualstudio.com/items?itemName=Vue.volar).
-- **Browser Tools:** Install [Vue.js devtools](https://chromewebstore.google.com/detail/vuejs-devtools/nhdogjmejiglipccpnnnanhbledajbpd) and [enable Custom Object Formatters](http://bit.ly/object-formatters).
-
-### Project Scripts
+## Local development
 
 ```bash
-# Install dependencies
 npm install
-
-# Create .env from .env.example and configure
 cp .env.example .env
-# To avoid re-entering credentials set VITE_APP_ADMIN_EMAIL, VITE_APP_ADMIN_PASSWORD
+```
 
-# Compile and Hot-Reload for development
+Set `VITE_API_URL` to your API origin (default `http://localhost:2026/`).
+
+Start the API first (`npm start` in `w4h-api`), then:
+
+```bash
 npm run dev
-
-# Compile and minify for production
-npm run build
-
-# Lint and fix files
-npm run lint
 ```
 
-### End-to-End Testing (Playwright)
-
-To ensure stability across different browsers, use the following commands:
+Default dev URL: `http://localhost:5173`. Bind a specific host if another service already uses port 5173 on `localhost` vs `127.0.0.1`:
 
 ```bash
-# Install browser binaries (first run only)
-npx playwright install
-
-# When testing on CI, must build the project first
-npm run build
-
-# Run all end-to-end tests
-npm run test:e2e
-
-# Run tests only on Chromium
-npm run test:e2e -- --project=chromium
-
-# Run tests for a specific file
-npm run test:e2e -- tests/example.spec.ts
-
-# Run tests in debug mode (headed mode)
-npm run test:e2e -- --debug
+npm run dev -- --host 127.0.0.1 --port 5173
 ```
 
-#### Linting
+### First-time platform setup
 
-To maintain code quality and follow the project's style guidelines:
+On a fresh install, the login page walks you through **PostgreSQL connection** then **Super admin** creation. Docker deployments use the same wizard after `docker compose up` — configure external Postgres in the browser, not in compose env.
+
+See [Quick Start](https://github.com/USC-InfoLab/w4h-docs/blob/main/quick-start.md) in `w4h-docs`.
+
+Optional dev-only prefills in `.env` (never commit secrets):
 
 ```bash
-# Run ESLint to find and fix code style issues
-npm run lint
+VITE_APP_ADMIN_EMAIL=
+VITE_APP_ADMIN_PASSWORD=
 ```
 
-## 🔗 Resources
+Docs capture / Playwright accounts are seeded in **`w4h-api`** (`w4h-sample` DB) and configured in **`w4h-docs`** (`dev/docs-fixtures.md`), not in this file.
 
-- **Official Project Website:** [W4H Project Page](https://infolab.usc.edu/projects/W4H/)
-- **Vite Configuration:** [Vite Configuration Reference](https://vite.dev/config/)
-- **Vue 3 Documentation:** [vuejs.org](https://vuejs.org/)
-- **Official Project Website:** [W4H Project Page](https://infolab.usc.edu/projects/W4H/)
+## Scripts
 
-- **Vite Configuration:** [Vite Configuration Reference](https://vite.dev/config/)
-- **Vue 3 Documentation:** [vuejs.org](https://vuejs.org/)
-- **Playwright Docs:** [playwright.dev](https://playwright.dev/)
+| Command | Purpose |
+|---|---|
+| `npm run dev` | Vite dev server with HMR |
+| `npm run build` | Production bundle to `dist/` |
+| `npm run preview` | Serve production build locally |
+| `npm run lint` | ESLint |
+| `npm run test:e2e` | Playwright (run only when needed) |
+| `npm run index:ui` | Regenerate `UI_INDEX.md` |
 
----
+## Production / Docker
 
-## 🚀 Quick Start (Docker)
-
-The fastest way to install the W4H Toolkit is using the W4H Docker component.
-
-### 1. Prerequisites
-
-Ensure you have the following installed:
-
-- **Docker:** [Docker Desktop](https://www.docker.com/products/docker-desktop/)
-- **PostgreSQL:** [Postgres Docker Image](https://hub.docker.com/_/postgres) or [Postgres.app](https://postgresapp.com/) (Mac)
-- **Management:** [pgAdmin](https://www.pgadmin.org/) is recommended for managing the instance.
-
-### 2. Configure PostgreSQL
-
-Start your `Postgres.app` server or Docker container and verify the installation:
-
-- Run `pg_config --version` to verify.
-- Verify the connection with **pgAdmin** and note the configuration that you will need to provide in step 3:
-  - **Host**
-  - **Port**
-  - **Maintenance Database**
-  - **User/Password**
-
-### 3. Run the Container
-
-Pull the image from DockerHub and run the application:
+Use sibling repo **`w4h-docker`**:
 
 ```bash
-# Pull the image
-docker pull uscimsc/w4h:icde-demo
-
-# Run the container (Access via port 8501)
-docker run -dp 8501:8501 uscimsc/w4h:icde-demo
+cd w4h-docker
+docker compose build
+docker compose up -d
 ```
 
-Connect to the [W4H Web App](http://localhost:5173) and follow the on-screen prompts to connect to your Postgres instance. Once configured, you can manage users, import data, and run analytics through the W4H Web App.
+Open the app URL (default **`http://127.0.0.1:5180`**) and **connect external PostgreSQL in the setup wizard** — not `localhost:5173` (another app may own that port on macOS).
 
----
+If Postgres runs on your machine, use **`host.docker.internal`** as the database host in the wizard (not `localhost`).
+
+The production app image builds with `VITE_API_URL=/api/`; nginx proxies API and docs media to the `api` service.
+
+## API boundary
+
+- All data and auth go through **`w4h-api`** — do not assume undocumented response shapes.
+- Session auth: JWT in `localStorage` (`w4h.user.token`), sent as `Authorization` on API calls.
+- Programmatic access from notebooks/scripts uses personal API keys (`X-W4H-API-Key`) — see ADR-007 in `w4h-docs`.
+
+## Roles (UI labels)
+
+| Role | Shell after login |
+|---|---|
+| Super admin | Platform Admin only (`/admin/*`) |
+| Admin (team admin) | App shell — teams, datasets, projects |
+| User | App shell — assigned projects |
+
+There is no “toggle into Platform Admin” for Super admins.
+
+## Resources
+
+- [W4H project page](https://infolab.usc.edu/projects/W4H/)
+- [Vue 3](https://vuejs.org/) · [Vite](https://vite.dev/)
+- Agent / contributor notes: [`AGENTS.md`](./AGENTS.md)
