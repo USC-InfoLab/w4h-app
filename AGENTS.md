@@ -14,6 +14,7 @@ These instructions apply to the entire `w4h-app/` repository unless overridden b
 | **w4h-utils** | Scripts, CLI helpers, utility notebooks |
 | **w4h-datasets** | Sample / synthetic CSV and JSON |
 | **w4h-notebooks** | Index of legacy notebooks; new tools are one repo per contribution |
+| **w4h-docker** | Docker Compose packaging; bakes `VITE_API_URL=/api/` and optional `VITE_JUPYTER_URL` |
 
 Open these together via `w4h-repos.code-workspace` when changing cross-cutting behavior.
 
