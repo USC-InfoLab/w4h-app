@@ -12,8 +12,8 @@ These instructions apply to the entire `w4h-app/` repository unless overridden b
 | **w4h-app** (this repo) | Vue 3 + Vite web UI |
 | **w4h-api** | Express API + PostgreSQL schema / ACL |
 | **w4h-utils** | Scripts, CLI helpers, utility notebooks |
-| **w4h-datasets** | Sample / synthetic CSV datasets |
-| **w4h-notebooks** | Example Jupyter workflows |
+| **w4h-datasets** | Sample / synthetic CSV and JSON |
+| **w4h-notebooks** | Index of legacy notebooks; new tools are one repo per contribution |
 
 Open these together via `w4h-repos.code-workspace` when changing cross-cutting behavior.
 
@@ -32,6 +32,7 @@ When implementation and documentation appear inconsistent, identify the discrepa
 - **Team** = tenancy. **Project** = primary access / work unit.
 - UI labels: **Super admin** · **Admin** · **User** (`src/utils/roles.js`). No “Project admin”.
 - Super admin → Platform Admin shell only. Admins/Users → app shell.
+- W4H does not register project-owned notebooks. Browse **Contributions** (`/contributions`).
 - Dataset stats/overview always appear in the context of a **selected dataset**.
 - Project docs are project-private and are not platform Help.
 - API credential UI is masked by default.

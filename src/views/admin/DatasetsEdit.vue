@@ -46,6 +46,30 @@
             </div>
           </div>
 
+          <div v-if="canChangeTeam" class="mb-3">
+            <div class="form-check">
+              <input
+                id="sample-ro"
+                v-model="form.read_only"
+                class="form-check-input"
+                type="checkbox"
+              />
+              <label class="form-check-label" for="sample-ro">
+                Platform sample (read-only)
+              </label>
+            </div>
+            <div class="form-text">
+              Super admin seeds these tables. Teams may query them on a demonstration project.
+              They must not re-ingest. Origin shown to users:
+            </div>
+            <input
+              v-if="form.read_only"
+              v-model.trim="form.origin"
+              class="form-control form-control-sm mt-2"
+              placeholder="W4H Samples"
+            />
+          </div>
+
           <div v-if="message" class="alert" :class="ok ? 'alert-success' : 'alert-danger'">
             {{ message }}
           </div>
@@ -213,7 +237,7 @@
           </p>
 
           <div v-if="tables.length === 0" class="small text-muted mb-2">
-            No tables yet. Ingest CSV / JSON / REDCap (coming next) to populate this dataset.
+            No tables yet. Load by adapting a notebook or CLI from Contributions.
           </div>
           <ul v-else class="list-group list-group-flush">
             <li v-for="t in tables" :key="t.name" class="list-group-item px-0">
@@ -263,6 +287,8 @@ const form = reactive({
   name: '',
   description: '',
   discoverable: true,
+  read_only: false,
+  origin: '',
 });
 
 const savedSnapshot = ref(null);
@@ -277,6 +303,8 @@ function snapshotForm() {
     name: form.name || '',
     description: form.description || '',
     discoverable: !!form.discoverable,
+    read_only: !!form.read_only,
+    origin: form.origin || '',
   };
 }
 
@@ -301,6 +329,8 @@ function applyDataset(d) {
   form.name = d.name || '';
   form.description = d.description || '';
   form.discoverable = d.discoverable !== false;
+  form.read_only = Boolean(d.read_only);
+  form.origin = d.origin || '';
   teamName.value = d.team_name || '';
   tables.value = Array.isArray(d.tables) ? d.tables : [];
   if (Array.isArray(d.projects) && d.projects.length) {
@@ -428,6 +458,8 @@ async function save() {
     };
     if (canChangeTeam.value) {
       payload.team_id = form.team_id || null;
+      payload.read_only = !!form.read_only;
+      payload.origin = form.read_only ? (form.origin || 'W4H Samples') : null;
     }
     const res = await api.patch(
       `datasets/${encodeURIComponent(form.id)}`,

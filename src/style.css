@@ -344,6 +344,16 @@ body {
   padding-top: var(--app-navbar-height, 44px);
 }
 
+body.w4h-chat-open {
+  padding-right: var(--w4h-chat-width, 420px);
+}
+
+@media (max-width: 767.98px) {
+  body.w4h-chat-open {
+    padding-right: 0;
+  }
+}
+
 /* Compact top chrome — both user + admin navbars */
 .navbar {
   --bs-navbar-padding-y: 0.15rem;

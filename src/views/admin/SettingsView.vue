@@ -103,7 +103,8 @@
               </div>
               <div class="col-md-6">
                 <label class="form-label">Username</label>
-                <input v-model="mailer.user" class="form-control" placeholder="noreply@example.com" autocomplete="username" />
+                <input v-model="mailer.user" class="form-control" placeholder="noreply@example.com"
+                  autocomplete="username" />
               </div>
               <div class="col-md-6">
                 <label class="form-label">Password</label>
@@ -132,7 +133,8 @@
                 @click="sendTestEmail">Send Test Email</button>
             </div>
             <div class="form-text mt-1">
-              Test uses the values currently in the form (Save is not required). Leave password blank to reuse the saved password.
+              Test uses the values currently in the form (Save is not required). Leave password blank to reuse the saved
+              password.
             </div>
 
             <div class="row g-3 mt-1">
@@ -149,6 +151,107 @@
               <button type="button" class="btn-close" @click="mailerMessage = ''"></button>
             </div>
           </form>
+        </div>
+
+        <div class="card p-3">
+          <h5 class="card-title mb-1">PHI-safe AI chat</h5>
+          <p class="text-muted small mb-3">
+            Platform key: Super admin chat, and labs that have not added their own key.
+            Labs draw a shared monthly token quota (all members). A lab key (BYOK) bills that lab’s Anthropic account instead.
+          </p>
+          <div class="form-check form-switch mb-3">
+            <input id="aiEnabled" v-model="ai.enabled" class="form-check-input" type="checkbox" />
+            <label class="form-check-label" for="aiEnabled">Enable AI chat</label>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Default model</label>
+            <input v-model="ai.model" class="form-control" placeholder="claude-haiku-4-5-20251001" />
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Default monthly platform-credit quota per lab</label>
+            <input v-model.number="ai.default_monthly_token_quota" type="number" min="0" class="form-control" />
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Platform PHI filter</label>
+            <select v-model="ai.ai_phi_filter" class="form-select">
+              <option value="strict">PHI-safe (strict)</option>
+              <option value="permissive">Permissive</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <AiSecretKeyField
+              :key="`platform-${ai.key_prefix}-${ai.has_key}`"
+              v-model="ai.anthropic_api_key"
+              v-model:clear="ai.clear_key"
+              :has-key="!!ai.has_key"
+              :key-prefix="ai.key_prefix || ''"
+              :key-source="ai.key_source || ''"
+              label="Platform Anthropic API key"
+              empty-help="Paste a key from the Anthropic Console. It is stored encrypted and never shown in full. Labs without their own key share this quota."
+            />
+          </div>
+          <button class="btn btn-primary" :disabled="savingAi" type="button" @click="saveAiSettings">
+            Save AI settings
+          </button>
+          <div v-if="aiMessage" class="alert mt-3 mb-0"
+            :class="aiMessageType === 'success' ? 'alert-success' : 'alert-danger'">
+            {{ aiMessage }}
+          </div>
+
+          <h6 class="mt-4">Labs — platform credits this month</h6>
+          <p class="small text-muted">
+            “Platform credits” is the shared quota on the platform key. “Team key” means that lab pays Anthropic directly.
+          </p>
+          <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Lab</th>
+                  <th>Billing</th>
+                  <th>Used</th>
+                  <th>Quota</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="row in aiTeams" :key="row.team_id">
+                  <td>{{ row.name }}</td>
+                  <td>{{ row.has_byok ? 'Team key' : 'Platform credits' }}</td>
+                  <td>
+                    <template v-if="row.has_byok">{{ formatTokens(row.used_byok) }} (team key)</template>
+                    <template v-else>{{ formatTokens(row.used) }} / {{ formatTokens(row.monthly_token_quota) }}</template>
+                  </td>
+                  <td>{{ row.has_byok ? '—' : formatTokens(row.remaining) + ' left' }}</td>
+                  <td>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" @click="labTeamId = row.team_id">
+                      Configure
+                    </button>
+                  </td>
+                </tr>
+                <tr v-if="!aiTeams.length">
+                  <td colspan="5" class="text-muted">No labs yet.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h6 class="mt-4">Lab Anthropic key</h6>
+          <p class="small text-muted">
+            Same mechanism as the platform key. Pick a lab to add or replace its key and see per-member usage.
+          </p>
+          <div class="mb-3">
+            <label class="form-label">Lab</label>
+            <select v-model="labTeamId" class="form-select">
+              <option value="">Select a lab…</option>
+              <option v-for="row in aiTeams" :key="row.team_id" :value="row.team_id">{{ row.name }}</option>
+            </select>
+          </div>
+          <TeamAiSettings
+            v-if="labTeamId"
+            :team-id="labTeamId"
+            :can-edit="true"
+            @saved="loadAiSettings"
+          />
         </div>
       </div>
 
@@ -202,11 +305,7 @@
       </div>
     </div>
 
-    <DocsRefreshModal
-      :show="showRefreshModal"
-      @close="showRefreshModal = false"
-      @applied="onDocsRefreshApplied"
-    />
+    <DocsRefreshModal :show="showRefreshModal" @close="showRefreshModal = false" @applied="onDocsRefreshApplied" />
   </main>
 </template>
 
@@ -215,6 +314,8 @@ import { onMounted, ref } from 'vue';
 import { api, authHeaders } from '@/utils/api';
 import { APP_NAME } from '@/utils/defs';
 import DocsRefreshModal from '@/components/DocsRefreshModal.vue';
+import AiSecretKeyField from '@/components/AiSecretKeyField.vue';
+import TeamAiSettings from '@/components/TeamAiSettings.vue';
 
 const dbConfigured = ref(false);
 const mailerConfigured = ref(false);
@@ -226,6 +327,22 @@ const savingMailer = ref(false);
 const testingMailer = ref(false);
 const testRecipient = ref('');
 const savingAppSettings = ref(false);
+const savingAi = ref(false);
+const ai = ref({
+  enabled: true,
+  model: 'claude-haiku-4-5-20251001',
+  default_monthly_token_quota: 250000,
+  ai_phi_filter: 'strict',
+  has_key: false,
+  key_prefix: null,
+  key_source: null,
+  anthropic_api_key: '',
+  clear_key: false,
+});
+const aiTeams = ref([]);
+const labTeamId = ref('');
+const aiMessage = ref('');
+const aiMessageType = ref('success');
 
 const db = ref({ host: '', port: '5432', database: '', user: '', password: '' });
 const mailer = ref({ host: '', port: '587', secure: false, user: '', password: '', from: '', replyTo: '' });
@@ -280,6 +397,29 @@ async function loadSettings() {
     const app = appRes.data || {};
     appSettings.value.helpEmail = app.helpEmail || '';
     appSettings.value.usageTracking = !!app.usageTracking;
+  } catch { /* ignore */ }
+
+  await loadAiSettings();
+}
+
+function formatTokens(n) {
+  return (Number(n) || 0).toLocaleString();
+}
+
+async function loadAiSettings() {
+  try {
+    const aiRes = await api.get('ai/settings/platform', authHeaders());
+    const s = aiRes.data || {};
+    ai.value.enabled = s.enabled !== false;
+    ai.value.model = s.model || 'claude-haiku-4-5-20251001';
+    ai.value.default_monthly_token_quota = s.default_monthly_token_quota;
+    ai.value.ai_phi_filter = s.ai_phi_filter || 'strict';
+    ai.value.has_key = !!s.has_key;
+    ai.value.key_prefix = s.key_prefix || null;
+    ai.value.key_source = s.key_source || null;
+    ai.value.anthropic_api_key = '';
+    ai.value.clear_key = false;
+    aiTeams.value = Array.isArray(s.teams) ? s.teams : [];
   } catch { /* ignore */ }
 }
 
@@ -430,6 +570,34 @@ async function saveAppSettings() {
     setMessage(appMessage, appMessageType, error.response?.data?.error || error.message || 'Failed to save app settings.', 'error', 'app');
   } finally {
     savingAppSettings.value = false;
+  }
+}
+
+async function saveAiSettings() {
+  savingAi.value = true;
+  try {
+    const payload = {
+      enabled: ai.value.enabled,
+      model: ai.value.model,
+      default_monthly_token_quota: ai.value.default_monthly_token_quota,
+      ai_phi_filter: ai.value.ai_phi_filter,
+    };
+    if (ai.value.clear_key) payload.clear_anthropic_api_key = true;
+    else if (ai.value.anthropic_api_key.trim()) payload.anthropic_api_key = ai.value.anthropic_api_key.trim();
+    const res = await api.patch('ai/settings/platform', payload, authHeaders());
+    const s = res.data || {};
+    ai.value.has_key = !!s.has_key;
+    ai.value.key_prefix = s.key_prefix || null;
+    ai.value.key_source = s.key_source || null;
+    ai.value.anthropic_api_key = '';
+    ai.value.clear_key = false;
+    aiTeams.value = Array.isArray(s.teams) ? s.teams : aiTeams.value;
+    setMessage(aiMessage, aiMessageType, 'AI settings saved.', 'success', 'ai');
+    await loadAiSettings();
+  } catch (error) {
+    setMessage(aiMessage, aiMessageType, error.response?.data?.error || error.message || 'Failed to save AI settings.', 'error', 'ai');
+  } finally {
+    savingAi.value = false;
   }
 }
 

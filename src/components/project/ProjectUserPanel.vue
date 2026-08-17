@@ -389,7 +389,8 @@ onBeforeUnmount(() => clearRevealTimer());
     <div class="card p-3">
       <h5 class="card-title mb-2">People</h5>
       <p class="small text-muted mb-3">
-        Contact an <strong>admin</strong> if you need help or a change in access.
+        Contact an <strong>Admin</strong> to ingest tables or change who is on the project.
+        You can run analytics on datasets that already have tables.
       </p>
 
       <div v-if="admins.length === 0" class="small text-muted">No admins listed yet.</div>

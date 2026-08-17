@@ -42,7 +42,23 @@
           </li>
         </ul>
 
-        <div class="dropdown ms-md-auto mt-2 mt-md-0">
+        <div class="nav-trailing ms-md-auto mt-2 mt-md-0 d-flex align-items-center gap-1">
+          <button
+            type="button"
+            class="nav-chat-btn"
+            :class="{ 'nav-chat-btn--open': chatStore.open }"
+            v-tooltip.bottom="'PHI-safe AI chat (⌘J)'"
+            aria-label="PHI-safe AI chat"
+            :aria-pressed="chatStore.open"
+            @click="chatStore.toggle()"
+          >
+            <i
+              class="bi"
+              :class="chatStore.open ? 'bi-chat-fill' : 'bi-chat'"
+              aria-hidden="true"
+            ></i>
+          </button>
+        <div class="dropdown">
           <a
             class="dropdown-toggle text-reset d-flex align-items-center account-trigger"
             href="#"
@@ -68,6 +84,11 @@
                 </div>
               </RouterLink>
             </li>
+            <li v-if="activeTeamId">
+              <RouterLink class="dropdown-item" :to="{ name: 'teamSettings' }">
+                Team settings
+              </RouterLink>
+            </li>
             <li><hr class="dropdown-divider" /></li>
             <li>
               <button type="button" class="dropdown-item" @click="showAbout = true">
@@ -86,6 +107,7 @@
               </a>
             </li>
           </ul>
+        </div>
         </div>
       </div>
     </div>
@@ -107,6 +129,9 @@ import ReportIssueModal from '@/components/ReportIssueModal.vue';
 import TeamProjectSwitcher from '@/components/TeamProjectSwitcher.vue';
 import { clearUsageSessionFlags } from '@/utils/clientUsage';
 import { useTeamContext } from '@/composables/useTeamContext';
+import { useChatStore } from '@/stores/chat';
+
+const chatStore = useChatStore();
 
 const router = useRouter();
 const route = useRoute();
@@ -117,6 +142,7 @@ const uiStore = useUIStore();
 const {
   isActiveProjectAdmin,
   activeProject,
+  activeTeamId,
 } = useTeamContext();
 
 const navEl = ref(null);
@@ -144,6 +170,7 @@ const isProjectActive = computed(() =>
   route.name === 'adminTeamsEdit'
 );
 const isHelpActive = computed(() => route.name === 'docs' || route.name === 'docNew');
+const isContributionsActive = computed(() => route.name === 'contributions' || route.name === 'contributionDetail');
 const isAuditActive = computed(() => route.name === 'adminAuditLog');
 
 const projectTo = computed(() => {
@@ -168,6 +195,14 @@ const navItems = computed(() => [
     to: { name: 'adminAuditLog' },
     active: isAuditActive.value,
     show: showAdminNav.value,
+  },
+  {
+    key: 'contributions',
+    label: 'Contributions',
+    icon: 'bi bi-box-seam',
+    to: { name: 'contributions' },
+    active: isContributionsActive.value,
+    show: true,
   },
   {
     key: 'help',
@@ -306,6 +341,27 @@ function onSignOutClick() {
   align-items: center;
   gap: 0.35rem;
   position: relative;
+}
+
+.nav-chat-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: 0;
+  border-radius: 0.35rem;
+  background: transparent !important;
+  color: #ffffff;
+  font-size: 1.15rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.nav-chat-btn--open,
+.nav-chat-btn:hover {
+  opacity: 1;
 }
 
 .account-trigger {

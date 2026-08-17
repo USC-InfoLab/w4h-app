@@ -6,6 +6,7 @@
       with ingesting, and analysing your wearable and clinical data, head to the
       <router-link :to="{ name: 'docs', params: { slug: 'quick-start' } }">⚡️ Quick Start <i
           class="bi bi-box-arrow-up-right"></i></router-link> guide.
+      Open <strong>PHI-safe AI chat</strong> (<kbd>⌘J</kbd>) for import, processing, and IRB questions.
     </p>
 
     <h2>Key Concepts (Data)</h2>
@@ -14,10 +15,9 @@
 
     <ul>
       <li>
-        <router-link :to="{ name: 'projects' }" target="_blank"> Data <i
-            class="bi bi-box-arrow-up-right"></i></router-link> for <router-link
-          :to="{ name: 'docs', params: { slug: `sample-dataset` } }" target="_blank">
-          Sample datasets <i class="bi bi-box-arrow-up-right"></i></router-link>.
+        <router-link :to="{ name: 'contributions' }">Contributions <i
+            class="bi bi-box-arrow-up-right"></i></router-link>
+        for curated notebooks, CLI, scripts, and Postgres extensions.
       </li>
     </ul>
 

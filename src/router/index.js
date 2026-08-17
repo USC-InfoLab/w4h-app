@@ -20,7 +20,12 @@ const routes = [
   { path: '/home', name: 'home', component: () => import('../views/HomeView.vue'), meta: { requiresAuth: true } },
   { path: '/projects', name: 'projects', component: () => import('../views/ProjectsView.vue'), meta: { requiresAuth: true } },
   { path: '/projects/:id', name: 'projectWorkspace', component: () => import('../views/ProjectWorkspaceView.vue'), props: true, meta: { requiresAuth: true } },
+  { path: '/contributions', name: 'contributions', component: () => import('../views/ContributionsView.vue'), meta: { requiresAuth: true } },
+  { path: '/contributions/:slug', name: 'contributionDetail', component: () => import('../views/ContributionDetailView.vue'), props: true, meta: { requiresAuth: true } },
+  { path: '/packages', redirect: '/contributions' },
+  { path: '/packages/:slug', redirect: (to) => ({ name: 'contributionDetail', params: { slug: to.params.slug } }) },
   { path: '/userProfileEdit', name: 'userProfileEdit', component: () => import('../views/UserProfileEdit.vue'), meta: { requiresAuth: true } },
+  { path: '/team/settings', name: 'teamSettings', component: () => import('../views/TeamSettingsView.vue'), meta: { requiresAuth: true } },
 
   // Docs routes
   {
@@ -44,6 +49,7 @@ const routes = [
 
   // Platform Admin UI — Super admin only
   { path: '/admin/home', name: 'adminHome', component: () => import('../views/admin/HomeView.vue'), meta: { requiresAuth: true, adminPage: true } },
+  { path: '/admin/contributions', name: 'adminContributions', component: () => import('../views/admin/ContributionsAdminView.vue'), meta: { requiresAuth: true, adminPage: true, superAdminOnly: true } },
   { path: '/admin/settings', name: 'adminSettings', component: () => import('../views/admin/SettingsView.vue'), meta: { requiresAuth: true, adminPage: true, superAdminOnly: true } },
   { path: '/admin/audit-log', name: 'adminAuditLog', component: () => import('../views/admin/AuditLogView.vue'), meta: { requiresAuth: true } },
   { path: '/admin/usage', name: 'adminUsage', component: () => import('../views/admin/UsageView.vue'), meta: { requiresAuth: true, adminPage: true, superAdminOnly: true } },

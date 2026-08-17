@@ -59,6 +59,25 @@
             </div>
           </div>
 
+          <div v-if="callerIsSuper" class="mb-3">
+            <div class="form-check">
+              <input
+                id="demo-project"
+                v-model="form.is_demonstration"
+                class="form-check-input"
+                type="checkbox"
+              />
+              <label class="form-check-label" for="demo-project">
+                Demonstration project
+              </label>
+            </div>
+            <div class="form-text">
+              Links every <strong>read-only sample</strong> dataset Super admin has marked.
+              People query those tables; they do not re-ingest them.
+              Mark sample catalogs on the dataset edit screen first.
+            </div>
+          </div>
+
           <div class="mb-3">
             <label class="form-label">Copy members from (optional)</label>
             <select v-model="form.seed_from_project_id" class="form-select">
@@ -107,7 +126,8 @@ const form = reactive({
   slug: '',
   name: '',
   description: '',
-  seed_from_project_id: ''
+  seed_from_project_id: '',
+  is_demonstration: false
 });
 
 const teams = ref([]);
@@ -182,7 +202,8 @@ async function onSave() {
         slug: form.slug || undefined,
         name: form.name,
         description: form.description || null,
-        seed_from_project_id: form.seed_from_project_id || undefined
+        seed_from_project_id: form.seed_from_project_id || undefined,
+        is_demonstration: callerIsSuper ? !!form.is_demonstration : undefined
       },
       authHeaders()
     );

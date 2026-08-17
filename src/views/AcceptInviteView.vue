@@ -1,6 +1,6 @@
 <template>
-  <div class="d-flex flex-column justify-content-center">
-    <form class="form-signin w-100" style="max-width: 420px;" @submit.prevent="onSubmit">
+  <div class="d-flex flex-column align-items-center justify-content-center">
+    <form class="form-signin mx-auto" style="max-width: 420px;" @submit.prevent="onSubmit">
       <img class="login-mark login-mark-hero mt-5 mx-auto d-block" src="/w4h-light.svg" :alt="`${APP_NAME} logo`" />
       <div class="logotype mb-4 text-center">{{ APP_NAME }}</div>
 

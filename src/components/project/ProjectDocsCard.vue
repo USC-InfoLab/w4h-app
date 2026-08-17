@@ -12,6 +12,8 @@ const props = defineProps({
   initialPages: { type: Array, default: () => [] },
   /** Compact project-landing list (recent docs + View all). */
   landing: { type: Boolean, default: false },
+  /** Sidebar + read pane; editor is full height without a split preview. */
+  workspace: { type: Boolean, default: false },
 });
 
 const uiStore = useUIStore();
@@ -237,7 +239,110 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="card p-3">
+  <div v-if="workspace" class="docs-workspace card overflow-hidden">
+    <div class="row g-0">
+      <div class="col-12 col-md-4 col-xl-3 border-end docs-nav">
+        <div class="p-3 border-bottom d-flex align-items-center justify-content-between gap-2">
+          <strong>Pages</strong>
+          <button v-if="canEdit" type="button" class="btn btn-sm btn-primary" @click="startNew">
+            + New
+          </button>
+        </div>
+        <div class="p-2 border-bottom">
+          <input
+            v-model="search"
+            type="search"
+            class="form-control form-control-sm"
+            placeholder="Search…"
+            aria-label="Search documentation"
+          />
+        </div>
+        <div v-if="loading" class="p-3 small text-muted">Loading…</div>
+        <div v-else-if="pages.length === 0" class="p-3 small text-muted">No documents yet.</div>
+        <div v-else class="list-group list-group-flush">
+          <button
+            v-for="page in filteredPages"
+            :key="page.slug"
+            type="button"
+            class="list-group-item list-group-item-action text-start"
+            :class="{ active: page.slug === activeSlug }"
+            @click="openPage(page.slug, false)"
+          >
+            <div class="fw-semibold text-truncate">{{ page.title || page.slug }}</div>
+            <div class="small opacity-75">{{ typeLabel(page.doc_type) }}</div>
+          </button>
+        </div>
+      </div>
+      <div class="col-12 col-md-8 col-xl-9 p-3 docs-main">
+        <div v-if="error" class="alert alert-danger py-2 small">{{ error }}</div>
+        <div v-if="mode === 'list'" class="text-muted py-5 text-center">
+          Select a page to read it rendered.
+          <span v-if="canEdit"> Use <strong>+ New</strong> to write one.</span>
+        </div>
+        <template v-else>
+          <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+            <div class="d-flex flex-wrap gap-2">
+              <template v-if="mode === 'view' && canEdit">
+                <button type="button" class="btn btn-sm btn-primary" @click="mode = 'edit'">Edit</button>
+                <button type="button" class="btn btn-sm btn-outline-danger" :disabled="saving" @click="deletePage">
+                  Delete
+                </button>
+              </template>
+              <template v-else-if="mode === 'edit'">
+                <button type="button" class="btn btn-sm btn-primary" :disabled="saving" @click="savePage">
+                  <span v-if="saving" class="spinner-border spinner-border-sm me-1" />
+                  Save
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-sm btn-outline-secondary"
+                  :disabled="saving"
+                  @click="activeSlug ? openPage(activeSlug, false) : backToList()"
+                >
+                  Cancel
+                </button>
+              </template>
+            </div>
+          </div>
+          <template v-if="mode === 'edit'">
+            <div class="row g-2 mb-2">
+              <div class="col-md-8">
+                <label class="form-label small mb-0">Title</label>
+                <input v-model="draft.title" type="text" class="form-control" />
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small mb-0">Type</label>
+                <select v-model="draft.doc_type" class="form-select">
+                  <option value="guide">Guide</option>
+                  <option value="workflow">Workflow</option>
+                  <option value="reference">Reference</option>
+                </select>
+              </div>
+            </div>
+            <MdEditor
+              v-model="draft.md"
+              language="en-US"
+              :theme="editorTheme"
+              :preview="false"
+              :toolbars-exclude="['github']"
+              class="docs-editor"
+            />
+          </template>
+          <template v-else-if="activePage">
+            <h3 class="mb-1">{{ activePage.title }}</h3>
+            <div class="small text-muted mb-3">
+              <span class="badge me-1" :class="typeBadgeClass(activePage.doc_type)">{{ typeLabel(activePage.doc_type) }}</span>
+              <template v-if="formatDate(activePage.updated_at)">Updated {{ formatDate(activePage.updated_at) }}</template>
+              <template v-if="activePage.updated_by"> by {{ activePage.updated_by }}</template>
+            </div>
+            <MdPreview :model-value="activePage.md || ''" :theme="editorTheme" />
+          </template>
+        </template>
+      </div>
+    </div>
+  </div>
+
+  <div v-else class="card p-3">
     <div v-if="mode === 'list'">
       <div class="d-flex flex-wrap align-items-start justify-content-between gap-2 mb-2">
         <div>
@@ -373,9 +478,9 @@ onMounted(() => {
           v-model="draft.md"
           language="en-US"
           :theme="editorTheme"
-          :preview="true"
+          :preview="false"
           :toolbars-exclude="['github']"
-          style="height: 420px"
+          class="docs-editor"
         />
       </template>
 
@@ -393,3 +498,15 @@ onMounted(() => {
     </div>
   </div>
 </template>
+
+<style scoped>
+.docs-nav {
+  min-height: 28rem;
+}
+.docs-editor {
+  min-height: 70vh;
+}
+.docs-main :deep(.md-editor) {
+  height: 70vh;
+}
+</style>

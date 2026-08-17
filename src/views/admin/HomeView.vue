@@ -1,33 +1,13 @@
 <template>
   <main class="d-flex flex-column main-content container-fluid">
-    <div v-if="showSetupGuide" class="w4h-callout mb-3" role="status">
-      <h5 class="alert-heading mb-2">Welcome — finish platform setup</h5>
-      <p class="mb-2">
-        Super admins bootstrap the platform; they do <strong>not</strong> configure individual trials.
-        Team admins (PIs) run trial setup in the app shell.
-      </p>
-      <ol class="mb-3">
-        <li>
-          <router-link :to="{ name: 'adminSettings' }">Settings → SMTP</router-link>
-          — so invitations and login codes work.
-        </li>
-        <li>
-          <router-link :to="{ name: 'adminTeamsAdd' }">Teams → Add Team</router-link>
-          — create the PI’s <strong>initial team</strong>.
-        </li>
-        <li>
-          <router-link :to="{ name: 'usersAdd' }">Users → Invite</router-link>
-          — invite the PI as <strong>Team admin</strong> on that team.
-        </li>
-        <li>
-          The Team admin then creates projects, datasets, and further teams as needed
-          (see <router-link :to="{ name: 'docs', params: { slug: 'setting-up-projects' } }">Setting Up Projects</router-link>).
-        </li>
-      </ol>
-      <button type="button" class="btn btn-sm btn-outline-primary" @click="dismissSetupGuide">
-        Got it — hide this guide
-      </button>
-    </div>
+    <WelcomeNextSteps
+      v-if="showSetupGuide"
+      title="Welcome — Super admin"
+      subtitle="Bootstrap platform access only. Admins set up trials in the app shell."
+      :cards="setupCards"
+      dismissable
+      @dismiss="dismissSetupGuide"
+    />
 
     <div v-if="loadError" class="alert alert-danger">{{ loadError }}</div>
 
@@ -166,6 +146,34 @@ import { storeToRefs } from 'pinia';
 import { useUserStore } from '@/stores/user';
 import { isSuperAdmin } from '@/utils/roles';
 import { api, authHeaders } from '@/utils/api';
+import WelcomeNextSteps from '@/components/home/WelcomeNextSteps.vue';
+
+const setupCards = [
+  {
+    title: '1. SMTP',
+    text: 'Invitations and login codes need outbound mail.',
+    to: { name: 'adminSettings' },
+    label: 'Open Settings',
+  },
+  {
+    title: '2. Initial team',
+    text: 'Create the PI’s first team. You do not approve later trials.',
+    to: { name: 'adminTeamsAdd' },
+    label: 'Add Team',
+  },
+  {
+    title: '3. Invite Admin',
+    text: 'Invite the PI as Team admin on that team.',
+    to: { name: 'usersAdd' },
+    label: 'Invite user',
+  },
+  {
+    title: '4. Checklist',
+    text: 'Refresh Help, optional Claude key, HIPAA before real PHI.',
+    to: { name: 'docs', params: { slug: 'welcome-super-admin' } },
+    label: 'Open guide',
+  },
+];
 
 const userStore = useUserStore();
 const { user } = storeToRefs(userStore);

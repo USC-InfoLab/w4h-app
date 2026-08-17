@@ -142,6 +142,13 @@ function onDatasetSelect(event) {
 
       <div class="card p-3 mt-3">
         <h5 class="card-title mb-3">Datasets</h5>
+        <p class="small text-muted mb-3">
+          Link datasets that belong on this project. That does not load data.
+          Adapt an ingest notebook from Contributions for your export (importer repos also include a
+          CLI for incremental/cron updates). Ingest into <em>your team</em>, not the Samples sandbox.
+          The dataset is loaded when tables show on the overview.
+          <router-link :to="{ name: 'contributions' }">Open Contributions</router-link>
+        </p>
         <div v-if="!form.team_id" class="alert alert-warning small mb-0">
           Set an owning team before assigning datasets.
         </div>
@@ -224,8 +231,9 @@ function onDatasetSelect(event) {
       <div class="card p-3">
         <h5 class="card-title mb-3">Members</h5>
         <p class="small text-muted mb-3">
-          People on this project. <strong>Admin</strong> can manage the study;
-          <strong>User</strong> can work in it.
+          People on this project. <strong>Admin</strong> can ingest dataset tables
+          (and manage declarations, members, and pages).
+          <strong>User</strong> can run analytics on loaded, linked datasets.
           Super admin is a platform role — it is not assigned here.
           At least one Admin is required, and an Admin cannot remove themselves.
         </p>

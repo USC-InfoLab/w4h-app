@@ -35,7 +35,23 @@
           </li>
         </ul>
 
-        <div class="dropdown ms-md-auto mt-2 mt-md-0">
+        <div class="nav-trailing ms-md-auto mt-2 mt-md-0 d-flex align-items-center gap-1">
+          <button
+            type="button"
+            class="nav-chat-btn"
+            :class="{ 'nav-chat-btn--open': chatStore.open }"
+            v-tooltip.bottom="'PHI-safe AI chat (⌘J)'"
+            aria-label="PHI-safe AI chat"
+            :aria-pressed="chatStore.open"
+            @click="chatStore.toggle()"
+          >
+            <i
+              class="bi"
+              :class="chatStore.open ? 'bi-chat-fill' : 'bi-chat'"
+              aria-hidden="true"
+            ></i>
+          </button>
+        <div class="dropdown">
           <a
             class="dropdown-toggle text-reset d-flex align-items-center account-trigger"
             href="#"
@@ -76,6 +92,7 @@
             </li>
           </ul>
         </div>
+        </div>
       </div>
     </div>
   </nav>
@@ -101,7 +118,9 @@ import { useUIStore } from '../stores/ui';
 import { isSuperAdmin, roleLabel } from '@/utils/roles';
 import AboutModal from '@/components/AboutModal.vue';
 import { clearUsageSessionFlags } from '@/utils/clientUsage';
+import { useChatStore } from '@/stores/chat';
 const uiStore = useUIStore();
+const chatStore = useChatStore();
 
 const navEl = ref(null);
 const showAbout = ref(false);
@@ -180,6 +199,11 @@ const isDatasetsActive = computed(() =>
 const isHelpActive = computed(() =>
   route.name === 'docs' || route.name === 'docNew'
 );
+const isContributionsActive = computed(() =>
+  route.name === 'contributions' ||
+  route.name === 'contributionDetail' ||
+  route.name === 'adminContributions'
+);
 
 const navItems = computed(() => [
   {
@@ -205,6 +229,14 @@ const navItems = computed(() => [
     to: { name: 'adminDatasets' },
     active: isDatasetsActive.value,
     show: true,
+  },
+  {
+    key: 'contributions',
+    label: 'Contributions',
+    icon: 'bi bi-box-seam',
+    to: { name: 'adminContributions' },
+    active: isContributionsActive.value,
+    show: showSettings.value,
   },
   {
     key: 'audit',
@@ -369,6 +401,21 @@ watch(homeBrandTooltip, () => {
   align-items: center;
   gap: 0.35rem;
   position: relative;
+}
+
+.nav-chat-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: 0;
+  border-radius: 0.35rem;
+  background: transparent !important;
+  color: #ffffff;
+  font-size: 1.15rem;
+  cursor: pointer;
 }
 
 .account-trigger {

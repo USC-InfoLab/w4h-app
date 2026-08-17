@@ -3,7 +3,7 @@
 Structural map of `w4h-app` for agents and humans. **Index only** — not feature docs.
 
 - Regenerate: `npm run index:ui`
-- Generated: 2026-08-14
+- Generated: 2026-08-17
 - Do not hand-edit the lists below; change code, then re-run the script.
 
 ## Orientation
@@ -32,11 +32,17 @@ Shells: app (`NavBar`) vs Platform Admin (`AdminNavBar`). Project workspace: `Pr
 | `/home` | home | `views/HomeView.vue` | auth |
 | `/projects` | projects | `views/ProjectsView.vue` | auth |
 | `/projects/:id` | projectWorkspace | `views/ProjectWorkspaceView.vue` | auth |
+| `/contributions` | contributions | `views/ContributionsView.vue` | auth |
+| `/contributions/:slug` | contributionDetail | `views/ContributionDetailView.vue` | auth |
+| `/packages` | — | `→ /contributions` | — |
+| `/packages/:slug` | contributionDetail | `—` | — |
 | `/userProfileEdit` | userProfileEdit | `views/UserProfileEdit.vue` | auth |
+| `/team/settings` | teamSettings | `views/TeamSettingsView.vue` | auth |
 | `/docs/new` | docNew | `views/docs/DocsView.vue` | auth |
 | `/docs` | — | `→ /docs/home` | — |
 | `/docs/:slug` | docs | `views/docs/DocsView.vue` | auth |
 | `/admin/home` | adminHome | `views/admin/HomeView.vue` | auth, adminPage |
+| `/admin/contributions` | adminContributions | `views/admin/ContributionsAdminView.vue` | auth, adminPage, superAdmin |
 | `/admin/settings` | adminSettings | `views/admin/SettingsView.vue` | auth, adminPage, superAdmin |
 | `/admin/audit-log` | adminAuditLog | `views/admin/AuditLogView.vue` | auth |
 | `/admin/usage` | adminUsage | `views/admin/UsageView.vue` | auth, adminPage, superAdmin |
@@ -62,15 +68,18 @@ Shells: app (`NavBar`) vs Platform Admin (`AdminNavBar`). Project workspace: `Pr
 | `/admin/usersEdit/:email` | usersEdit | `views/admin/UsersEdit.vue` | auth, teamAdmin |
 | `/:pathMatch(.*)*` | not-found | `views/LoginView.vue` | guest |
 
-## Views (29)
+## Views (33)
 
 ### `src/views/`
 - AcceptInviteView.vue
+- ContributionDetailView.vue
+- ContributionsView.vue
 - HomeView.vue
 - LoginView.vue
 - LoginWithCode.vue
 - ProjectsView.vue
 - ProjectWorkspaceView.vue
+- TeamSettingsView.vue
 - UserProfileEdit.vue
 
 ### `src/views/admin/`
@@ -78,6 +87,7 @@ Shells: app (`NavBar`) vs Platform Admin (`AdminNavBar`). Project workspace: `Pr
 - AccountsEdit.vue
 - AccountsView.vue
 - AuditLogView.vue
+- ContributionsAdminView.vue
 - DatasetsAdd.vue
 - DatasetsEdit.vue
 - DatasetsSharesView.vue
@@ -99,11 +109,12 @@ Shells: app (`NavBar`) vs Platform Admin (`AdminNavBar`). Project workspace: `Pr
 ### `src/views/docs/`
 - DocsView.vue
 
-## Components (24)
+## Components (33)
 
 ### `src/components/`
 - AboutModal.vue
 - AdminNavBar.vue
+- AiSecretKeyField.vue
 - CopyBox.vue
 - CopyCode.vue
 - DocsAddNewDoc.vue
@@ -115,26 +126,36 @@ Shells: app (`NavBar`) vs Platform Admin (`AdminNavBar`). Project workspace: `Pr
 - DocsSettingsModal.vue
 - DocsSidebarNav.vue
 - FeatureCard.vue
+- GlobalChatPanel.vue
 - MdDocEditable.vue
 - NavBar.vue
+- PhiSafeChat.vue
 - ReportIssueModal.vue
+- TeamAiSettings.vue
 - TeamProjectSwitcher.vue
+- WhatsNewModal.vue
+
+### `src/components/contributions/`
+- ContributionKindBadges.vue
+- ContributionRolesNote.vue
 
 ### `src/components/home/`
 - DatasetCatalogCard.vue
 - ProjectAdminHome.vue
 - ProjectUserHome.vue
+- WelcomeNextSteps.vue
 
 ### `src/components/project/`
 - ProjectAdminPanel.vue
 - ProjectDatasetMasterDetail.vue
 - ProjectDocsCard.vue
+- ProjectHub.vue
 - ProjectUserPanel.vue
 
 ## Supporting modules
 
-**Stores:** `stores/counter.js`, `stores/ui.js`, `stores/user.js`
+**Stores:** `stores/chat.js`, `stores/counter.js`, `stores/ui.js`, `stores/user.js`
 
-**Utils:** `utils/api.js`, `utils/cards.js`, `utils/clientUsage.js`, `utils/defs.js`, `utils/docMedia.js`, `utils/docsHeadingId.js`, `utils/format.js`, `utils/fs.js`, `utils/password-validator.js`, `utils/roles.js`, `utils/toc.js`
+**Utils:** `utils/api.js`, `utils/browserCredentials.js`, `utils/cards.js`, `utils/chatMarkdown.js`, `utils/clientUsage.js`, `utils/contributionKinds.js`, `utils/defs.js`, `utils/docMedia.js`, `utils/docsHeadingId.js`, `utils/format.js`, `utils/fs.js`, `utils/loginRemember.js`, `utils/password-validator.js`, `utils/roles.js`, `utils/toc.js`
 
 **Composables:** `composables/useDocTypes.js`, `composables/useTeamContext.js`, `composables/useVgtTheme.js`

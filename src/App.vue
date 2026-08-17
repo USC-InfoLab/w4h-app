@@ -3,6 +3,8 @@
     <template v-if="!isGuest">
       <AdminNavBar v-if="isAdminUI" />
       <NavBar v-else />
+      <GlobalChatPanel />
+      <WhatsNewModal v-if="user" />
     </template>
     <router-view />
   </div>
@@ -12,6 +14,8 @@
 import { computed, watch } from 'vue'
 import NavBar from '@/components/NavBar.vue'
 import AdminNavBar from '@/components/AdminNavBar.vue'
+import GlobalChatPanel from '@/components/GlobalChatPanel.vue'
+import WhatsNewModal from '@/components/WhatsNewModal.vue'
 import { trackPageView, trackSessionStart } from '@/utils/clientUsage'
 
 import { useRoute } from 'vue-router'

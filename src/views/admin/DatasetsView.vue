@@ -50,7 +50,11 @@
       </button>
     </div>
     <p class="small text-muted mb-3">
-      <template v-if="filter === 'all'">Owned, discoverable from other teams, and inbound shares.</template>
+      Ingested catalogs for research (and the shared Samples sandbox).
+      Creating a catalog entry or linking a dataset on a project does not load data — it is loaded when tables exist.
+      Git sample repos and importers are under
+      <router-link :to="{ name: 'contributions' }">Contributions</router-link>, not here.
+      <template v-if="filter === 'all'"> Owned, discoverable from other teams, and inbound shares.</template>
       <template v-else-if="filter === 'mine'">Datasets your team owns.</template>
       <template v-else-if="filter === 'others'">
         Discoverable datasets from other teams (name and description only — ask them to share to use).

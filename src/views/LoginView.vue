@@ -1,5 +1,5 @@
 <template>
-  <div class="d-flex flex-column justify-content-center">
+  <div class="d-flex flex-column align-items-center justify-content-center">
     <div v-if="showDbConfig" class="card w-100 mx-auto" style="max-width: 450px;">
       <div class="card-body">
         <img class="login-mark mx-auto d-block mt-2" src="/w4h-light.svg" :alt="`${APP_NAME} logo`" />
@@ -151,21 +151,48 @@
       </div>
     </div>
 
-    <form v-else class="form-signin w-100" @submit.prevent="login()" style="max-width: 360px;">
+    <form
+      v-else
+      class="form-signin mx-auto"
+      autocomplete="on"
+      method="post"
+      action="/login"
+      @submit.prevent="login()"
+    >
       <img class="login-mark login-mark-hero mt-5 mx-auto d-block" src="/w4h-light.svg" :alt="`${APP_NAME} logo`" />
       <div class="logotype mb-4 text-center">{{ APP_NAME }}</div>
 
-      <label for="inputEmail" class="visually-hidden">Email</label>
-      <input id="inputEmail" class="form-control" placeholder="Email" required autofocus v-model="email"
-        @input="resetMessage" @animationstart="onLoginInputAnimationStart"
-        :autocomplete="isDevPrefilled ? 'off' : 'username'" />
+      <label for="inputEmail" class="form-label text-start w-100 mb-1">Email</label>
+      <input
+        id="inputEmail"
+        name="username"
+        type="email"
+        class="form-control"
+        placeholder="you@example.com"
+        required
+        autofocus
+        v-model="email"
+        autocomplete="username"
+        @input="resetMessage"
+        @change="syncLoginFromDom"
+        @animationstart="onLoginAutofill"
+      />
 
-      <label for="inputPassword" class="visually-hidden">Password</label>
+      <label for="inputPassword" class="form-label text-start w-100 mb-1 mt-2">Password</label>
       <div class="position-relative mb-3">
-        <input :type="showLoginPassword ? 'text' : 'password'" id="inputPassword" class="form-control"
-          placeholder="Password" required v-model="password" @input="resetMessage"
-          @animationstart="onLoginInputAnimationStart"
-          :autocomplete="isDevPrefilled ? 'new-password' : 'current-password'" />
+        <input
+          id="inputPassword"
+          name="password"
+          :type="showLoginPassword ? 'text' : 'password'"
+          class="form-control"
+          placeholder="Password"
+          required
+          v-model="password"
+          autocomplete="current-password"
+          @input="onPasswordInput"
+          @change="syncLoginFromDom"
+          @animationstart="onLoginAutofill"
+        />
         <button type="button" class="btn-eye-toggle" @click="showLoginPassword = !showLoginPassword" tabindex="-1">
           <i :class="showLoginPassword ? 'bi bi-eye-slash' : 'bi bi-eye'"></i>
         </button>
@@ -185,10 +212,12 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, computed } from 'vue';
+import { ref, reactive, onMounted, nextTick } from 'vue';
 import { api } from '../utils/api';
 import { validatePassword, PASSWORD_REQUIREMENTS } from '@/utils/password-validator';
 import { APP_NAME } from '@/utils/defs';
+import { readLastLoginEmail, rememberLoginEmail } from '@/utils/loginRemember';
+import { getLoginCredential, storeLoginCredential } from '@/utils/browserCredentials';
 import { useRouter } from 'vue-router';
 const router = useRouter();
 
@@ -300,16 +329,22 @@ const checkDbStatus = async () => {
 };
 
 const login = async () => {
+  syncLoginFromDom();
+  const passEl = document.getElementById('inputPassword');
+  const pwd = String(passEl?.value || password.value || '');
+  password.value = pwd;
   try {
     const response = await api.post('users/login', {
       email: email.value.trim(),
-      password: password.value.trim(),
+      password: pwd,
     });
 
     if (response.data.error) {
       message.value = response.data.error.message;
     } else {
       const user = response.data;
+      rememberLoginEmail(email.value);
+      await storeLoginCredential(email.value, password.value);
       localStorage.setItem('w4h.user.token', user.token);
       await userStore.setUser(user);
 
@@ -401,6 +436,8 @@ const setupInitialAdmin = async () => {
     });
 
     if (res.data.success) {
+      rememberLoginEmail(admin.email);
+      await storeLoginCredential(admin.email, admin.password);
       localStorage.setItem('w4h.user.token', res.data.token);
       await userStore.setUser(res.data.user);
       userStore.markSetupGuidePending();
@@ -431,46 +468,61 @@ const resetMessage = () => {
   message.value = '';
 };
 
-function isDocsCapture() {
-  try {
-    return sessionStorage.getItem('w4h.docsCapture') === '1';
-  } catch {
-    return false;
-  }
+function initialLoginFields() {
+  const lastEmail = readLastLoginEmail();
+  const envEmail = String(import.meta.env.VITE_APP_ADMIN_EMAIL || '').trim();
+  const envPassword = String(import.meta.env.VITE_APP_ADMIN_PASSWORD || '');
+  // Local .env wins so Sign in is filled; last email is only a fallback.
+  const nextEmail = envEmail || lastEmail;
+  const nextPassword = envEmail && nextEmail === envEmail ? envPassword : '';
+  return { email: nextEmail, password: nextPassword };
 }
 
-const devEmail = import.meta.env.DEV && !isDocsCapture() ? import.meta.env.VITE_APP_ADMIN_EMAIL?.trim() : '';
-const devPassword = import.meta.env.DEV && !isDocsCapture() ? import.meta.env.VITE_APP_ADMIN_PASSWORD?.trim() : '';
-
-const email = ref(devEmail || '');
-const password = ref(devPassword || '');
+const seeded = initialLoginFields();
+const email = ref(seeded.email);
+const password = ref(seeded.password);
 const message = ref('');
 
-const isDevPrefilled = computed(() => !!devEmail || !!devPassword);
-
-function isLoginFormVisible() {
-  return !showDbConfig.value && !showAdminSetup.value && !backendError.value;
+function syncLoginFromDom() {
+  const userEl = document.getElementById('inputEmail');
+  const passEl = document.getElementById('inputPassword');
+  if (userEl?.value) email.value = userEl.value;
+  if (passEl?.value) password.value = passEl.value;
 }
 
-/** Prefill sign-in from `.env` in dev only (`VITE_APP_ADMIN_*`, same as admin setup). */
-function applyDevLoginPrefill() {
-  if (!import.meta.env.DEV || isDocsCapture() || !isLoginFormVisible()) return;
-  if (devEmail) email.value = devEmail;
-  if (devPassword) password.value = devPassword;
+function onPasswordInput(event) {
+  resetMessage();
+  password.value = event?.target?.value ?? '';
 }
 
-/** WebKit fires `animationstart` when autofill applies `:-webkit-autofill` (no standard autofill event). */
-function onLoginInputAnimationStart(event) {
-  if (!import.meta.env.DEV || !event.animationName.includes('w4h-onAutoFillStart')) return;
-  applyDevLoginPrefill();
+function onLoginAutofill(event) {
+  const name = String(event.animationName || '');
+  if (!name.includes('w4h-onAutoFillStart')) return;
+  syncLoginFromDom();
+  nextTick(syncLoginFromDom);
+}
+
+async function hydrateLoginFields() {
+  syncLoginFromDom();
+  if (!password.value) {
+    const saved = await getLoginCredential();
+    if (saved?.email && !email.value) email.value = saved.email;
+    if (saved?.password) password.value = saved.password;
+  }
+  if (!email.value || !password.value) {
+    const again = initialLoginFields();
+    if (!email.value) email.value = again.email;
+    if (!password.value) password.value = again.password;
+  }
+  syncLoginFromDom();
 }
 
 onMounted(async () => {
-  applyDevLoginPrefill();
-
   await checkDbStatus();
-
-  applyDevLoginPrefill();
+  await nextTick();
+  await hydrateLoginFields();
+  window.setTimeout(syncLoginFromDom, 50);
+  window.setTimeout(syncLoginFromDom, 300);
 });
 </script>
 
@@ -483,11 +535,9 @@ onMounted(async () => {
 
 .form-signin {
   width: 100%;
-  max-width: 330px;
+  max-width: 360px;
   padding: 0px 15px;
-  /* ADJUSTMENT: Add margin-top to place the dialog closer to the top of the page */
   margin: 50px auto 0;
-  /* Add margin to push the form down from the top */
 }
 
 /* ... rest of existing styles ... */
@@ -565,28 +615,25 @@ onMounted(async () => {
 </style>
 
 <style>
-/*
- * Unscoped autofill hooks: WebKit runs these animations when the browser autofills
- * a field, which lets us listen for `animationstart` and re-apply dev `.env` values.
- * There is no standard DOM "autofill" event, and autofill does not fire `input`/`change`.
- */
 .form-signin #inputEmail:-webkit-autofill,
 .form-signin #inputPassword:-webkit-autofill {
   animation-name: w4h-onAutoFillStart;
+  animation-duration: 0.001s;
 }
 
 .form-signin #inputEmail:not(:-webkit-autofill),
 .form-signin #inputPassword:not(:-webkit-autofill) {
   animation-name: w4h-onAutoFillCancel;
+  animation-duration: 0.001s;
 }
 
 @keyframes w4h-onAutoFillStart {
-  from {}
-  to {}
+  from { opacity: 0.99; }
+  to { opacity: 1; }
 }
 
 @keyframes w4h-onAutoFillCancel {
-  from {}
-  to {}
+  from { opacity: 0.99; }
+  to { opacity: 1; }
 }
 </style>

@@ -1,6 +1,12 @@
 <template>
-  <div class="d-flex flex-column justify-content-center">
-    <form class="form-signin w-100" @submit.prevent="emailSent ? login() : sendCode()" style="max-width: 360px;">
+  <div class="d-flex flex-column align-items-center justify-content-center">
+    <form
+      class="form-signin mx-auto"
+      autocomplete="on"
+      method="post"
+      action="/login"
+      @submit.prevent="emailSent ? login() : sendCode()"
+    >
       <img class="login-mark login-mark-hero mt-5 mx-auto d-block" src="/w4h-light.svg" :alt="`${APP_NAME} logo`" />
       <div class="logotype mb-4 text-center">{{ APP_NAME }}</div>
 
@@ -11,11 +17,21 @@
           <div class="login-code-step">
             <template v-if="!emailSent">
               <p class="text-muted small mb-3">
-                Enter your account email and we will send a one-time sign-in code.
+                Enter the account email from your invitation.
               </p>
               <label for="email" class="form-label">Email</label>
-              <input id="email" v-model="email" type="email" class="form-control mb-3" required autofocus
-                autocomplete="username" @input="clearMessage" />
+              <input
+                id="email"
+                name="username"
+                v-model="email"
+                type="email"
+                class="form-control mb-3"
+                required
+                autofocus
+                autocomplete="username"
+                placeholder="you@example.com"
+                @input="clearMessage"
+              />
             </template>
 
             <template v-else>
@@ -58,6 +74,7 @@ import { APP_NAME } from '@/utils/defs';
 import { useUserStore } from '../stores/user';
 import { useUIStore } from '@/stores/ui';
 import { canAccessAdminUi } from '@/utils/roles';
+import { readLastLoginEmail, rememberLoginEmail } from '@/utils/loginRemember';
 
 const router = useRouter();
 const userStore = useUserStore();
@@ -65,7 +82,7 @@ const uiStore = useUIStore();
 
 const copyright = import.meta.env.VITE_COPYRIGHT;
 
-const email = ref('');
+const email = ref(readLastLoginEmail() || String(import.meta.env.VITE_APP_ADMIN_EMAIL || '').trim());
 const code = ref('');
 const emailSent = ref(false);
 const message = ref('');
@@ -127,6 +144,7 @@ const login = async () => {
     }
 
     const { user, token } = response.data;
+    rememberLoginEmail(email.value);
     localStorage.setItem('w4h.user.token', token);
     await userStore.setUser({ ...user, token });
 

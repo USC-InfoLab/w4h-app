@@ -1,6 +1,6 @@
 <template>
   <main class="container-fluid" v-if="loaded">
-    <nav v-if="canManageThisProject" aria-label="breadcrumb" class="mb-3">
+    <nav aria-label="breadcrumb" class="mb-3">
       <ol class="breadcrumb">
         <li v-if="isSuperAdmin(userStore.user?.role)" class="breadcrumb-item">
           <router-link to="/admin/projects">Projects</router-link>
@@ -9,52 +9,41 @@
       </ol>
     </nav>
 
-    <ProjectAdminPanel
-      v-if="canManageThisProject"
+    <ProjectHub
+      :can-manage="canManageThisProject"
       :form="form"
-      :teams="teams"
-      :can-change-team="canChangeTeam"
       :team-label="teamLabel"
       :created-by-label="createdByLabel"
       :created-at-label="createdAtLabel"
       :member-rows="memberRows"
-      :addable-members="addableMembers"
-      :eligible-members="eligibleMembers"
       :linked-dataset-rows="linkedDatasetRows"
       :addable-datasets="addableDatasets"
       :dataset-to-add="datasetToAdd"
       :new-dataset-name="newDatasetName"
-      :new-member="newMember"
       :saving-project="savingProject"
       :saving-members="savingMembers"
       :saving-datasets="savingDatasets"
       :current-user-id="userStore.user?.id"
       :pages="projectPages"
       :can-edit-pages="canEditPages"
+      :is-demonstration="isDemonstration"
+      :invite-email="inviteEmail"
+      :invite-name="inviteName"
+      :invite-role="inviteRole"
+      :invite-url="inviteUrl"
+      :jupyter-url="jupyterUrl"
       @save-project="saveProject"
-      @add-member="addMember"
+      @invite-member="inviteMember"
       @change-member-role="changeMemberRole"
       @delete-member="deleteMember"
       @update:dataset-to-add="datasetToAdd = $event"
       @update:new-dataset-name="newDatasetName = $event"
+      @update:invite-email="inviteEmail = $event"
+      @update:invite-name="inviteName = $event"
+      @update:invite-role="inviteRole = $event"
       @dataset-pick="onDatasetPick"
       @create-dataset="createDatasetForProject"
       @unlink-dataset="unlinkDataset"
-    />
-
-    <ProjectUserPanel
-      v-else
-      :project-id="form.id"
-      :name="form.name"
-      :description="form.description"
-      :status="form.status"
-      :team-label="teamLabel"
-      :created-by-label="createdByLabel"
-      :created-at-label="createdAtLabel"
-      :members="memberRows"
-      :datasets="linkedDatasetRows"
-      :pages="projectPages"
-      :can-edit-pages="canEditPages"
     />
 
     <div v-if="message" class="alert mt-3" :class="ok ? 'alert-success' : 'alert-danger'">
@@ -70,8 +59,7 @@ import { api, authHeaders } from '@/utils/api';
 import { useUserStore } from '@/stores/user';
 import { isSuperAdmin } from '@/utils/roles';
 import { useTeamContext } from '@/composables/useTeamContext';
-import ProjectAdminPanel from '@/components/project/ProjectAdminPanel.vue';
-import ProjectUserPanel from '@/components/project/ProjectUserPanel.vue';
+import ProjectHub from '@/components/project/ProjectHub.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -95,7 +83,6 @@ const form = reactive({
 
 const teams = ref([]);
 const memberRows = ref([]);
-const eligibleMembers = ref([]);
 const availableDatasets = ref([]);
 const linkedDatasetIds = ref([]);
 const linkedDatasetMeta = ref([]);
@@ -108,11 +95,12 @@ const teamSlug = ref('');
 const canManageThisProject = ref(false);
 const canEditPages = ref(false);
 const projectPages = ref([]);
-
-const newMember = reactive({
-  user_id: '',
-  role: 'editor'
-});
+const isDemonstration = ref(false);
+const inviteEmail = ref('');
+const inviteName = ref('');
+const inviteRole = ref('editor');
+const inviteUrl = ref('');
+const jupyterUrl = String(import.meta.env.VITE_JUPYTER_URL || '').trim();
 
 const canChangeTeam = computed(() => isSuperAdmin(userStore.user?.role));
 
@@ -121,11 +109,6 @@ const teamLabel = computed(() => {
     return teamSlug.value ? `${teamName.value} (${teamSlug.value})` : teamName.value;
   }
   return form.team_id || '—';
-});
-
-const addableMembers = computed(() => {
-  const existing = new Set(memberRows.value.map((m) => String(m.user_id)));
-  return (eligibleMembers.value || []).filter((u) => !existing.has(String(u.user_id)));
 });
 
 function mapMemberRows(rows) {
@@ -155,6 +138,9 @@ const linkedDatasetRows = computed(() => {
       table_count: meta?.table_count ?? meta?.summary?.table_count ?? 0,
       physical_table_count:
         meta?.physical_table_count ?? meta?.summary?.physical_table_count ?? 0,
+      read_only: Boolean(meta?.read_only),
+      origin: meta?.origin || '',
+      source_label: meta?.source_label || '',
     };
   });
 });
@@ -280,6 +266,7 @@ function mapOverviewToForm(data) {
   form.name = p.name || '';
   form.description = p.description || '';
   form.status = p.status || 'active';
+  isDemonstration.value = Boolean(p.is_demonstration);
   teamName.value = p.team_name || '';
   teamSlug.value = p.team_slug || '';
 
@@ -298,7 +285,6 @@ function mapOverviewToForm(data) {
   linkedDatasetMeta.value = Array.isArray(data?.datasets) ? data.datasets : [];
 
   availableDatasets.value = Array.isArray(data?.linkable_datasets) ? data.linkable_datasets : [];
-  eligibleMembers.value = Array.isArray(data?.eligible_members) ? data.eligible_members : [];
   canManageThisProject.value =
     !!data?.capabilities?.can_manage || isSuperAdmin(userStore.user?.role);
 
@@ -412,25 +398,38 @@ async function saveProject() {
   }
 }
 
-async function addMember() {
-  if (!canManageThisProject.value || !newMember.user_id) return;
+async function inviteMember() {
+  if (!canManageThisProject.value) return;
+  const email = String(inviteEmail.value || '').trim();
+  if (!email) return;
   savingMembers.value = true;
+  inviteUrl.value = '';
   setMessage(false, '');
   try {
     const res = await api.post(
       `projects/${encodeURIComponent(form.id)}/members`,
       {
-        user_id: Number(newMember.user_id),
-        role: newMember.role || 'editor'
+        email,
+        name: String(inviteName.value || '').trim() || undefined,
+        role: inviteRole.value || 'editor',
       },
       authHeaders()
     );
-    memberRows.value = Array.isArray(res.data) ? mapMemberRows(res.data) : memberRows.value;
-    newMember.user_id = '';
-    newMember.role = 'editor';
-    setMessage(true, 'Member added.');
+    const members = Array.isArray(res.data?.members) ? res.data.members : res.data;
+    memberRows.value = Array.isArray(members) ? mapMemberRows(members) : memberRows.value;
+    inviteUrl.value = res.data?.inviteUrl || '';
+    inviteEmail.value = '';
+    inviteName.value = '';
+    inviteRole.value = 'editor';
+    if (res.data?.mailWarning) {
+      setMessage(true, `Invited ${email}. ${res.data.mailWarning}`);
+    } else if (res.data?.invited) {
+      setMessage(true, `Invitation sent to ${email}.`);
+    } else {
+      setMessage(true, `${email} added to this project.`);
+    }
   } catch (error) {
-    setMessage(false, error.response?.data?.error || error.message || 'Failed to add member.');
+    setMessage(false, error.response?.data?.error || error.message || 'Failed to invite.');
   } finally {
     savingMembers.value = false;
   }
@@ -447,7 +446,7 @@ async function changeMemberRole(row, nextRole) {
       { role: nextRole },
       authHeaders()
     );
-    memberRows.value = Array.isArray(res.data) ? mapMemberRows(res.data) : memberRows.value;
+    memberRows.value = Array.isArray(res.data?.members) ? mapMemberRows(res.data.members) : Array.isArray(res.data) ? mapMemberRows(res.data) : memberRows.value;
     setMessage(true, 'Member role updated.');
   } catch (error) {
     setMessage(false, error.response?.data?.error || error.message || 'Failed to update member role.');
@@ -467,7 +466,7 @@ async function deleteMember(row) {
       `projects/${encodeURIComponent(form.id)}/members/${encodeURIComponent(row.user_id)}`,
       authHeaders()
     );
-    memberRows.value = Array.isArray(res.data) ? mapMemberRows(res.data) : memberRows.value;
+    memberRows.value = Array.isArray(res.data?.members) ? mapMemberRows(res.data.members) : Array.isArray(res.data) ? mapMemberRows(res.data) : memberRows.value;
     setMessage(true, 'Member removed.');
   } catch (error) {
     setMessage(false, error.response?.data?.error || error.message || 'Failed to remove member.');

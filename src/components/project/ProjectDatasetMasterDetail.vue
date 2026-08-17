@@ -3,7 +3,10 @@ import { computed, ref, watch } from 'vue';
 
 const props = defineProps({
   datasets: { type: Array, default: () => [] },
+  canManage: { type: Boolean, default: false },
 });
+
+const emit = defineEmits(['unlink-dataset']);
 
 const selectedId = ref('');
 
@@ -73,6 +76,10 @@ const orderedDatasets = computed(() => {
     physical_table_count: Number(
       d.physical_table_count ?? summaryOf(d)?.physical_table_count ?? 0
     ),
+    read_only: Boolean(d.read_only),
+    origin: d.origin || '',
+    source_label: d.source_label || '',
+    loaded: Number(d.physical_table_count ?? summaryOf(d)?.physical_table_count ?? d.table_count ?? 0) > 0,
   }));
   // Stable alphabetical default until projects support an explicit primary dataset.
   rows.sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
@@ -160,6 +167,11 @@ watch(
                 <i class="bi bi-database text-muted flex-shrink-0" aria-hidden="true"></i>
                 <div class="min-w-0">
                   <div class="fw-semibold text-truncate">{{ row.name }}</div>
+                  <div class="small">
+                    <span v-if="row.read_only" class="badge text-bg-info me-1">Read-only sample</span>
+                    <span v-else-if="row.loaded" class="badge text-bg-success me-1">Loaded</span>
+                    <span v-else class="badge text-bg-warning me-1">Needs ingest</span>
+                  </div>
                   <div v-if="rowMeta(row)" class="small text-muted text-truncate">{{ rowMeta(row) }}</div>
                 </div>
               </div>
@@ -175,6 +187,9 @@ watch(
             <div class="min-w-0">
               <div class="small text-muted text-uppercase">Dataset overview</div>
               <h5 class="mb-0 text-truncate">{{ selected.name }}</h5>
+              <div v-if="selected.read_only || selected.source_label" class="small text-muted mt-1">
+                {{ selected.source_label || selected.origin || 'W4H Samples' }}
+              </div>
             </div>
             <small v-if="selected.summary_updated_at" class="text-muted">
               {{ relativeFreshness(selected.summary_updated_at) }}
@@ -250,13 +265,15 @@ watch(
               </div>
             </div>
 
-            <p v-if="selected.table_count === 0" class="small text-muted mb-3">
-              No tables are registered for this dataset. Ingestion may not have been configured yet.
+            <p v-if="selected.read_only" class="small mb-3">
+              Super admin seeded this sample. It is read-only — do not re-ingest.
+            </p>
+            <p v-else-if="selected.table_count === 0" class="small text-muted mb-3">
+              Not loaded yet. Adapt a notebook or deploy a CLI from a Contributions example
+              into your team catalog. Tables and stats appear here after that.
             </p>
             <p v-else-if="selected.physical_table_count === 0" class="small text-muted mb-3">
-              {{ selected.table_count }} registered
-              {{ selected.table_count === 1 ? 'table is' : 'tables are' }} not present in the
-              database yet. Ingestion may not have run.
+              Catalog exists but no tables are in the database yet.
             </p>
             <p v-else-if="Number(selectedSummary.observations) === 0" class="small text-muted mb-3">
               The registered tables exist and currently report 0 observations.
@@ -271,10 +288,22 @@ watch(
             </p>
           </div>
 
-          <div class="mt-auto pt-2">
-            <router-link :to="{ name: 'home' }" class="small text-decoration-none">
-              Explore this dataset →
+          <div class="mt-auto pt-2 d-flex flex-wrap align-items-center justify-content-between gap-2">
+            <router-link
+              v-if="selected.id"
+              :to="{ name: 'adminDatasetsEdit', params: { id: selected.id } }"
+              class="small text-decoration-none"
+            >
+              Dataset details →
             </router-link>
+            <button
+              v-if="canManage && selected.id"
+              type="button"
+              class="btn btn-sm btn-outline-danger"
+              @click="emit('unlink-dataset', selected.id)"
+            >
+              Unlink
+            </button>
           </div>
         </div>
       </div>

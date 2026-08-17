@@ -2,6 +2,12 @@
 import { computed, onMounted, ref, watch } from 'vue';
 import { api, authHeaders } from '@/utils/api';
 import DatasetCatalogCard from '@/components/home/DatasetCatalogCard.vue';
+import WelcomeNextSteps from '@/components/home/WelcomeNextSteps.vue';
+import {
+  adminNextStepCards,
+  dismissAdminNextSteps,
+  isAdminNextStepsDismissed,
+} from '@/components/home/nextStepCards';
 
 const props = defineProps({
   activeProjectId: { type: [String, Number], default: '' },
@@ -11,6 +17,12 @@ const snapshot = ref(null);
 const loading = ref(false);
 const loadError = ref('');
 const catalogRef = ref(null);
+const showAdminNextSteps = ref(!isAdminNextStepsDismissed());
+
+function hideAdminNextSteps() {
+  dismissAdminNextSteps();
+  showAdminNextSteps.value = false;
+}
 
 const kpiCards = computed(() => {
   const k = snapshot.value?.kpis || {};
@@ -74,6 +86,14 @@ onMounted(refresh);
 
 <template>
   <div>
+    <WelcomeNextSteps
+      v-if="showAdminNextSteps"
+      title="Welcome — Admin"
+      subtitle="Set up your trial in the app shell. Super admin does not create projects for you."
+      :cards="adminNextStepCards"
+      dismissable
+      @dismiss="hideAdminNextSteps"
+    />
     <div v-if="loadError" class="alert alert-danger">{{ loadError }}</div>
 
     <template v-if="snapshot">
@@ -81,7 +101,8 @@ onMounted(refresh);
         <h5 class="mb-0">Project overview</h5>
         <p class="text-muted small mb-0">
           Snapshot for your current project. Use
-          <strong>Project</strong> in the nav to manage members and datasets.
+          <strong>Project</strong> in the nav to manage members and dataset declarations.
+          Ingest tables from Contributions. If the chat icon is in the nav, use it when chat is configured.
         </p>
       </div>
 

@@ -20,6 +20,8 @@
       </template>
       <template v-else>
         Admins can invite Users to their own team.
+        On a project, <strong>Admins</strong> can ingest dataset tables;
+        <strong>Users</strong> can run analytics on loaded data.
         If the email already belongs to someone on one of your teams, they are added to the selected team.
         Project membership is assigned later from the project edit screen.
       </template>

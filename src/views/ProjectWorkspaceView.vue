@@ -23,17 +23,6 @@
             <span v-if="project.irbExpiryDate"> · expires {{ formatShortDate(project.irbExpiryDate) }}</span>
           </div>
         </div>
-
-        <div class="d-flex gap-2">
-          <button
-            v-if="capabilities.can_manage"
-            class="btn btn-primary"
-            type="button"
-            @click="openNotebookModal"
-          >
-            + Add notebook
-          </button>
-        </div>
       </div>
     </header>
 
@@ -45,48 +34,13 @@
       <div class="col-12 col-xl-7">
         <section class="card mb-3">
           <div class="card-body">
-            <div class="d-flex align-items-center justify-content-between mb-2">
-              <h6 class="mb-0">Notebooks <small class="text-muted">({{ project.notebooks.length }})</small></h6>
-              <small class="text-muted">Tracked links, not hosted runtime</small>
-            </div>
-
-            <div v-if="project.notebooks.length === 0" class="text-muted small">No notebooks tracked yet.</div>
-
-            <div v-for="nb in project.notebooks" :key="nb.id" class="border rounded p-3 mb-2">
-              <div class="d-flex justify-content-between align-items-start gap-2">
-                <div>
-                  <div class="fw-semibold">{{ nb.title }}</div>
-                  <div class="small text-muted">{{ nb.description || 'No description.' }}</div>
-                </div>
-                <span class="badge text-bg-light">{{ nb.purpose }}</span>
-              </div>
-
-              <div class="small text-muted mt-2 font-monospace">
-                {{ nb.repoRef || 'main' }} · {{ shortSha(nb.repoSha) }}
-              </div>
-              <div class="small text-break font-monospace">{{ nb.notebookPath }}</div>
-
-              <div class="d-flex flex-wrap gap-2 mt-2">
-                <button
-                  v-for="launcher in nb.launchers"
-                  :key="launcher"
-                  type="button"
-                  class="btn btn-sm btn-outline-secondary"
-                  @click="launchNotebook(launcher, nb)"
-                >
-                  {{ launcherLabel(launcher) }}
-                </button>
-              </div>
-            </div>
-
-            <button
-              v-if="capabilities.can_manage"
-              class="btn btn-link px-0"
-              type="button"
-              @click="openNotebookModal"
-            >
-              + Add notebook
-            </button>
+            <h6 class="mb-2">Analysis notes</h6>
+            <p class="small text-muted mb-0">
+              W4H does not register project notebooks.
+              Keep repo links and how-to notes in
+              <strong>project documentation</strong> below, and browse reusable tools in
+              <RouterLink :to="{ name: 'contributions' }">Contributions</RouterLink>.
+            </p>
           </div>
         </section>
 
@@ -260,7 +214,6 @@
                       <option value="project">project</option>
                       <option value="dataset">dataset</option>
                       <option value="doc">doc</option>
-                      <option value="notebook">notebook</option>
                       <option value="derived_table">derived_table</option>
                     </select>
                   </div>
@@ -276,7 +229,6 @@
                       <option value="manage_members">manage_members</option>
                       <option value="link_dataset">link_dataset</option>
                       <option value="create_derived">create_derived</option>
-                      <option value="launch_notebook">launch_notebook</option>
                     </select>
                   </div>
                   <div class="col-6 col-md-3">
@@ -317,63 +269,6 @@
           </div>
         </section>
       </aside>
-    </div>
-
-    <div class="modal fade" tabindex="-1" ref="notebookModalEl" aria-hidden="true">
-      <div class="modal-dialog modal-lg modal-dialog-scrollable">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title">Add notebook link</h5>
-            <button type="button" class="btn-close" @click="closeNotebookModal" aria-label="Close" />
-          </div>
-          <div class="modal-body">
-            <div class="row g-3">
-              <div class="col-md-8">
-                <label class="form-label">Title</label>
-                <input v-model="notebookForm.title" class="form-control" />
-              </div>
-              <div class="col-md-4">
-                <label class="form-label">Purpose</label>
-                <select v-model="notebookForm.purpose" class="form-select">
-                  <option>exploration</option>
-                  <option>preprocessing</option>
-                  <option>analysis</option>
-                  <option>visualization</option>
-                  <option>report</option>
-                </select>
-              </div>
-              <div class="col-12">
-                <label class="form-label">Description</label>
-                <input v-model="notebookForm.description" class="form-control" />
-              </div>
-              <div class="col-md-8">
-                <label class="form-label">Repository URL</label>
-                <input v-model="notebookForm.repoUrl" class="form-control font-monospace" placeholder="https://github.com/org/repo" />
-              </div>
-              <div class="col-md-4">
-                <label class="form-label">Ref (branch/tag/sha)</label>
-                <input v-model="notebookForm.repoRef" class="form-control font-monospace" placeholder="main" />
-              </div>
-              <div class="col-12">
-                <label class="form-label">Notebook path</label>
-                <input v-model="notebookForm.notebookPath" class="form-control font-monospace" placeholder="notebooks/hrv_analysis.ipynb" />
-              </div>
-              <div class="col-12">
-                <label class="form-label d-block">Launchers</label>
-                <div class="d-flex gap-3">
-                  <label class="form-check-label"><input class="form-check-input me-1" type="checkbox" value="jupyter" v-model="notebookForm.launchers" />Jupyter</label>
-                  <label class="form-check-label"><input class="form-check-input me-1" type="checkbox" value="rstudio" v-model="notebookForm.launchers" />RStudio</label>
-                  <label class="form-check-label"><input class="form-check-input me-1" type="checkbox" value="vscode" v-model="notebookForm.launchers" />VSCode</label>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-outline-secondary" @click="closeNotebookModal">Cancel</button>
-            <button type="button" class="btn btn-primary" :disabled="!canSaveNotebook" @click="saveNotebook">Save notebook</button>
-          </div>
-        </div>
-      </div>
     </div>
 
     <div class="modal fade" tabindex="-1" ref="membersModalEl" aria-hidden="true">
@@ -468,7 +363,6 @@ const project = ref({
   visibility: 'org-private',
   irbProtocolId: '',
   irbExpiryDate: '',
-  notebooks: [],
   docs: [],
   members: [],
   organizations: [],
@@ -479,11 +373,6 @@ const project = ref({
     vscodeTemplate: 'vscode://file/{path}'
   }
 });
-
-const notebookForm = ref(newNotebookForm());
-
-const notebookModalEl = ref(null);
-let notebookModal = null;
 
 const linkedDatasets = computed(() => {
   const lookup = new Map(availableDatasets.value.map(d => [String(d.id), d]));
@@ -496,23 +385,6 @@ const linkedDatasets = computed(() => {
   });
 });
 
-const canSaveNotebook = computed(() => {
-  const f = notebookForm.value;
-  return Boolean((f.title || '').trim() && (f.notebookPath || '').trim());
-});
-
-function newNotebookForm() {
-  return {
-    title: '',
-    description: '',
-    purpose: 'analysis',
-    repoUrl: '',
-    repoRef: 'main',
-    notebookPath: '',
-    launchers: ['jupyter', 'vscode']
-  };
-}
-
 function seedProject() {
   const projectId = id.value || 'project';
   return {
@@ -523,7 +395,6 @@ function seedProject() {
     visibility: 'org-private',
     irbProtocolId: '',
     irbExpiryDate: '',
-    notebooks: [],
     docs: [
       { id: `${Date.now()}-doc-1`, title: 'Project overview & objectives', slug: 'home', updatedAt: new Date().toISOString() }
     ],
@@ -547,7 +418,6 @@ function normalizeProject(raw) {
     ...base,
     ...raw,
     visibility: raw.visibility || base.visibility,
-    notebooks: Array.isArray(raw.notebooks) ? raw.notebooks : base.notebooks,
     docs: Array.isArray(raw.docs) ? raw.docs : base.docs,
     members: Array.isArray(raw.members) ? raw.members : base.members,
     organizations: Array.isArray(raw.organizations) ? raw.organizations : base.organizations,
@@ -599,19 +469,6 @@ function mapOverviewToProject(overview) {
     linkedDatasetIds: Array.isArray(overview?.datasets)
       ? overview.datasets.map(d => String(d.dataset_id || d.id || '')).filter(Boolean)
       : base.linkedDatasetIds,
-    notebooks: Array.isArray(overview?.notebooks)
-      ? overview.notebooks.map((n) => ({
-          id: n.id,
-          title: n.title || 'Notebook',
-          description: n.description || '',
-          purpose: n.purpose || 'analysis',
-          repoUrl: n.repo_url || '',
-          repoRef: n.repo_ref || 'main',
-          repoSha: n.repo_ref || 'main',
-          notebookPath: n.notebook_path || '',
-          launchers: Array.isArray(n.launchers) ? n.launchers : ['jupyter']
-        }))
-      : base.notebooks,
     docs: Array.isArray(overview?.pages)
       ? overview.pages.map((d, i) => ({
           id: d.slug || `doc-${i}`,
@@ -679,10 +536,6 @@ async function loadDatasets() {
   }
 }
 
-function shortSha(value) {
-  return String(value || '').slice(0, 7) || '—';
-}
-
 /** Safe href for optional org website (adds https if scheme omitted). */
 function orgWebsiteHref(org) {
   const raw = String(org?.url || '').trim();
@@ -725,43 +578,6 @@ function relativeDate(value) {
   if (diff < day) return 'today';
   const days = Math.round(diff / day);
   return `${days} day${days === 1 ? '' : 's'} ago`;
-}
-
-function launcherLabel(value) {
-  if (value === 'rstudio') return 'RStudio';
-  if (value === 'vscode') return 'VSCode';
-  return 'Jupyter';
-}
-
-function encodePathForUrl(pathValue) {
-  return String(pathValue || '')
-    .split('/')
-    .map(seg => encodeURIComponent(seg))
-    .join('/');
-}
-
-function launchNotebook(launcher, notebook) {
-  const p = String(notebook.notebookPath || '').trim();
-  let url = '';
-
-  if (launcher === 'jupyter') {
-    const base = String(project.value.launchers.jupyterBaseUrl || '').trim();
-    if (!base || !p) return;
-    url = `${base.replace(/\/$/, '')}/lab/tree/${encodePathForUrl(p)}`;
-  } else if (launcher === 'rstudio') {
-    const base = String(project.value.launchers.rstudioBaseUrl || '').trim();
-    if (!base || !p) return;
-    url = `${base.replace(/\/$/, '')}/?file=${encodeURIComponent(p)}`;
-  } else {
-    const template = String(project.value.launchers.vscodeTemplate || '').trim();
-    if (!template || !p) return;
-    url = template
-      .replace('{path}', encodeURIComponent(p))
-      .replace('{repo_url}', encodeURIComponent(String(notebook.repoUrl || '')))
-      .replace('{repo_ref}', encodeURIComponent(String(notebook.repoRef || 'main')));
-  }
-
-  if (url) window.open(url, '_blank', 'noopener,noreferrer');
 }
 
 async function loadDbTokens() {
@@ -920,67 +736,6 @@ async function saveAclRules() {
   }
 }
 
-function serializeNotebooksForApi(notebooks) {
-  return (notebooks || []).map((n) => ({
-    title: n.title,
-    description: n.description || null,
-    purpose: n.purpose || 'analysis',
-    repo_url: n.repoUrl || null,
-    repo_ref: n.repoRef || null,
-    notebook_path: n.notebookPath,
-    runtime_type: 'jupyter',
-    launchers: Array.isArray(n.launchers) && n.launchers.length ? n.launchers : ['jupyter']
-  }));
-}
-
-function openNotebookModal() {
-  notebookForm.value = newNotebookForm();
-  notebookModal?.show();
-}
-
-function closeNotebookModal() {
-  notebookModal?.hide();
-}
-
-async function saveNotebook() {
-  if (!canSaveNotebook.value) return;
-  const now = Date.now();
-  const entry = {
-    id: `${now}-nb`,
-    title: notebookForm.value.title.trim(),
-    description: notebookForm.value.description.trim(),
-    purpose: notebookForm.value.purpose,
-    repoUrl: notebookForm.value.repoUrl.trim(),
-    repoRef: notebookForm.value.repoRef.trim() || 'main',
-    repoSha: notebookForm.value.repoRef.trim() || 'main',
-    notebookPath: notebookForm.value.notebookPath.trim(),
-    launchers: notebookForm.value.launchers.length ? [...notebookForm.value.launchers] : ['jupyter']
-  };
-
-  const previous = project.value.notebooks;
-  project.value.notebooks = [entry, ...previous];
-
-  if (!id.value) {
-    window.alert('This is not a valid project route. Open a project from the Projects list.');
-    closeNotebookModal();
-    return;
-  }
-
-  try {
-    await api.put(
-      `projects/${encodeURIComponent(id.value)}/notebooks`,
-      { notebooks: serializeNotebooksForApi(project.value.notebooks) },
-      authHeaders()
-    );
-    closeNotebookModal();
-    await loadProject();
-  } catch (e) {
-    project.value.notebooks = previous;
-    console.error(e);
-    window.alert(e.response?.data?.error || e.message || 'Failed to save notebook.');
-  }
-}
-
 function addDoc() {
   router.push({ name: 'docNew' });
 }
@@ -995,7 +750,6 @@ onMounted(async () => {
   await loadProject();
   await loadDatasets();
 
-  if (notebookModalEl.value) notebookModal = new Modal(notebookModalEl.value);
   if (membersModalEl.value) membersModal = new Modal(membersModalEl.value);
 });
 </script>

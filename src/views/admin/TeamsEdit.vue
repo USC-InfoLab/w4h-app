@@ -178,6 +178,10 @@
           </div>
         </div>
       </div>
+
+      <div v-if="canEditTeam" class="col-12">
+        <TeamAiSettings :team-id="team.id" :can-edit="canEditTeam" />
+      </div>
     </div>
   </main>
 </template>
@@ -191,6 +195,7 @@ import { APP_NAME } from '@/utils/defs';
 import { isSuperAdmin, TEAM_MEMBER_ROLES } from '@/utils/roles';
 import { useUserStore } from '@/stores/user';
 import { useTeamContext } from '@/composables/useTeamContext';
+import TeamAiSettings from '@/components/TeamAiSettings.vue';
 
 const route = useRoute();
 const router = useRouter();
