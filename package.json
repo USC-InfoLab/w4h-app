@@ -1,6 +1,7 @@
 {
   "name": "w4h-app",
-  "version": "0.2.0",
+  "version": "0.3.0",
+  "releaseName": "🧗 Peña Roja",
   "private": true,
   "type": "module",
   "engines": {

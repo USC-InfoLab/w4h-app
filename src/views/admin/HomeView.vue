@@ -146,6 +146,7 @@ import { storeToRefs } from 'pinia';
 import { useUserStore } from '@/stores/user';
 import { isSuperAdmin } from '@/utils/roles';
 import { api, authHeaders } from '@/utils/api';
+import { formatReleaseLabel, gitHash } from '@/utils/release';
 import WelcomeNextSteps from '@/components/home/WelcomeNextSteps.vue';
 
 const setupCards = [
@@ -183,7 +184,7 @@ const snapshot = ref(null);
 const loading = ref(false);
 const loadError = ref('');
 
-const buildInfo = `${import.meta.env.VITE_RELEASE_NAME} ${import.meta.env.VITE_VERSION} -- ${import.meta.env.VITE_GIT_HASH}`;
+const buildInfo = `${formatReleaseLabel()}${gitHash ? ` -- ${gitHash}` : ''}`;
 
 const kpiCards = computed(() => {
   const k = snapshot.value?.kpis || {};

@@ -61,16 +61,14 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { formatReleaseLabel } from '@/utils/release';
 
 defineProps({
   open: { type: Boolean, default: false },
 });
 defineEmits(['close']);
 
-const appVersion = computed(
-  () => import.meta.env.VITE_VERSION || import.meta.env.VITE_APP_VERSION || '0.2.0'
-);
+const appVersion = formatReleaseLabel();
 
 const repos = {
   docs: 'https://github.com/USC-InfoLab/w4h-docs',
