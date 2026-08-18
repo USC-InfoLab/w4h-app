@@ -14,7 +14,7 @@
           <button type="button" class="btn-close" aria-label="Close" @click="close" />
         </div>
         <div class="modal-body">
-          <div v-if="doc" v-html="renderedHtml" class="md-preview" />
+          <div v-if="doc" v-html="renderedHtml" class="md-preview" @click="onDocContentClick" />
         </div>
         <div class="modal-footer">
           <router-link
@@ -37,8 +37,11 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
 import api, { authHeaders } from '@/utils/api';
-import { rewriteDocMediaUrls } from '@/utils/docMedia';
+import { handleDocContentClick, rewriteDocMediaUrls } from '@/utils/docMedia';
+
+const router = useRouter();
 
 // Per-browser, like VS Code's "what's new" — not synced across devices.
 // Closing (X / backdrop / "Got it") does NOT suppress it — it reopens on the
@@ -80,6 +83,10 @@ onMounted(async () => {
 
 function close() {
   open.value = false;
+}
+
+function onDocContentClick(event) {
+  handleDocContentClick(event, router, { onNavigate: close });
 }
 
 function dontShowAgain() {

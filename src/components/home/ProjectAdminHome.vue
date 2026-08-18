@@ -97,13 +97,21 @@ onMounted(refresh);
     <div v-if="loadError" class="alert alert-danger">{{ loadError }}</div>
 
     <template v-if="snapshot">
-      <div class="mb-3">
-        <h5 class="mb-0">Project overview</h5>
-        <p class="text-muted small mb-0">
-          Snapshot for your current project. Use
-          <strong>Project</strong> in the nav to manage members and dataset declarations.
-          Ingest tables from Contributions. If the chat icon is in the nav, use it when chat is configured.
-        </p>
+      <div class="d-flex flex-wrap align-items-start justify-content-between gap-2 mb-3">
+        <div>
+          <h5 class="mb-0">Project overview</h5>
+          <p class="text-muted small mb-0">
+            Snapshot for your current project. Use
+            <strong>Project</strong> in the nav to manage members and dataset declarations.
+            Ingest tables from Contributions. If the chat icon is in the nav, use it when chat is configured.
+          </p>
+        </div>
+        <router-link
+          :to="{ name: 'docs', params: { slug: 'whats-new' } }"
+          class="btn btn-sm btn-outline-secondary flex-shrink-0"
+        >
+          <i class="bi bi-stars me-1"></i>What's New
+        </router-link>
       </div>
 
       <div v-if="snapshot.note" class="alert alert-warning py-2">{{ snapshot.note }}</div>

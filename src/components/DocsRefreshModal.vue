@@ -1,11 +1,19 @@
 <template>
-  <div v-if="show" class="modal fade show" style="display: block;" tabindex="-1">
-    <div class="modal-dialog modal-lg modal-dialog-scrollable">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title">Refresh documentation</h5>
-          <button type="button" class="btn-close" :disabled="applying" @click="$emit('close')"></button>
-        </div>
+  <Teleport to="body">
+    <div
+      v-if="show"
+      class="modal fade show d-block"
+      tabindex="-1"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="docsRefreshTitle"
+    >
+      <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 id="docsRefreshTitle" class="modal-title">Refresh documentation</h5>
+            <button type="button" class="btn-close" :disabled="applying" @click="$emit('close')"></button>
+          </div>
 
         <div class="modal-body">
           <div v-if="loading" class="text-center py-4">
@@ -185,13 +193,14 @@
           </button>
         </div>
       </div>
+      </div>
     </div>
-    <div class="modal-backdrop fade show"></div>
-  </div>
+    <div v-if="show" class="modal-backdrop fade show"></div>
+  </Teleport>
 </template>
 
 <script setup>
-import { computed, reactive, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue';
 import { api, authHeaders } from '@/utils/api';
 
 const props = defineProps({
@@ -290,20 +299,17 @@ async function apply() {
   }
 }
 
+function setBodyScrollLock(locked) {
+  document.body.classList.toggle('modal-open', locked);
+}
+
 watch(
   () => props.show,
   (open) => {
+    setBodyScrollLock(open);
     if (open) loadPreview();
   }
 );
+
+onBeforeUnmount(() => setBodyScrollLock(false));
 </script>
-
-<style scoped>
-.modal {
-  z-index: 1055;
-}
-
-.modal-backdrop {
-  z-index: 1050;
-}
-</style>

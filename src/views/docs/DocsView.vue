@@ -60,7 +60,7 @@
 
             <div class="md-preview p-3">
               <h1 v-if="docPageTitle" :id="docPageTitleId">{{ docPageTitle }}</h1>
-              <div :key="selecteddoc.slug" v-html="displayHtml"></div>
+              <div :key="selecteddoc.slug" v-html="displayHtml" @click="onDocContentClick"></div>
             </div>
 
             <div v-if="selecteddoc.updated_at" class="doc-last-edited px-3 pb-4">
@@ -209,7 +209,7 @@ function applyMermaidTheme() {
 applyMermaidTheme();
 
 import MdDocEditable from '@/components/MdDocEditable.vue';
-import { rewriteDocMediaUrls } from '@/utils/docMedia';
+import { handleDocContentClick, rewriteDocMediaUrls } from '@/utils/docMedia';
 
 const editMode = ref(false);
 
@@ -219,6 +219,10 @@ const selecteddoc = ref(null);
 
 /** HTML with media/ and baked APP_URL docs-media srcs normalized for the browser. */
 const displayHtml = computed(() => rewriteDocMediaUrls(selecteddoc.value?.html || ''));
+
+function onDocContentClick(event) {
+  handleDocContentClick(event, router);
+}
 
 const splitRoot = ref(null);
 const leftPane = ref(null);

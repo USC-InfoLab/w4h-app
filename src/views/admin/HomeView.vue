@@ -19,10 +19,12 @@
             Platform bootstrap and ops — trial setup is Team admin self-service in the app shell.
           </p>
         </div>
-        <button type="button" class="btn btn-sm btn-outline-secondary" :disabled="loading" @click="loadSnapshot">
-          <span v-if="loading" class="spinner-border spinner-border-sm me-1" />
-          Refresh
-        </button>
+        <router-link
+          :to="{ name: 'docs', params: { slug: 'whats-new' } }"
+          class="btn btn-sm btn-outline-secondary flex-shrink-0"
+        >
+          <i class="bi bi-stars me-1"></i>What's New
+        </router-link>
       </div>
 
       <!-- KPIs -->

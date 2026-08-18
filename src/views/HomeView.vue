@@ -87,6 +87,14 @@ onMounted(() => {
       :active-project-id="activeProjectId"
     />
     <template v-else>
+      <div class="d-flex justify-content-end mb-3">
+        <router-link
+          :to="{ name: 'docs', params: { slug: 'whats-new' } }"
+          class="btn btn-sm btn-outline-secondary flex-shrink-0"
+        >
+          <i class="bi bi-stars me-1"></i>What's New
+        </router-link>
+      </div>
       <WelcomeNextSteps
         v-if="showAdminWelcome && showAdminNextSteps"
         title="Welcome — Admin"

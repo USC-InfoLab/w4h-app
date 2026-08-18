@@ -36,11 +36,12 @@
           </div>
         </div>
 
-        <a :href="router.resolve({ name: 'docs', params: { slug: doc.slug } }).href" target="_blank"
-          class="btn btn-sm btn-outline-primary d-flex align-items-center">
+        <RouterLink
+          :to="{ name: 'docs', params: { slug: doc.slug }, hash: '#top' }"
+          class="btn btn-sm btn-outline-primary d-flex align-items-center flex-shrink-0"
+        >
           View
-          <i class="bi bi-box-arrow-up-right ms-2" style="font-size: 0.8rem;"></i>
-        </a>
+        </RouterLink>
       </li>
 
     </ul>
@@ -49,10 +50,7 @@
 
 <script setup>
 import { ref, onMounted, watch } from 'vue';
-import { api, authHeaders } from '../utils/api'; // your existing API helper
-import { useRouter } from 'vue-router'; // Assuming you need this for the button
-
-const router = useRouter(); // Initialize router for the template
+import { api, authHeaders } from '../utils/api';
 
 // --- Debounce Helper Function ---
 // This function takes a function and a delay, and returns a new function
