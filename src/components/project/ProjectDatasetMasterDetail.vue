@@ -1,5 +1,6 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
+import DatasetStatTiles from '@/components/project/DatasetStatTiles.vue';
 
 const props = defineProps({
   datasets: { type: Array, default: () => [] },
@@ -197,47 +198,11 @@ watch(
           </div>
 
           <template v-if="hasStats">
-            <div class="row g-2 mb-3">
-              <div class="col-6 col-md-3">
-                <div class="stat-tile">
-                  <div class="stat-value">{{ selected.table_count }}</div>
-                  <div class="stat-label">
-                    {{ selected.table_count === 1 ? 'Table' : 'Tables' }}
-                  </div>
-                </div>
-              </div>
-              <div v-if="selectedSummary.observations != null" class="col-6 col-md-3">
-                <div class="stat-tile">
-                  <div class="stat-value">
-                    {{
-                      formatApproxNumber(
-                        selectedSummary.observations,
-                        selectedSummary.observations_approx !== false
-                      )
-                    }}
-                  </div>
-                  <div class="stat-label">Observations</div>
-                </div>
-              </div>
-              <div v-if="selectedSummary.participants != null" class="col-6 col-md-3">
-                <div class="stat-tile">
-                  <div class="stat-value">{{ formatApproxNumber(selectedSummary.participants) }}</div>
-                  <div class="stat-label">Participants</div>
-                </div>
-              </div>
-              <div v-if="selectedSummary.participant_days != null" class="col-6 col-md-3">
-                <div class="stat-tile">
-                  <div class="stat-value">{{ formatApproxNumber(selectedSummary.participant_days) }}</div>
-                  <div class="stat-label">Participant-days</div>
-                </div>
-              </div>
-              <div v-if="formatDateRange(selectedSummary)" class="col-6 col-md-3">
-                <div class="stat-tile">
-                  <div class="stat-value stat-value--sm">{{ formatDateRange(selectedSummary) }}</div>
-                  <div class="stat-label">Date range</div>
-                </div>
-              </div>
-            </div>
+            <DatasetStatTiles
+              :table-count="selected.table_count"
+              :summary="selectedSummary"
+              class="mb-3"
+            />
 
             <div v-if="cohorts.length" class="mb-3">
               <div class="small fw-semibold mb-2">Cohorts</div>

@@ -3,6 +3,7 @@ import { computed, ref } from 'vue';
 import { projectMemberUiValue } from '@/utils/roles';
 import ProjectDocsCard from '@/components/project/ProjectDocsCard.vue';
 import ProjectDatasetMasterDetail from '@/components/project/ProjectDatasetMasterDetail.vue';
+import DatasetStatTiles from '@/components/project/DatasetStatTiles.vue';
 
 const props = defineProps({
   canManage: { type: Boolean, default: false },
@@ -95,6 +96,44 @@ const canInvite = computed(() => {
   const email = String(props.inviteEmail || '').trim();
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 });
+
+// Same parsing as ProjectDatasetMasterDetail.vue — datasets carry summary as
+// raw jsonb (string or object) from the API, not pre-parsed.
+function summaryOf(row) {
+  const raw = row?.summary;
+  if (!raw) return null;
+  if (typeof raw === 'string') {
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  }
+  return typeof raw === 'object' ? raw : null;
+}
+
+function hasAnyStats(summary, tableCount) {
+  const s = summary || {};
+  return Boolean(
+    tableCount ||
+    s.observations != null ||
+    s.participants != null ||
+    s.participant_days != null ||
+    s.modality != null ||
+    s.date_range || s.date_start || s.date_end || s.start_date || s.end_date
+  );
+}
+
+const datasetsWithStats = computed(() =>
+  (props.linkedDatasetRows || [])
+    .map((d) => ({
+      id: String(d.id || d.dataset_id || ''),
+      name: d.name || d.id || 'Dataset',
+      tableCount: Number(d.table_count ?? summaryOf(d)?.table_count ?? 0),
+      summary: summaryOf(d) || {},
+    }))
+    .filter((d) => hasAnyStats(d.summary, d.tableCount))
+);
 </script>
 
 <template>
@@ -195,11 +234,29 @@ const canInvite = computed(() => {
         </section>
 
         <section v-else-if="section === 'analytics'">
-          <div class="card p-3">
+          <div v-if="datasetsWithStats.length" class="d-flex flex-column gap-3">
+            <div v-for="d in datasetsWithStats" :key="d.id" class="card p-3">
+              <h6 class="card-title mb-2">{{ d.name }}</h6>
+              <DatasetStatTiles :table-count="d.tableCount" :summary="d.summary" />
+            </div>
+            <div class="card p-3">
+              <p class="small text-muted mb-2">
+                Basic stats above are cached from a metadata layer, not a live full-table scan.
+                Run analysis against loaded tables from Contributions (adapt a notebook for your
+                environment) for detailed reports. In-app charts will land in this pane.
+              </p>
+              <router-link :to="{ name: 'contributions' }" class="btn btn-primary align-self-start">
+                Open Contributions
+              </router-link>
+            </div>
+          </div>
+          <div v-else class="card p-3">
             <h5 class="card-title mb-2">Analytics</h5>
             <p class="small text-muted mb-3">
-              Run analysis against loaded tables from Contributions (adapt a notebook for your
-              environment). In-app charts will land in this pane.
+              No summary statistics are available yet for datasets on this project. They appear
+              here from a cached metadata layer after ingestion. Run analysis against loaded
+              tables from Contributions (adapt a notebook for your environment) — in-app charts
+              will land in this pane.
             </p>
             <router-link :to="{ name: 'contributions' }" class="btn btn-primary">
               Open Contributions
