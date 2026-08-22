@@ -137,6 +137,30 @@
       </form>
     </div>
 
+    <div v-else-if="showApiKeyReveal" class="card w-100 mx-auto" style="max-width: 450px;">
+      <div class="card-body">
+        <img class="login-mark mx-auto d-block mt-2" src="/w4h-light.svg" :alt="`${APP_NAME} logo`" />
+        <h2 class="text-center mt-3">Your Personal API Key</h2>
+        <p class="text-muted text-center mb-3">
+          Generated automatically with your account — use it to authenticate notebooks and CLI tools.
+        </p>
+
+        <div class="mb-2">
+          <CopyBox :data="issuedApiKey?.key || ''" />
+        </div>
+
+        <div class="alert alert-warning py-2 small">
+          <strong>Copy this now — it will not be shown again.</strong>
+          If you lose it, generate a new one later from Profile → API keys.
+          Never put it in source code, repositories, or notebooks you share.
+        </div>
+
+        <button class="btn btn-primary w-100 btn-lg" type="button" @click="continueAfterApiKeySetup">
+          Continue to {{ APP_NAME }}
+        </button>
+      </div>
+    </div>
+
     <div v-else-if="backendError" class="card w-100 mx-auto" style="max-width: 450px;">
       <div class="card-body text-center">
         <img class="login-mark mx-auto d-block mt-2" src="/w4h-light.svg" :alt="`${APP_NAME} logo`" />
@@ -218,6 +242,7 @@ import { validatePassword, PASSWORD_REQUIREMENTS } from '@/utils/password-valida
 import { APP_NAME } from '@/utils/defs';
 import { readLastLoginEmail, rememberLoginEmail } from '@/utils/loginRemember';
 import { getLoginCredential, storeLoginCredential } from '@/utils/browserCredentials';
+import CopyBox from '@/components/CopyBox.vue';
 import { useRouter } from 'vue-router';
 const router = useRouter();
 
@@ -233,6 +258,8 @@ const uiStore = useUIStore();
 const dbConfigured = ref(true);
 const showDbConfig = ref(false);
 const showAdminSetup = ref(false);
+const showApiKeyReveal = ref(false);
+const issuedApiKey = ref(null);
 const dbLoading = ref(false);
 const dbError = ref('');
 const adminLoading = ref(false);
@@ -442,7 +469,17 @@ const setupInitialAdmin = async () => {
       await userStore.setUser(res.data.user);
       userStore.markSetupGuidePending();
       uiStore.enterAdmin();
-      router.push({ name: 'adminHome' });
+
+      // D-16a: a personal API key is auto-issued with the account. Show it once
+      // (same "copy now, won't be shown again" pattern as Profile → API keys)
+      // before continuing into the app — otherwise it's generated but never seen.
+      if (res.data.api_key) {
+        issuedApiKey.value = { key: res.data.api_key, prefix: res.data.api_key_prefix };
+        showAdminSetup.value = false;
+        showApiKeyReveal.value = true;
+      } else {
+        router.push({ name: 'adminHome' });
+      }
     } else {
       adminError.value = res.data.error || res.data.message || 'Failed to create admin account.';
     }
@@ -462,6 +499,12 @@ const setupInitialAdmin = async () => {
   } finally {
     adminLoading.value = false;
   }
+};
+
+const continueAfterApiKeySetup = () => {
+  issuedApiKey.value = null;
+  showApiKeyReveal.value = false;
+  router.push({ name: 'adminHome' });
 };
 
 const resetMessage = () => {

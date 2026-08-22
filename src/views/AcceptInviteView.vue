@@ -20,6 +20,27 @@
             </button>
           </template>
 
+          <template v-else-if="showApiKeyReveal">
+            <h6 class="text-center mb-2">Your Personal API Key</h6>
+            <p class="text-muted small text-center mb-3">
+              Generated automatically with your account — use it to authenticate notebooks and CLI tools.
+            </p>
+
+            <div class="mb-2">
+              <CopyBox :data="issuedApiKey?.key || ''" />
+            </div>
+
+            <div class="alert alert-warning py-2 small">
+              <strong>Copy this now — it will not be shown again.</strong>
+              If you lose it, generate a new one later from Profile → API keys.
+              Never put it in source code, repositories, or notebooks you share.
+            </div>
+
+            <button class="btn btn-primary w-100" type="button" @click="continueAfterApiKeySetup">
+              Continue to {{ APP_NAME }}
+            </button>
+          </template>
+
           <template v-else>
             <p class="text-muted small mb-3">
               Set a password for <strong>{{ invite.email }}</strong> to activate your account.
@@ -88,6 +109,7 @@ import { validatePassword, PASSWORD_REQUIREMENTS } from '@/utils/password-valida
 import { useUserStore } from '@/stores/user';
 import { useUIStore } from '@/stores/ui';
 import { canAccessAdminUi } from '@/utils/roles';
+import CopyBox from '@/components/CopyBox.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -108,6 +130,9 @@ const passwordConfirm = ref('');
 const showPassword = ref(false);
 const submitError = ref('');
 const submitting = ref(false);
+const showApiKeyReveal = ref(false);
+const issuedApiKey = ref(null);
+const pendingNavigation = ref(null);
 
 const isSecurePassword = computed(() => validatePassword(password.value));
 const canSubmit = computed(() =>
@@ -138,17 +163,34 @@ async function onSubmit() {
     userStore.setUser(session);
     localStorage.setItem('w4h.user.token', session.token);
     uiStore.exitAdmin();
-    if (canAccessAdminUi(session.role)) {
-      uiStore.enterAdmin();
-      router.push({ name: 'adminHome' });
+
+    const isAdmin = canAccessAdminUi(session.role);
+    if (isAdmin) uiStore.enterAdmin();
+    const destination = isAdmin ? { name: 'adminHome' } : { name: 'home' };
+
+    // D-16a: a personal API key is auto-issued with the account. Show it once
+    // (same "copy now, won't be shown again" pattern as Profile → API keys)
+    // before continuing into the app — otherwise it's generated but never seen.
+    if (data?.api_key) {
+      issuedApiKey.value = { key: data.api_key, prefix: data.api_key_prefix };
+      pendingNavigation.value = destination;
+      showApiKeyReveal.value = true;
     } else {
-      router.push({ name: 'home' });
+      router.push(destination);
     }
   } catch (error) {
     submitError.value = error.response?.data?.error || error.message || 'Failed to activate account.';
   } finally {
     submitting.value = false;
   }
+}
+
+function continueAfterApiKeySetup() {
+  const destination = pendingNavigation.value || { name: 'home' };
+  issuedApiKey.value = null;
+  showApiKeyReveal.value = false;
+  pendingNavigation.value = null;
+  router.push(destination);
 }
 
 onMounted(async () => {

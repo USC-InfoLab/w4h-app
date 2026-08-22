@@ -1,6 +1,6 @@
 <template>
   <main class="container-fluid" v-if="loaded">
-    <nav aria-label="breadcrumb" class="mb-3">
+    <nav v-if="!embedded" aria-label="breadcrumb" class="mb-3">
       <ol class="breadcrumb">
         <li class="breadcrumb-item">
           <router-link to="/admin/datasets">Datasets</router-link>
@@ -258,6 +258,13 @@ import { api, authHeaders } from '@/utils/api';
 import { useUserStore } from '@/stores/user';
 import { isSuperAdmin } from '@/utils/roles';
 
+const props = defineProps({
+  // Overrides the route param — lets callers (e.g. a modal on the project
+  // edit page) reuse this view's logic without a route navigation.
+  id: { type: String, default: '' },
+  embedded: { type: Boolean, default: false },
+});
+
 const route = useRoute();
 const userStore = useUserStore();
 
@@ -412,7 +419,7 @@ async function revokeShare(share) {
 
 onMounted(async () => {
   try {
-    const id = Array.isArray(route.params.id) ? route.params.id[0] : route.params.id;
+    const id = props.id || (Array.isArray(route.params.id) ? route.params.id[0] : route.params.id);
     const requests = [api.get(`datasets/${encodeURIComponent(id || '')}`, {
       ...authHeaders(),
       params: { catalog: 1 }

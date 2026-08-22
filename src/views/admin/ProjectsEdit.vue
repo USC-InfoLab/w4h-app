@@ -44,6 +44,7 @@
       @dataset-pick="onDatasetPick"
       @create-dataset="createDatasetForProject"
       @unlink-dataset="unlinkDataset"
+      @dataset-run-complete="refreshDatasetsOnly"
     />
 
     <div v-if="message" class="alert mt-3" :class="ok ? 'alert-success' : 'alert-danger'">
@@ -303,6 +304,16 @@ function mapOverviewToForm(data) {
         updated_by: p.updated_by || '',
       }))
     : [];
+}
+
+async function refreshDatasetsOnly() {
+  if (!form.id) return;
+  try {
+    const refreshed = await api.get(`projects/${encodeURIComponent(form.id)}`, authHeaders());
+    mapOverviewToForm(refreshed.data);
+  } catch {
+    // Best-effort — the run's own status/log already told the user it succeeded.
+  }
 }
 
 function routeProjectRef() {

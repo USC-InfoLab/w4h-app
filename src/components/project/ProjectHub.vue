@@ -42,6 +42,7 @@ const emit = defineEmits([
   'dataset-pick',
   'create-dataset',
   'unlink-dataset',
+  'dataset-run-complete',
 ]);
 
 const section = ref('overview');
@@ -85,12 +86,6 @@ function canRemoveMember(row) {
   return true;
 }
 
-function onDatasetSelect(event) {
-  const value = event.target.value;
-  emit('update:datasetToAdd', value);
-  emit('dataset-pick', value);
-}
-
 const canInvite = computed(() => {
   const email = String(props.inviteEmail || '').trim();
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -124,64 +119,21 @@ const canInvite = computed(() => {
 
       <div class="col-12 col-lg-9 col-xl-10">
         <section v-if="section === 'overview'">
-            <ProjectDatasetMasterDetail
+          <ProjectDatasetMasterDetail
             :datasets="linkedDatasetRows"
             :can-manage="canManage"
+            :addable-datasets="addableDatasets"
+            :dataset-to-add="datasetToAdd"
+            :new-dataset-name="newDatasetName"
+            :saving-datasets="savingDatasets"
+            :has-team="!!form.team_id"
             @unlink-dataset="emit('unlink-dataset', $event)"
+            @update:dataset-to-add="emit('update:datasetToAdd', $event)"
+            @update:new-dataset-name="emit('update:newDatasetName', $event)"
+            @dataset-pick="emit('dataset-pick', $event)"
+            @create-dataset="emit('create-dataset')"
+            @dataset-run-complete="emit('dataset-run-complete')"
           />
-
-          <div v-if="canManage" class="card p-3 mt-3">
-            <h6 class="mb-2">Create or link a dataset</h6>
-            <p class="small text-muted mb-3">
-              Linking a catalog row does not load tables. Load data by adapting a notebook or
-              deploying a CLI from a Contributions example against <em>your</em> team, with your
-              personal API key. Sample / demonstration datasets are read-only.
-            </p>
-            <div v-if="!form.team_id" class="alert alert-warning small mb-0">
-              Set an owning team before assigning datasets.
-            </div>
-            <template v-else>
-              <div class="row g-2 align-items-end">
-                <div class="col">
-                  <label class="form-label small mb-0">Add existing</label>
-                  <select
-                    class="form-select form-select-sm"
-                    :value="datasetToAdd"
-                    :disabled="savingDatasets"
-                    @change="onDatasetSelect"
-                  >
-                    <option value="">Select…</option>
-                    <option v-for="d in addableDatasets" :key="d.id" :value="String(d.id)">
-                      {{ d.name || d.id }}{{ d.read_only ? ' (read-only sample)' : '' }}
-                    </option>
-                    <option value="__new__">Create new catalog dataset…</option>
-                  </select>
-                </div>
-              </div>
-              <div v-if="datasetToAdd === '__new__'" class="row g-2 align-items-end mt-2">
-                <div class="col">
-                  <input
-                    class="form-control form-control-sm"
-                    placeholder="Dataset name"
-                    :value="newDatasetName"
-                    :disabled="savingDatasets"
-                    @input="emit('update:newDatasetName', $event.target.value)"
-                    @keyup.enter="emit('create-dataset')"
-                  />
-                </div>
-                <div class="col-auto">
-                  <button
-                    type="button"
-                    class="btn btn-sm btn-primary"
-                    :disabled="savingDatasets || !newDatasetName"
-                    @click="emit('create-dataset')"
-                  >
-                    Create
-                  </button>
-                </div>
-              </div>
-            </template>
-          </div>
         </section>
 
         <section v-else-if="section === 'docs'">

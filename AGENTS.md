@@ -94,6 +94,10 @@ For user-facing changes:
 - Check both the presence and absence of optional data when changing conditional UI.
 - Account for long names/text and empty states when they are relevant to the affected component.
 
+### Modals — always use Bootstrap's `Modal` JS class
+
+New dialogs must be wired with `import { Modal } from 'bootstrap'` (`new Modal(el)`, `.show()`/`.hide()`, listening to `show.bs.modal`/`hidden.bs.modal`), the same way `ProjectDatasetMasterDetail.vue`'s "Dataset details" dialog (`detailsModal`) is built. Do **not** hand-roll a modal with `v-if`/a boolean ref toggling `class="modal fade show" style="display: block;"` plus a manually rendered `.modal-backdrop` div. The hand-rolled pattern renders the markup but never calls Bootstrap's show/hide machinery, so the dialog never receives or traps keyboard focus and doesn't restore focus to the trigger element on close — this exact regression (a popup opening but not receiving focus) has recurred more than once and was fixed each time by switching to the real `Modal` class. Several older components (`ReportIssueModal.vue`, `WhatsNewModal.vue`, `DocsRefreshModal.vue`, `AboutModal.vue`, `DocsDeleteDocModal.vue`) still use the hand-rolled pattern — treat them as known debt, not as a precedent to copy for new dialogs.
+
 ## Validation
 
 The project is currently evolving rapidly, and changes are primarily validated manually by the developer.

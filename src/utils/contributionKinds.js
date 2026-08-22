@@ -1,4 +1,4 @@
-const KIND_ORDER = ['notebook', 'cli', 'script', 'postgres_extension'];
+const KIND_ORDER = ['notebook', 'cli', 'script', 'postgres_extension', 'dataset'];
 
 export function contributionKinds(row) {
   const extra = Array.isArray(row?.kinds) ? row.kinds : [];

@@ -84,6 +84,7 @@ const kindOptions = [
   { id: 'cli', label: 'CLI' },
   { id: 'script', label: 'Script' },
   { id: 'postgres_extension', label: 'Postgres extension' },
+  { id: 'dataset', label: 'Dataset' },
 ];
 
 const q = ref('');

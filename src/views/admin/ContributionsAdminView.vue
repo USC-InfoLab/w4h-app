@@ -52,7 +52,49 @@
 
     <div v-if="formOpen" class="card p-3 mt-3">
       <h6 class="mb-3">{{ editingSlug ? 'Edit contribution' : 'Add contribution' }}</h6>
+
       <div class="row g-3">
+        <div class="col-md-8">
+          <label class="form-label">Repository URL</label>
+          <div class="input-group">
+            <input v-model="form.repo_url" class="form-control font-monospace" placeholder="https://github.com/owner/repo" />
+            <button class="btn btn-outline-primary" type="button" :disabled="inspecting || !form.repo_url" @click="fetchRepoInfo">
+              {{ inspecting ? 'Fetching…' : 'Fetch repo info' }}
+            </button>
+          </div>
+          <div class="form-text">Fills in the fields below from the repo's README and manifest.yaml, when present.</div>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Status</label>
+          <select v-model="form.status" class="form-select">
+            <option value="draft">draft</option>
+            <option value="published">published</option>
+            <option value="deprecated">deprecated</option>
+          </select>
+        </div>
+
+        <div v-if="inspectError" class="col-12">
+          <div class="alert alert-danger py-2 small mb-0">{{ inspectError }}</div>
+        </div>
+        <div v-if="manifestValidation && (manifestValidation.errors.length || manifestValidation.warnings.length)" class="col-12">
+          <div class="alert alert-warning py-2 small mb-0">
+            <div class="fw-semibold mb-1">manifest.yaml sanity check</div>
+            <ul class="mb-0 ps-3">
+              <li v-for="(msg, i) in manifestValidation.errors" :key="`e${i}`" class="text-danger">{{ msg }}</li>
+              <li v-for="(msg, i) in manifestValidation.warnings" :key="`w${i}`">{{ msg }}</li>
+            </ul>
+          </div>
+        </div>
+        <div v-else-if="manifestChecked" class="col-12">
+          <div class="alert alert-success py-2 small mb-0">manifest.yaml looks good.</div>
+        </div>
+        <div v-if="pairedDataset" class="col-12">
+          <div class="alert alert-info py-2 small mb-0">
+            Paired sample-data repo detected (ADR-016): <strong>{{ pairedDataset.title || pairedDataset.slug }}</strong>
+            (<code>{{ pairedDataset.slug }}</code>), manifest.yaml found.
+          </div>
+        </div>
+
         <div class="col-md-4">
           <label class="form-label">Slug</label>
           <input v-model="form.slug" class="form-control font-monospace" :disabled="Boolean(editingSlug)" />
@@ -69,49 +111,40 @@
           <label class="form-label">Summary</label>
           <input v-model="form.summary" class="form-control" />
         </div>
-        <div class="col-md-3">
+        <div class="col-md-4">
           <label class="form-label">Kinds</label>
-          <div class="d-flex flex-column gap-1">
-            <label v-for="k in kindChoices" :key="k" class="form-check">
-              <input
-                class="form-check-input"
-                type="checkbox"
-                :value="k"
-                v-model="form.kinds"
-              />
-              <span class="form-check-label">{{ k }}</span>
-            </label>
-          </div>
+          <select v-model="form.kinds" class="form-select" multiple size="4">
+            <option v-for="k in kindChoices" :key="k" :value="k">{{ k }}</option>
+          </select>
         </div>
-        <div class="col-md-3">
+        <div class="col-md-4">
           <label class="form-label">Language</label>
           <select v-model="form.language" class="form-select">
+            <option value="" disabled>Choose…</option>
             <option value="python">python</option>
             <option value="r">r</option>
             <option value="sql">sql</option>
+            <option value="csv">csv</option>
+            <option value="json">json</option>
             <option value="other">other</option>
           </select>
         </div>
-        <div class="col-md-3">
-          <label class="form-label">Status</label>
-          <select v-model="form.status" class="form-select">
-            <option value="draft">draft</option>
-            <option value="published">published</option>
-            <option value="deprecated">deprecated</option>
-          </select>
+
+        <div class="col-12">
+          <button class="btn btn-link btn-sm px-0" type="button" @click="showAdvanced = !showAdvanced">
+            {{ showAdvanced ? 'Hide' : 'Show' }} advanced (non-default branch or docs path)
+          </button>
         </div>
-        <div class="col-md-3">
-          <label class="form-label">Ref</label>
-          <input v-model="form.repo_ref" class="form-control font-monospace" />
-        </div>
-        <div class="col-md-8">
-          <label class="form-label">Repository URL</label>
-          <input v-model="form.repo_url" class="form-control font-monospace" />
-        </div>
-        <div class="col-md-4">
-          <label class="form-label">Docs path</label>
-          <input v-model="form.docs_path" class="form-control font-monospace" />
-        </div>
+        <template v-if="showAdvanced">
+          <div class="col-md-4">
+            <label class="form-label">Git ref/branch</label>
+            <input v-model="form.repo_ref" class="form-control font-monospace" placeholder="main" />
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Docs path in repo</label>
+            <input v-model="form.docs_path" class="form-control font-monospace" placeholder="README.md" />
+          </div>
+        </template>
       </div>
       <div class="mt-3 d-flex gap-2">
         <button class="btn btn-primary" type="button" :disabled="saving" @click="save">
@@ -128,7 +161,7 @@ import { onMounted, reactive, ref } from 'vue';
 import { api, authHeaders } from '@/utils/api';
 import { contributionKinds } from '@/utils/contributionKinds';
 
-const kindChoices = ['notebook', 'cli', 'script', 'postgres_extension'];
+const kindChoices = ['notebook', 'cli', 'script', 'postgres_extension', 'dataset'];
 
 const items = ref([]);
 const loading = ref(false);
@@ -137,6 +170,12 @@ const errorMessage = ref('');
 const formOpen = ref(false);
 const editingSlug = ref('');
 const form = reactive(emptyForm());
+const showAdvanced = ref(false);
+const inspecting = ref(false);
+const inspectError = ref('');
+const manifestValidation = ref(null);
+const manifestChecked = ref(false);
+const pairedDataset = ref(null);
 
 function emptyForm() {
   return {
@@ -144,9 +183,9 @@ function emptyForm() {
     publisher: '',
     title: '',
     summary: '',
-    kind: 'notebook',
-    kinds: ['notebook'],
-    language: 'python',
+    kind: '',
+    kinds: [],
+    language: '',
     repo_url: '',
     repo_ref: 'main',
     docs_path: 'README.md',
@@ -161,16 +200,55 @@ function assignForm(src) {
   Object.assign(form, next);
 }
 
+function resetInspectState() {
+  showAdvanced.value = false;
+  inspectError.value = '';
+  manifestValidation.value = null;
+  manifestChecked.value = false;
+  pairedDataset.value = null;
+}
+
 function openNew() {
   editingSlug.value = '';
   assignForm();
+  resetInspectState();
   formOpen.value = true;
 }
 
 function openEdit(row) {
   editingSlug.value = row.slug;
   assignForm(row);
+  resetInspectState();
+  showAdvanced.value = Boolean(
+    (row.repo_ref && row.repo_ref !== 'main') || (row.docs_path && row.docs_path !== 'README.md')
+  );
   formOpen.value = true;
+}
+
+async function fetchRepoInfo() {
+  inspecting.value = true;
+  inspectError.value = '';
+  manifestValidation.value = null;
+  manifestChecked.value = false;
+  pairedDataset.value = null;
+  try {
+    const res = await api.post(
+      '/contributions/inspect',
+      { repo_url: form.repo_url, repo_ref: form.repo_ref },
+      authHeaders()
+    );
+    const { suggested, manifest, validation, pairedDataset: paired } = res.data;
+    Object.assign(form, suggested);
+    if (manifest) {
+      manifestChecked.value = true;
+      manifestValidation.value = validation;
+    }
+    pairedDataset.value = paired || null;
+  } catch (e) {
+    inspectError.value = e.response?.data?.error || e.message || 'Failed to fetch repo info.';
+  } finally {
+    inspecting.value = false;
+  }
 }
 
 async function load() {

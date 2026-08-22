@@ -121,17 +121,28 @@ import { useTeamContext } from '@/composables/useTeamContext';
 import { canAccessAdminUi } from '@/utils/roles';
 import { renderChatMarkdown, rewriteChatHref } from '@/utils/chatMarkdown';
 
-const modes = [
-  { id: 'help', label: 'Help', hint: 'How to use W4H: teams, projects, keys, and screens' },
+const modes = computed(() => [
+  {
+    id: 'help',
+    label: 'Help',
+    hint: isAdminUI.value
+      ? 'How to run W4H: SMTP, teams, admins, and the Contributions catalog'
+      : 'How to use W4H: teams, projects, keys, and screens',
+  },
   { id: 'import', label: 'Import', hint: 'Load CSV/JSON and map columns into a dataset' },
   { id: 'irb', label: 'IRB', hint: 'Draft privacy language and a data management plan' },
   { id: 'analysis', label: 'Analytics', hint: 'Methods and notebook code for data already in W4H' },
-];
+]);
 
 const samples = {
   help: [
     'How do I invite a student to my project?',
     'Where do I find my personal API key?',
+  ],
+  helpAdmin: [
+    'How do I set up SMTP for the platform?',
+    'How do I invite a Team admin?',
+    'How do I add a Contribution to the catalog?',
   ],
   import: [
     'How do I import Fitbit CSV into my team catalog?',
@@ -173,10 +184,14 @@ const emptyHint = computed(() => {
   if (mode.value === 'import') return 'Ask how to load files into a dataset (Contributions, mapping). For example:';
   if (mode.value === 'irb') return 'Ask for IRB / DMP drafting from project metadata. For example:';
   if (mode.value === 'analysis') return 'Ask how to analyze data already in W4H (methods and notebook code — no pasted rows). For example:';
+  if (mode.value === 'help' && isAdminUI.value) return 'Ask how to bootstrap and run the platform (SMTP, Team admins, Contributions catalog). For example:';
   return 'Ask how to use the platform (screens, roles, keys). For analysis methods, switch to Analytics. For example:';
 });
 
-const sampleQuestions = computed(() => samples[mode.value] || samples.help);
+const sampleQuestions = computed(() => {
+  if (mode.value === 'help' && isAdminUI.value) return samples.helpAdmin;
+  return samples[mode.value] || samples.help;
+});
 const placeholder = computed(() => {
   if (mode.value === 'irb') return 'Ask about IRB language or a data management plan…';
   if (mode.value === 'import') return 'Ask how to import or map wearable data…';

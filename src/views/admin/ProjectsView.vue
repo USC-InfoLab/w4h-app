@@ -16,6 +16,17 @@
           </template>
         </p>
       </div>
+      <div v-if="isActiveProjectAdmin" class="col-auto">
+        <select
+          class="form-select form-select-sm"
+          :value="statusFilter"
+          @change="onStatusFilterChange($event.target.value)"
+        >
+          <option value="active">Active</option>
+          <option value="archived">Archived</option>
+          <option value="all">All</option>
+        </select>
+      </div>
       <div v-if="canCreateProject" class="col-auto">
         <button class="btn btn-sm btn-primary my-2" @click="$router.push({ name: 'adminProjectsAdd' })">
           <i class="bi bi-plus"></i> Add Project
@@ -39,7 +50,10 @@
         class="list-group-item d-flex justify-content-between align-items-center gap-2"
       >
         <div class="min-w-0 flex-grow-1">
-          <div class="fw-semibold">{{ project.name || project.id }}</div>
+          <div class="fw-semibold">
+            {{ project.name || project.id }}
+            <span v-if="project.status === 'archived'" class="badge text-bg-secondary ms-1">Archived</span>
+          </div>
           <small class="text-muted">
             {{ project.slug || project.id }}
             <span v-if="project.team_name"> · {{ project.team_name }}</span>
@@ -88,6 +102,7 @@ const {
 const projects = ref([]);
 const loading = ref(true);
 const errorMessage = ref('');
+const statusFilter = ref('active');
 const canCreateProject = computed(() =>
   canManageTeam(userStore.user?.role, userStore.user?.caps)
 );
@@ -96,10 +111,10 @@ const visibleProjects = computed(() =>
   Array.isArray(projects.value) ? projects.value : []
 );
 
-onMounted(async () => {
-  document.title = 'Projects';
+async function loadProjects() {
+  loading.value = true;
   try {
-    const res = await api.get('projects', authHeaders());
+    const res = await api.get('projects', { ...authHeaders(), params: { status: statusFilter.value } });
     projects.value = Array.isArray(res.data) ? res.data : [];
   } catch (error) {
     errorMessage.value = error.response?.data?.error || error.message || 'Failed to load projects.';
@@ -107,6 +122,16 @@ onMounted(async () => {
   } finally {
     loading.value = false;
   }
+}
+
+function onStatusFilterChange(value) {
+  statusFilter.value = value;
+  loadProjects();
+}
+
+onMounted(() => {
+  document.title = 'Projects';
+  loadProjects();
 });
 
 function goEdit(projectRef) {
