@@ -19,8 +19,8 @@ function display(value) {
     <div class="card p-3 mb-3">
       <h5 class="card-title mb-1">Dataset statistics</h5>
       <p class="small text-muted mb-0">
-        Subject count, date range, device type, and size for each linked dataset.
-        Counts from cached metadata may be approximate.
+        Subject count, date range, and device type come from dataset metadata when
+        set; size is an approximate row count of mapped tables.
       </p>
     </div>
 
@@ -80,13 +80,6 @@ function display(value) {
           </div>
         </div>
       </div>
-
-      <ul v-if="card.rowCounts && Object.keys(card.rowCounts).length" class="list-unstyled small text-muted mt-3 mb-0">
-        <li v-for="(n, name) in card.rowCounts" :key="name">
-          <span class="font-monospace">{{ name }}</span>
-          · {{ formatApproxNumber(n, true) || n }}
-        </li>
-      </ul>
     </div>
 
     <p class="small text-muted mb-0">

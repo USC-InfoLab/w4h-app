@@ -22,8 +22,12 @@ function firstNumber(...values) {
 
 function formatDay(value) {
   if (!value) return '';
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return String(value);
+  const text = String(value);
+  const ymd = text.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  const d = ymd
+    ? new Date(Number(ymd[1]), Number(ymd[2]) - 1, Number(ymd[3]))
+    : new Date(value);
+  if (Number.isNaN(d.getTime())) return text;
   return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
@@ -76,7 +80,7 @@ function sumRowCounts(rowCounts) {
   return any ? total : null;
 }
 
-/** Normalize catalog + cached summary into ADR-020 basic stats for the Analytics card. */
+/** Normalize catalog D-02 + cached summary.basic_stats for the Analytics card (ADR-020). */
 export function datasetBasicStats(row) {
   const summary = parseSummary(row?.summary);
   const basic =
@@ -88,7 +92,8 @@ export function datasetBasicStats(row) {
       ? basic.row_counts
       : null;
 
-  const subjects = firstNumber(basic.subjects_total, summary.participants, row?.subject_count);
+  // D-02 subject_count wins when populated; else cached distinct-from-tables.
+  const subjects = firstNumber(row?.subject_count, basic.subjects_total);
   const tableCount = firstNumber(
     rowCounts ? Object.keys(rowCounts).length : null,
     row?.table_count,
@@ -106,16 +111,11 @@ export function datasetBasicStats(row) {
     name: row?.name || row?.id || 'Dataset',
     subjects,
     dateRange: formatDateRange(
-      basic.date_range || summary.date_range,
-      summary.date_start || row?.date_start,
-      summary.date_end || row?.date_end
+      null,
+      row?.date_start || basic.date_range?.start || summary.date_start,
+      row?.date_end || basic.date_range?.end || summary.date_end
     ),
-    deviceTypes: formatDeviceTypes(
-      basic.device_types,
-      summary.modality,
-      summary.type,
-      row?.device_type
-    ),
+    deviceTypes: formatDeviceTypes(row?.device_type, basic.device_types),
     tableCount,
     observations,
     observationsApprox: Boolean(observationsApprox && observations != null && observations > 0),

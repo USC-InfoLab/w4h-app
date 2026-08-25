@@ -19,7 +19,8 @@ const routes = [
   // User routes
   { path: '/home', name: 'home', component: () => import('../views/HomeView.vue'), meta: { requiresAuth: true } },
   { path: '/projects', name: 'projects', component: () => import('../views/ProjectsView.vue'), meta: { requiresAuth: true } },
-  { path: '/projects/:id', name: 'projectWorkspace', component: () => import('../views/ProjectWorkspaceView.vue'), props: true, meta: { requiresAuth: true } },
+  // Same hub as adminProjectsEdit so Users see the identical Analytics basic_stats card (ADR-020 / A-07).
+  { path: '/projects/:id', name: 'projectWorkspace', component: () => import('../views/admin/ProjectsEdit.vue'), props: true, meta: { requiresAuth: true } },
   { path: '/contributions', name: 'contributions', component: () => import('../views/ContributionsView.vue'), meta: { requiresAuth: true } },
   { path: '/contributions/:slug', name: 'contributionDetail', component: () => import('../views/ContributionDetailView.vue'), props: true, meta: { requiresAuth: true } },
   { path: '/packages', redirect: '/contributions' },

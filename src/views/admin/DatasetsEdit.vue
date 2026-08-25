@@ -19,12 +19,18 @@
 
           <div class="mb-3">
             <label class="form-label">Name</label>
-            <input v-model.trim="form.name" class="form-control" />
+            <input v-model.trim="form.name" class="form-control" :disabled="!canEdit" />
           </div>
 
           <div class="mb-3">
             <label class="form-label">Description</label>
-            <textarea v-model.trim="form.description" class="form-control" rows="3" placeholder="Optional"></textarea>
+            <textarea
+              v-model.trim="form.description"
+              class="form-control"
+              rows="3"
+              placeholder="Optional"
+              :disabled="!canEdit"
+            ></textarea>
           </div>
 
           <div class="mb-3">
@@ -35,6 +41,7 @@
                 class="form-check-input"
                 type="checkbox"
                 role="switch"
+                :disabled="!canEdit"
               />
               <label class="form-check-label" for="discoverable-edit-switch">
                 Discoverable to other teams
@@ -74,7 +81,7 @@
             {{ message }}
           </div>
 
-          <div class="d-flex justify-content-end">
+          <div v-if="canEdit" class="d-flex justify-content-end">
             <button class="btn btn-primary" :disabled="!canSave" @click="save">
               <span v-if="saving" class="spinner-border spinner-border-sm me-2" />
               Save dataset
@@ -256,7 +263,7 @@ import { computed, onMounted, reactive, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import { api, authHeaders } from '@/utils/api';
 import { useUserStore } from '@/stores/user';
-import { isSuperAdmin } from '@/utils/roles';
+import { canManageTeam, isSuperAdmin } from '@/utils/roles';
 
 const props = defineProps({
   // Overrides the route param — lets callers (e.g. a modal on the project
@@ -301,6 +308,9 @@ const form = reactive({
 const savedSnapshot = ref(null);
 
 const canChangeTeam = computed(() => isSuperAdmin(userStore.user?.role));
+const canEdit = computed(() =>
+  canManageTeam(userStore.user?.role, userStore.user?.caps)
+);
 const teamLabel = computed(() => teamName.value || form.team_id || '—');
 const canShare = computed(() => canShareOwned.value && !!form.team_id);
 

@@ -147,6 +147,7 @@ const canInvite = computed(() => {
           />
         </section>
 
+        <!-- ADR-020 / A-07: same basic_stats card for Users and Admins; not gated on canManage. -->
         <section v-else-if="section === 'analytics'">
           <ProjectBasicStatsCard :datasets="linkedDatasetRows" />
         </section>

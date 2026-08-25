@@ -3,6 +3,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router';
 import { Modal } from 'bootstrap';
 import { api, authHeaders } from '@/utils/api';
+import { datasetBasicStats } from '@/utils/datasetBasicStats';
 import DatasetsEdit from '@/views/admin/DatasetsEdit.vue';
 
 const route = useRoute();
@@ -304,6 +305,10 @@ const orderedDatasets = computed(() => {
     physical_table_count: Number(
       d.physical_table_count ?? summaryOf(d)?.physical_table_count ?? 0
     ),
+    subject_count: d.subject_count ?? null,
+    date_start: d.date_start || null,
+    date_end: d.date_end || null,
+    device_type: d.device_type || '',
     read_only: Boolean(d.read_only),
     origin: d.origin || '',
     source_label: d.source_label || '',
@@ -320,6 +325,7 @@ const selected = computed(() => {
 });
 
 const selectedSummary = computed(() => selected.value?.summary || {});
+const selectedStats = computed(() => datasetBasicStats(selected.value));
 
 const activeContribution = computed(
   () => runnableContributions.value.find((c) => c.slug === runSlug.value) || null
@@ -355,8 +361,7 @@ const hasStats = computed(() => {
   return Boolean(
     selected.value?.table_count != null ||
     s.observations != null ||
-    s.participants != null ||
-    s.participant_days != null ||
+    selectedStats.value.subjects != null ||
     formatDateRange(s) ||
     cohorts.value.length ||
     coverage.value.length
@@ -365,10 +370,11 @@ const hasStats = computed(() => {
 
 function rowMeta(row) {
   const s = row.summary;
+  const stats = datasetBasicStats(row);
   const parts = [];
   if (s?.modality || s?.type) parts.push(s.modality || s.type);
-  if (s?.participants != null) {
-    parts.push(`${formatApproxNumber(s.participants)} participants`);
+  if (stats.subjects != null) {
+    parts.push(`${formatApproxNumber(stats.subjects)} participants`);
   }
   const range = formatDateRange(s);
   if (range) parts.push(range);
@@ -558,16 +564,10 @@ watch(
                   <div class="stat-label">Observations</div>
                 </div>
               </div>
-              <div v-if="selectedSummary.participants != null" class="col-6 col-md-3">
+              <div v-if="selectedStats.subjects != null" class="col-6 col-md-3">
                 <div class="stat-tile">
-                  <div class="stat-value">{{ formatApproxNumber(selectedSummary.participants) }}</div>
+                  <div class="stat-value">{{ formatApproxNumber(selectedStats.subjects) }}</div>
                   <div class="stat-label">Participants</div>
-                </div>
-              </div>
-              <div v-if="selectedSummary.participant_days != null" class="col-6 col-md-3">
-                <div class="stat-tile">
-                  <div class="stat-value">{{ formatApproxNumber(selectedSummary.participant_days) }}</div>
-                  <div class="stat-label">Participant-days</div>
                 </div>
               </div>
               <div v-if="formatDateRange(selectedSummary)" class="col-6 col-md-3">
