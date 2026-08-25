@@ -139,6 +139,10 @@ const linkedDatasetRows = computed(() => {
       table_count: meta?.table_count ?? meta?.summary?.table_count ?? 0,
       physical_table_count:
         meta?.physical_table_count ?? meta?.summary?.physical_table_count ?? 0,
+      device_type: meta?.device_type || '',
+      subject_count: meta?.subject_count ?? null,
+      date_start: meta?.date_start || null,
+      date_end: meta?.date_end || null,
       read_only: Boolean(meta?.read_only),
       origin: meta?.origin || '',
       source_label: meta?.source_label || '',

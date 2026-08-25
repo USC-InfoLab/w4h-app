@@ -3,6 +3,7 @@ import { computed, ref } from 'vue';
 import { projectMemberUiValue } from '@/utils/roles';
 import ProjectDocsCard from '@/components/project/ProjectDocsCard.vue';
 import ProjectDatasetMasterDetail from '@/components/project/ProjectDatasetMasterDetail.vue';
+import ProjectBasicStatsCard from '@/components/project/ProjectBasicStatsCard.vue';
 
 const props = defineProps({
   canManage: { type: Boolean, default: false },
@@ -147,16 +148,7 @@ const canInvite = computed(() => {
         </section>
 
         <section v-else-if="section === 'analytics'">
-          <div class="card p-3">
-            <h5 class="card-title mb-2">Analytics</h5>
-            <p class="small text-muted mb-3">
-              Run analysis against loaded tables from Contributions (adapt a notebook for your
-              environment). In-app charts will land in this pane.
-            </p>
-            <router-link :to="{ name: 'contributions' }" class="btn btn-primary">
-              Open Contributions
-            </router-link>
-          </div>
+          <ProjectBasicStatsCard :datasets="linkedDatasetRows" />
         </section>
 
         <section v-else-if="section === 'jupyter'">
