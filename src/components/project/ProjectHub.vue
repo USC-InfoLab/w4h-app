@@ -75,10 +75,12 @@ watch(
 
 function setSection(id) {
   section.value = id;
-  if (String(route.query.tab || '') !== 'people') return;
-  if (id === 'people') return;
+  const current = String(route.query.tab || '');
+  const nextTab = id === 'overview' ? '' : id;
+  if (current === nextTab) return;
   const query = { ...route.query };
-  delete query.tab;
+  if (nextTab) query.tab = nextTab;
+  else delete query.tab;
   router.replace({ query });
 }
 
@@ -319,8 +321,10 @@ const canInvite = computed(() => {
           <TeamAiSettings
             v-if="canManage && form.team_id"
             class="mt-3"
+            mode="usage"
             :team-id="String(form.team_id)"
             :can-edit="canManage"
+            @go-config="setSection('settings')"
           />
         </section>
 
@@ -355,6 +359,14 @@ const canInvite = computed(() => {
               Save project
             </button>
           </div>
+          <TeamAiSettings
+            v-if="form.team_id"
+            class="mt-3"
+            mode="config"
+            :team-id="String(form.team_id)"
+            :can-edit="canManage"
+            @go-usage="setSection('people')"
+          />
         </section>
       </div>
     </div>

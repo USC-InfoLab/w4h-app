@@ -1,6 +1,6 @@
 <template>
   <main class="container-fluid">
-    <p class="text-muted">Opening Project → People…</p>
+    <p class="text-muted">Opening Project → Settings…</p>
   </main>
 </template>
 
@@ -20,7 +20,7 @@ onMounted(async () => {
     router.replace({
       name: 'adminProjectsEdit',
       params: { id },
-      query: { tab: 'people' },
+      query: { tab: 'settings' },
     });
     return;
   }

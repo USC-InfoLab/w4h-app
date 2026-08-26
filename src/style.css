@@ -167,14 +167,14 @@
   color: var(--w4h-callout-heading);
 }
 
-.w4h-callout a {
+.w4h-callout a:not(.btn) {
   color: var(--bs-link-color);
   text-decoration: none;
   text-underline-offset: 0.15em;
 }
 
-.w4h-callout a:hover,
-.w4h-callout a:focus {
+.w4h-callout a:not(.btn):hover,
+.w4h-callout a:not(.btn):focus {
   color: var(--bs-link-hover-color);
   text-decoration: underline;
 }
@@ -383,7 +383,21 @@ main {
 
 /* Help/docs: full-bleed columns, shared top gutter with the rest of the app */
 main.docs-view {
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  height: calc(100vh - var(--app-navbar-height, 52px));
+  max-height: calc(100vh - var(--app-navbar-height, 52px));
   padding: var(--app-shell-py, 1rem) 0 0 !important;
+  overflow: hidden;
+}
+
+@media (max-width: 767.98px) {
+  main.docs-view {
+    height: auto;
+    max-height: none;
+    overflow: visible;
+  }
 }
 
 .tooltip-inner {

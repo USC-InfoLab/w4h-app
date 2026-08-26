@@ -45,7 +45,7 @@
         </p>
         <p v-else-if="status?.can_manage_team" class="mb-0">
           Add a lab Anthropic key under
-          <RouterLink :to="peopleSettingsTo">Project → People</RouterLink>,
+          <RouterLink :to="labKeySettingsTo">Project → Settings</RouterLink>,
           or ask a Super admin to provision platform credits.
         </p>
         <p v-else class="mb-0">Ask an Admin to enable AI chat for this team.</p>
@@ -178,13 +178,13 @@ const historyEl = ref(null);
 const inputEl = ref(null);
 
 const isAdminUI = computed(() => canAccessAdminUi(user.value?.role, user.value?.caps));
-const peopleSettingsTo = computed(() => {
+const labKeySettingsTo = computed(() => {
   const p = activeProject.value;
   if (!p) return { name: 'home' };
   return {
     name: 'adminProjectsEdit',
     params: { id: p.slug || p.id },
-    query: { tab: 'people' },
+    query: { tab: 'settings' },
   };
 });
 const messages = computed(() => activeMessages.value);

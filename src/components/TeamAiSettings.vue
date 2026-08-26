@@ -1,14 +1,26 @@
 <template>
   <div class="card p-3">
-    <h5 class="card-title mb-1">PHI-safe AI chat</h5>
-    <p class="text-muted small mb-3">
+    <h5 class="card-title mb-1">{{ heading }}</h5>
+    <p v-if="showConfig" class="text-muted small mb-3">
       Chat for this lab uses the <strong>team Anthropic key</strong> when one is saved (the lab pays Anthropic).
       Otherwise every member draws <strong>platform credits</strong> until the monthly token quota is reached.
+      <template v-if="mode === 'config'">
+        This month’s usage is on
+        <button type="button" class="btn btn-link btn-sm p-0 align-baseline" @click="emit('go-usage')">People</button>.
+      </template>
+    </p>
+    <p v-else class="text-muted small mb-3">
+      Usage includes every team member’s chat on this lab.
+      <template v-if="canEdit">
+        Add or change the lab key in
+        <button type="button" class="btn btn-link btn-sm p-0 align-baseline" @click="emit('go-config')">Settings</button>.
+      </template>
     </p>
 
     <div v-if="loading" class="text-muted">Loading AI settings…</div>
     <div v-else>
-      <div v-if="usage" class="border rounded p-3 mb-3">
+      <div v-if="!showConfig && message" class="alert alert-danger">{{ message }}</div>
+      <div v-if="showUsage && usage" class="border rounded p-3" :class="showConfig ? 'mb-3' : 'mb-0'">
         <div class="d-flex flex-wrap justify-content-between align-items-baseline gap-2 mb-2">
           <div>
             <div class="small text-muted text-uppercase fw-semibold">This month</div>
@@ -39,82 +51,86 @@
         >
           <div class="progress-bar" :class="creditBarClass" :style="{ width: `${Math.min(100, creditPct ?? 0)}%` }" />
         </div>
-        <p class="small text-muted mb-0 mt-2">
+        <p v-if="showConfig" class="small text-muted mb-0 mt-2">
           Usage includes every team member’s chat on this lab.
         </p>
       </div>
 
-      <div class="mb-3">
-        <label class="form-label">PHI filter</label>
-        <select v-model="form.ai_phi_filter" class="form-select" :disabled="!canEdit">
-          <option value="strict">PHI-safe (strict) — default</option>
-          <option value="permissive">Permissive (confirm paste; still no bulk rows)</option>
-        </select>
-      </div>
+      <template v-if="showConfig">
+        <div class="mb-3">
+          <label class="form-label">PHI filter</label>
+          <select v-model="form.ai_phi_filter" class="form-select" :disabled="!canEdit">
+            <option value="strict">PHI-safe (strict) — default</option>
+            <option value="permissive">Permissive (confirm paste; still no bulk rows)</option>
+          </select>
+        </div>
 
-      <div class="mb-3">
-        <AiSecretKeyField
-          :key="keyFieldNonce"
-          v-model="form.anthropic_api_key"
-          v-model:clear="form.clear_key"
-          :has-key="!!settings?.has_key"
-          :key-prefix="settings?.key_prefix || ''"
-          :disabled="!canEdit"
-          :clearable="canEdit"
-          label="Lab Anthropic API key"
-          empty-help="Paste a key from the Anthropic Console. All members of this lab share it for chat. It is stored encrypted and never shown in full."
-        />
-      </div>
+        <div class="mb-3">
+          <AiSecretKeyField
+            :key="keyFieldNonce"
+            v-model="form.anthropic_api_key"
+            v-model:clear="form.clear_key"
+            :has-key="!!settings?.has_key"
+            :key-prefix="settings?.key_prefix || ''"
+            :disabled="!canEdit"
+            :clearable="canEdit"
+            label="Lab Anthropic API key"
+            empty-help="Paste a key from the Anthropic Console. All members of this lab share it for chat. It is stored encrypted and never shown in full."
+          />
+        </div>
 
-      <div v-if="isSuper" class="mb-3">
-        <label class="form-label">Monthly platform-credit quota</label>
-        <input
-          v-model.number="form.monthly_token_quota"
-          type="number"
-          min="0"
-          class="form-control"
-          placeholder="Leave blank for platform default"
-        />
-        <div class="form-text">Applies only while this lab uses platform credits, not a team key.</div>
-      </div>
-      <p v-else class="small text-muted">
-        Platform-credit quota:
-        {{ settings?.monthly_token_quota ?? 'platform default' }} tokens
-        (only Super admin can raise this).
-      </p>
+        <div v-if="isSuper" class="mb-3">
+          <label class="form-label">Monthly platform-credit quota</label>
+          <input
+            v-model.number="form.monthly_token_quota"
+            type="number"
+            min="0"
+            class="form-control"
+            placeholder="Leave blank for platform default"
+          />
+          <div class="form-text">Applies only while this lab uses platform credits, not a team key.</div>
+        </div>
+        <p v-else class="small text-muted">
+          Platform-credit quota:
+          {{ settings?.monthly_token_quota ?? 'platform default' }} tokens
+          (only Super admin can raise this).
+        </p>
 
-      <div v-if="message" class="alert" :class="ok ? 'alert-success' : 'alert-danger'">{{ message }}</div>
-      <div v-if="canEdit" class="d-flex justify-content-end mb-3">
-        <button class="btn btn-primary" :disabled="saving" type="button" @click="save">
-          Save AI settings
-        </button>
-      </div>
+        <div v-if="message" class="alert" :class="ok ? 'alert-success' : 'alert-danger'">{{ message }}</div>
+        <div v-if="canEdit" class="d-flex justify-content-end" :class="showUsage ? 'mb-3' : ''">
+          <button class="btn btn-primary" :disabled="saving" type="button" @click="save">
+            Save AI settings
+          </button>
+        </div>
+      </template>
 
-      <h6 class="mt-2">By team member (this month)</h6>
-      <div v-if="!members.length" class="text-muted small">No members yet.</div>
-      <div v-else class="table-responsive">
-        <table class="table table-sm align-middle mb-0">
-          <thead>
-            <tr>
-              <th>Member</th>
-              <th>Role</th>
-              <th class="text-end">Calls</th>
-              <th class="text-end">Tokens</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="row in members" :key="row.user_id">
-              <td>
-                <div>{{ row.name || row.email }}</div>
-                <div class="small text-muted">{{ row.email }}</div>
-              </td>
-              <td>{{ row.role === 'team_admin' ? 'Admin' : 'User' }}</td>
-              <td class="text-end">{{ row.calls }}</td>
-              <td class="text-end">{{ formatTokens(row.tokens) }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      <template v-if="showUsage">
+        <h6 :class="showConfig ? 'mt-2' : 'mt-3'">By team member (this month)</h6>
+        <div v-if="!members.length" class="text-muted small">No members yet.</div>
+        <div v-else class="table-responsive">
+          <table class="table table-sm align-middle mb-0">
+            <thead>
+              <tr>
+                <th>Member</th>
+                <th>Role</th>
+                <th class="text-end">Calls</th>
+                <th class="text-end">Tokens</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="row in members" :key="row.user_id">
+                <td>
+                  <div>{{ row.name || row.email }}</div>
+                  <div class="small text-muted">{{ row.email }}</div>
+                </td>
+                <td>{{ row.role === 'team_admin' ? 'Admin' : 'User' }}</td>
+                <td class="text-end">{{ row.calls }}</td>
+                <td class="text-end">{{ formatTokens(row.tokens) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </template>
     </div>
   </div>
 </template>
@@ -129,9 +145,14 @@ import AiSecretKeyField from '@/components/AiSecretKeyField.vue';
 const props = defineProps({
   teamId: { type: String, required: true },
   canEdit: { type: Boolean, default: false },
+  mode: {
+    type: String,
+    default: 'full',
+    validator: (v) => ['full', 'config', 'usage'].includes(v),
+  },
 });
 
-const emit = defineEmits(['saved']);
+const emit = defineEmits(['saved', 'go-config', 'go-usage']);
 
 const userStore = useUserStore();
 const isSuper = computed(() => isSuperAdmin(userStore.user?.role));
@@ -149,6 +170,9 @@ const form = reactive({
   monthly_token_quota: null,
 });
 
+const showConfig = computed(() => props.mode !== 'usage');
+const showUsage = computed(() => props.mode !== 'config');
+const heading = computed(() => (props.mode === 'usage' ? 'Chat usage this month' : 'PHI-safe AI chat'));
 const members = computed(() => usage.value?.members || []);
 const credits = computed(() => usage.value?.platform_credits || { used: 0, limit: null, remaining: null });
 const creditPct = computed(() => {
