@@ -84,11 +84,6 @@
                 </div>
               </RouterLink>
             </li>
-            <li v-if="activeTeamId">
-              <RouterLink class="dropdown-item" :to="{ name: 'teamSettings' }">
-                Team settings
-              </RouterLink>
-            </li>
             <li><hr class="dropdown-divider" /></li>
             <li>
               <button type="button" class="dropdown-item" @click="showAbout = true">
@@ -142,7 +137,6 @@ const uiStore = useUIStore();
 const {
   isActiveProjectAdmin,
   activeProject,
-  activeTeamId,
 } = useTeamContext();
 
 const navEl = ref(null);

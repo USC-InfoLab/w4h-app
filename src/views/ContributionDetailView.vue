@@ -14,7 +14,6 @@
       <div class="small text-muted mb-2">{{ row.publisher }}</div>
       <div class="mb-3">
         <ContributionKindBadges :row="row" />
-        <span class="badge text-bg-light border me-1">{{ row.language }}</span>
         <span v-if="row.status && row.status !== 'published'" class="badge text-bg-warning">{{ row.status }}</span>
       </div>
       <p>{{ row.summary }}</p>

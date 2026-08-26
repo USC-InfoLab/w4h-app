@@ -7,7 +7,7 @@
           Contributions
         </h5>
         <p class="small text-muted mb-0">
-          Curated notebooks, CLI, scripts, and Postgres extensions (publisher + git README).
+          Curated notebooks, CLI, SQL jobs, scripts, and Postgres extensions (publisher + git README).
           <router-link :to="{ name: 'docs', params: { slug: 'sample-packages' } }">How to contribute</router-link>
         </p>
       </div>
@@ -60,7 +60,6 @@
             <div class="small text-muted mb-2">{{ row.publisher }}</div>
             <div class="mb-2">
               <ContributionKindBadges :row="row" />
-              <span class="badge text-bg-light border">{{ row.language }}</span>
             </div>
             <p class="small text-muted mb-0">{{ row.summary }}</p>
           </div>
@@ -83,6 +82,7 @@ const kindOptions = [
   { id: 'notebook', label: 'Notebook' },
   { id: 'cli', label: 'CLI' },
   { id: 'script', label: 'Script' },
+  { id: 'sql', label: 'SQL' },
   { id: 'postgres_extension', label: 'Postgres extension' },
   { id: 'dataset', label: 'Dataset' },
 ];

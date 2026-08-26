@@ -1,8 +1,11 @@
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { projectMemberUiValue } from '@/utils/roles';
 import ProjectDocsCard from '@/components/project/ProjectDocsCard.vue';
 import ProjectDatasetMasterDetail from '@/components/project/ProjectDatasetMasterDetail.vue';
+import ProjectAnalyticsPanel from '@/components/project/ProjectAnalyticsPanel.vue';
+import TeamAiSettings from '@/components/TeamAiSettings.vue';
 
 const props = defineProps({
   canManage: { type: Boolean, default: false },
@@ -42,10 +45,46 @@ const emit = defineEmits([
   'dataset-pick',
   'create-dataset',
   'unlink-dataset',
+  'replace-linked-datasets',
   'dataset-run-complete',
 ]);
 
-const section = ref('overview');
+const route = useRoute();
+const router = useRouter();
+const selectedDatasetId = ref('');
+
+const VALID_TABS = ['overview', 'docs', 'analytics', 'jupyter', 'people', 'settings'];
+
+function tabFromQuery() {
+  const t = String(route.query.tab || '');
+  if (t === 'settings' && !props.canManage) return 'overview';
+  if (VALID_TABS.includes(t)) return t;
+  return 'overview';
+}
+
+const section = ref(tabFromQuery());
+
+watch(
+  () => route.query.tab,
+  (tab) => {
+    if (!tab) return;
+    const next = tabFromQuery();
+    if (next !== section.value) section.value = next;
+  }
+);
+
+function setSection(id) {
+  section.value = id;
+  if (String(route.query.tab || '') !== 'people') return;
+  if (id === 'people') return;
+  const query = { ...route.query };
+  delete query.tab;
+  router.replace({ query });
+}
+
+function goDatasetsTab() {
+  setSection('overview');
+}
 
 const navItems = computed(() => {
   const items = [
@@ -109,7 +148,7 @@ const canInvite = computed(() => {
             type="button"
             class="list-group-item list-group-item-action d-flex align-items-center gap-2"
             :class="{ active: section === item.id }"
-            @click="section = item.id"
+            @click="setSection(item.id)"
           >
             <i :class="item.icon" aria-hidden="true"></i>
             {{ item.label }}
@@ -127,7 +166,9 @@ const canInvite = computed(() => {
             :new-dataset-name="newDatasetName"
             :saving-datasets="savingDatasets"
             :has-team="!!form.team_id"
+            :project-id="form.id ? String(form.id) : ''"
             @unlink-dataset="emit('unlink-dataset', $event)"
+            @replace-linked-datasets="emit('replace-linked-datasets', $event)"
             @update:dataset-to-add="emit('update:datasetToAdd', $event)"
             @update:new-dataset-name="emit('update:newDatasetName', $event)"
             @dataset-pick="emit('dataset-pick', $event)"
@@ -147,16 +188,15 @@ const canInvite = computed(() => {
         </section>
 
         <section v-else-if="section === 'analytics'">
-          <div class="card p-3">
-            <h5 class="card-title mb-2">Analytics</h5>
-            <p class="small text-muted mb-3">
-              Run analysis against loaded tables from Contributions (adapt a notebook for your
-              environment). In-app charts will land in this pane.
-            </p>
-            <router-link :to="{ name: 'contributions' }" class="btn btn-primary">
-              Open Contributions
-            </router-link>
-          </div>
+          <ProjectAnalyticsPanel
+            :datasets="linkedDatasetRows"
+            v-model:selected-dataset-id="selectedDatasetId"
+            :can-manage="canManage"
+            :project-id="form.id ? String(form.id) : ''"
+            :jupyter-url="jupyterUrl"
+            @run-complete="emit('dataset-run-complete')"
+            @go-datasets="goDatasetsTab"
+          />
         </section>
 
         <section v-else-if="section === 'jupyter'">
@@ -276,6 +316,12 @@ const canInvite = computed(() => {
               </div>
             </div>
           </div>
+          <TeamAiSettings
+            v-if="canManage && form.team_id"
+            class="mt-3"
+            :team-id="String(form.team_id)"
+            :can-edit="canManage"
+          />
         </section>
 
         <section v-else-if="section === 'settings' && canManage">

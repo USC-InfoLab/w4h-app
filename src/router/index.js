@@ -86,9 +86,12 @@ const router = createRouter({
     if (savedPosition) {
       return savedPosition
     } else if (to.hash) {
-      const target = document.querySelector(to.hash)
+      const id = to.hash.startsWith('#') ? to.hash.slice(1) : to.hash
+      const target = id ? document.getElementById(id) : null
+      // Help pages load HTML async; scrolling to top here races DocsView's
+      // hash scroll and leaves /docs/…#section stuck at the start of the page.
       if (!target) {
-        return { top: 0 }
+        return false
       }
       return {
         el: to.hash,

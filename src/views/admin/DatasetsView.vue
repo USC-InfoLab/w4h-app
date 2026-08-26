@@ -15,7 +15,9 @@
       </div>
     </div>
 
-    <div class="btn-group mb-3" role="group" aria-label="Dataset filter">
+    <div class="row align-items-center g-2 mb-3">
+      <div class="col-auto">
+        <div class="btn-group" role="group" aria-label="Dataset filter">
       <button
         type="button"
         class="btn btn-sm"
@@ -48,6 +50,21 @@
       >
         Shared
       </button>
+        </div>
+      </div>
+      <div class="col-auto ms-md-auto">
+        <label class="visually-hidden" for="dataset-status-filter">Lifecycle</label>
+        <select
+          id="dataset-status-filter"
+          class="form-select form-select-sm"
+          :value="statusFilter"
+          @change="onStatusFilterChange"
+        >
+          <option value="active">Active</option>
+          <option value="archived">Archived</option>
+          <option value="all">All statuses</option>
+        </select>
+      </div>
     </div>
     <p class="small text-muted mb-3">
       Ingested catalogs for research (and the shared Samples sandbox).
@@ -82,6 +99,7 @@
         <div class="min-w-0">
           <div class="fw-semibold">
             {{ dataset.name || dataset.id }}
+            <span v-if="dataset.status === 'archived'" class="badge text-bg-secondary ms-1">Archived</span>
           </div>
           <small class="text-muted">
             <template v-if="dataset.team_name">{{ dataset.team_name }}</template>
@@ -124,7 +142,10 @@
 
     <div v-else class="text-center my-5">
       <p class="text-muted mb-3">
-        <template v-if="filter === 'all' || filter === 'mine'">No datasets yet.</template>
+        <template v-if="filter === 'all' || filter === 'mine'">
+          <template v-if="statusFilter === 'archived'">No archived datasets.</template>
+          <template v-else>No datasets yet.</template>
+        </template>
         <template v-else-if="filter === 'others'">No discoverable datasets from other teams.</template>
         <template v-else>No datasets shared with your team.</template>
       </p>
@@ -140,7 +161,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { api, authHeaders } from '@/utils/api';
 import { useTeamContext } from '@/composables/useTeamContext';
@@ -151,6 +172,7 @@ const datasets = ref([]);
 const loading = ref(true);
 const errorMessage = ref('');
 const filter = ref('all');
+const statusFilter = ref('active');
 
 const filteredDatasets = computed(() => {
   const rows = datasets.value;
@@ -164,12 +186,13 @@ const filteredDatasets = computed(() => {
   return rows.filter((d) => d.source_kind === 'local' || !d.source_kind);
 });
 
-onMounted(async () => {
-  document.title = 'Datasets';
+async function loadDatasets() {
+  loading.value = true;
+  errorMessage.value = '';
   try {
     const res = await api.get('datasets', {
       ...authHeaders(),
-      params: { catalog: 1 }
+      params: { catalog: 1, status: statusFilter.value }
     });
     datasets.value = Array.isArray(res.data) ? res.data : [];
   } catch (error) {
@@ -178,6 +201,19 @@ onMounted(async () => {
   } finally {
     loading.value = false;
   }
+}
+
+function onStatusFilterChange(event) {
+  statusFilter.value = event.target.value;
+}
+
+watch(statusFilter, () => {
+  loadDatasets();
+});
+
+onMounted(async () => {
+  document.title = 'Datasets';
+  await loadDatasets();
 });
 
 function goEdit(id) {

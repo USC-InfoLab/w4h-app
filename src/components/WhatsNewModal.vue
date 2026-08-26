@@ -86,7 +86,10 @@ function close() {
 }
 
 function onDocContentClick(event) {
-  handleDocContentClick(event, router, { onNavigate: close });
+  handleDocContentClick(event, router, {
+    onNavigate: close,
+    hashBasePath: '/docs/whats-new',
+  });
 }
 
 function dontShowAgain() {

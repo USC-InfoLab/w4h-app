@@ -30,7 +30,9 @@
   /* Slightly deeper cardinal for chrome (nav bars) */
   --w4h-nav-bg: #630000;
   /* Fixed top chrome height (keep layout offsets in sync) */
-  --app-navbar-height: 44px;
+  --app-navbar-height: 52px;
+  --app-shell-py: 1rem;
+  --app-shell-px: 1.25rem;
   /* Brand callout — neutral panel + Cardinal accent bar (not Bootstrap alert-info) */
   --w4h-callout-bg: #f8f5f5;
   --w4h-callout-border: var(--bs-border-color, #dee2e6);
@@ -341,7 +343,15 @@ a:not(.btn):not(.nav-link):not(.navbar-brand):not(.dropdown-item):not(.page-link
 }
 
 body {
-  padding-top: var(--app-navbar-height, 44px);
+  margin: 0;
+}
+
+body.w4h-app-shell {
+  padding-top: var(--app-navbar-height, 52px);
+}
+
+body.w4h-guest {
+  padding-top: 0;
 }
 
 body.w4h-chat-open {
@@ -366,8 +376,14 @@ body.w4h-chat-open {
 }
 
 main {
-  padding: 10px 20px 20px 20px !important;
+  padding: var(--app-shell-py, 1rem) var(--app-shell-px, 1.25rem)
+    calc(var(--app-shell-py, 1rem) + 0.25rem) !important;
   text-align: left;
+}
+
+/* Help/docs: full-bleed columns, shared top gutter with the rest of the app */
+main.docs-view {
+  padding: var(--app-shell-py, 1rem) 0 0 !important;
 }
 
 .tooltip-inner {

@@ -40,13 +40,15 @@
     >
       <div v-if="!available" class="text-muted">
         <p class="mb-2">{{ status?.error || 'AI chat is not configured for this context.' }}</p>
-        <p v-if="status?.can_manage_team" class="mb-0">
-          Add a lab Anthropic key under Team settings, or ask a Super admin to provision platform credits.
-        </p>
-        <p v-else-if="status?.can_manage_platform" class="mb-0">
+        <p v-if="status?.can_manage_platform" class="mb-0">
           Add a platform Claude key under Settings.
         </p>
-        <p v-else class="mb-0">Ask a Team admin to enable AI chat for this team.</p>
+        <p v-else-if="status?.can_manage_team" class="mb-0">
+          Add a lab Anthropic key under
+          <RouterLink :to="peopleSettingsTo">Project → People</RouterLink>,
+          or ask a Super admin to provision platform credits.
+        </p>
+        <p v-else class="mb-0">Ask an Admin to enable AI chat for this team.</p>
       </div>
 
       <div v-else-if="messages.length === 0" class="text-muted">
@@ -176,6 +178,15 @@ const historyEl = ref(null);
 const inputEl = ref(null);
 
 const isAdminUI = computed(() => canAccessAdminUi(user.value?.role, user.value?.caps));
+const peopleSettingsTo = computed(() => {
+  const p = activeProject.value;
+  if (!p) return { name: 'home' };
+  return {
+    name: 'adminProjectsEdit',
+    params: { id: p.slug || p.id },
+    query: { tab: 'people' },
+  };
+});
 const messages = computed(() => activeMessages.value);
 const available = computed(() => !!status.value?.available);
 const phiSafe = computed(() => status.value?.phi_safe !== false);

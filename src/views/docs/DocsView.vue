@@ -338,9 +338,9 @@ async function selectdoc(doc) {
   await refreshMermaidInPreview();
 
   if (route.hash) {
-    const el = safeQueryHash(route.hash);
-    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    await scrollToRouteHash();
   } else {
+    rightPane.value?.scrollTo({ top: 0 });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 }
@@ -360,26 +360,24 @@ watch(hideSidebar, () => {
   });
 });
 
-function initSplitIfNeeded() {
-  // destroy existing instance first
+function destroySplit() {
   if (splitInstance && splitInstance.destroy) {
     try { splitInstance.destroy(); } catch { /* ignore */ }
     splitInstance = null;
   }
+}
 
-  // Only init split on desktop widths (optional)
-  if (!leftPane.value || !rightPane.value || hideSidebar.value) {
-    // full width for right pane if no sidebar
-    if (rightPane.value) rightPane.value.style.width = '100%';
+function initSplitIfNeeded() {
+  const canSplit = !!leftPane.value && !!rightPane.value && !hideSidebar.value && window.innerWidth >= 768;
+
+  // Recreating Split.js resets the right pane's scrollTop and drops hash targets.
+  if (!canSplit) {
+    destroySplit();
+    if (rightPane.value) rightPane.value.style.width = hideSidebar.value ? '100%' : '';
+    if (leftPane.value && window.innerWidth < 768) leftPane.value.style.width = '';
     return;
   }
-
-  if (window.innerWidth < 768) {
-    // small screen: do not create Split; let CSS handle stacking
-    leftPane.value.style.width = '';
-    rightPane.value.style.width = '';
-    return;
-  }
+  if (splitInstance) return;
 
   const persisted = localStorage.getItem('docs.split.sizes');
   const sizes = persisted ? JSON.parse(persisted) : [25, 75];
@@ -528,19 +526,19 @@ onMounted(async () => {
   document.title = `${APP_NAME} Docs`;
 
   fetchDocTypes({ force: true });
-  handleSlug(route.params.slug);
 
   window.addEventListener('scroll', () => {
     showBackToTop.value = window.scrollY > 300;
   });
-
-  // Wait for DOM refs to be available
-  await nextTick();
-
-  initSplitIfNeeded();
   window.addEventListener('resize', handleResize);
   document.addEventListener('click', onMdPreviewMediaClick);
   watch(() => route.params.slug, handleSlug);
+
+  await handleSlug(route.params.slug);
+  await nextTick();
+  initSplitIfNeeded();
+  await nextTick();
+  await scrollToRouteHash();
 });
 
 watch(
@@ -575,15 +573,33 @@ function safeQueryHash(hash) {
   }
 }
 
+async function scrollToRouteHash() {
+  const hash = route.hash;
+  if (!hash || hash === '#') return;
+  for (let i = 0; i < 12; i += 1) {
+    const el = safeQueryHash(hash);
+    if (el) {
+      const pane = rightPane.value;
+      if (pane && pane.contains(el) && pane !== el) {
+        const margin = parseFloat(getComputedStyle(el).scrollMarginTop) || 8;
+        const top = el.getBoundingClientRect().top - pane.getBoundingClientRect().top + pane.scrollTop - margin;
+        pane.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+      } else {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+      return;
+    }
+    await nextTick();
+    await new Promise((r) => requestAnimationFrame(r));
+  }
+}
+
 watch(
   () => route.hash,
   async (hash) => {
     if (!hash) return;
     await nextTick();
-    const el = safeQueryHash(hash);
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
+    await scrollToRouteHash();
   }
 )
 
@@ -594,10 +610,7 @@ onBeforeUnmount(() => {
     document.body.removeEventListener('click', onDocsCopyButtonClick);
     copyButtonsListenerRegistered = false;
   }
-  if (splitInstance && splitInstance.destroy) {
-    try { splitInstance.destroy(); } catch { /* ignore */ }
-    splitInstance = null;
-  }
+  destroySplit();
 });
 </script>
 
@@ -607,7 +620,7 @@ onBeforeUnmount(() => {
 .docs-content h3,
 .docs-content h4,
 #top {
-  scroll-margin-top: var(--app-navbar-height, 44px);
+  scroll-margin-top: 0.5rem;
 }
 
 @media (max-width: 767.98px) {
@@ -616,7 +629,7 @@ onBeforeUnmount(() => {
   .docs-content h3,
   .docs-content h4,
   #top {
-    scroll-margin-top: calc(var(--app-navbar-height, 44px) + var(--docs-subnav-height, 2.5rem));
+    scroll-margin-top: 0.5rem;
   }
 }
 
@@ -979,10 +992,8 @@ div .alert {
 }
 
 .md-editor-fullscreen {
-  top: 70px !important;
-  /* was 56px — adds breathing room below navbar */
-  height: calc(100vh - 70px) !important;
-  /* was calc(100vh - var(--app-navbar-height, 44px)) */
+  top: calc(var(--app-navbar-height, 52px) + var(--app-shell-py, 1rem)) !important;
+  height: calc(100vh - var(--app-navbar-height, 52px) - var(--app-shell-py, 1rem)) !important;
   z-index: 1050 !important;
 }
 

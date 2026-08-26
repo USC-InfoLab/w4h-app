@@ -3,7 +3,7 @@
 Structural map of `w4h-app` for agents and humans. **Index only** — not feature docs.
 
 - Regenerate: `npm run index:ui`
-- Generated: 2026-08-17
+- Generated: 2026-08-26
 - Do not hand-edit the lists below; change code, then re-run the script.
 
 ## Orientation
@@ -109,7 +109,7 @@ Shells: app (`NavBar`) vs Platform Admin (`AdminNavBar`). Project workspace: `Pr
 ### `src/views/docs/`
 - DocsView.vue
 
-## Components (33)
+## Components (37)
 
 ### `src/components/`
 - AboutModal.vue
@@ -146,16 +146,20 @@ Shells: app (`NavBar`) vs Platform Admin (`AdminNavBar`). Project workspace: `Pr
 - WelcomeNextSteps.vue
 
 ### `src/components/project/`
+- CohortAnalyticsPanel.vue
+- CohortLineChart.vue
 - ProjectAdminPanel.vue
+- ProjectAnalyticsPanel.vue
 - ProjectDatasetMasterDetail.vue
 - ProjectDocsCard.vue
 - ProjectHub.vue
 - ProjectUserPanel.vue
+- RunContributionDialog.vue
 
 ## Supporting modules
 
 **Stores:** `stores/chat.js`, `stores/counter.js`, `stores/ui.js`, `stores/user.js`
 
-**Utils:** `utils/api.js`, `utils/browserCredentials.js`, `utils/cards.js`, `utils/chatMarkdown.js`, `utils/clientUsage.js`, `utils/contributionKinds.js`, `utils/defs.js`, `utils/docMedia.js`, `utils/docsHeadingId.js`, `utils/format.js`, `utils/fs.js`, `utils/loginRemember.js`, `utils/password-validator.js`, `utils/roles.js`, `utils/toc.js`
+**Utils:** `utils/api.js`, `utils/browserCredentials.js`, `utils/cards.js`, `utils/chatMarkdown.js`, `utils/clientUsage.js`, `utils/contributionKinds.js`, `utils/defs.js`, `utils/docMedia.js`, `utils/docsHeadingId.js`, `utils/format.js`, `utils/fs.js`, `utils/importerSlugForDataset.js`, `utils/loginRemember.js`, `utils/password-validator.js`, `utils/release.js`, `utils/roles.js`, `utils/toc.js`
 
 **Composables:** `composables/useDocTypes.js`, `composables/useTeamContext.js`, `composables/useVgtTheme.js`

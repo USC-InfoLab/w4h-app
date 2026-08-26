@@ -51,7 +51,11 @@
     </table>
 
     <div v-if="formOpen" class="card p-3 mt-3">
-      <h6 class="mb-3">{{ editingSlug ? 'Edit contribution' : 'Add contribution' }}</h6>
+      <h6 class="mb-3">{{ isUpdatingExisting ? 'Edit contribution' : 'Add contribution' }}</h6>
+      <div v-if="matchingCatalogRow && !editingSlug" class="alert alert-info py-2 small">
+        <code>{{ matchingCatalogRow.slug }}</code> is already in the catalog.
+        Save will update that row (it was seeded with the first-party listings).
+      </div>
 
       <div class="row g-3">
         <div class="col-md-8">
@@ -62,7 +66,7 @@
               {{ inspecting ? 'Fetching…' : 'Fetch repo info' }}
             </button>
           </div>
-          <div class="form-text">Fills in the fields below from the repo's README and manifest.yaml, when present.</div>
+          <div class="form-text">Fills in the fields below from the README, manifest.yaml, and detected files (notebook, CLI, SQL job, dataset, or Postgres extension).</div>
         </div>
         <div class="col-md-4">
           <label class="form-label">Status</label>
@@ -97,7 +101,7 @@
 
         <div class="col-md-4">
           <label class="form-label">Slug</label>
-          <input v-model="form.slug" class="form-control font-monospace" :disabled="Boolean(editingSlug)" />
+          <input v-model="form.slug" class="form-control font-monospace" :disabled="isUpdatingExisting" />
         </div>
         <div class="col-md-4">
           <label class="form-label">Publisher</label>
@@ -112,10 +116,27 @@
           <input v-model="form.summary" class="form-control" />
         </div>
         <div class="col-md-4">
-          <label class="form-label">Kinds</label>
-          <select v-model="form.kinds" class="form-select" multiple size="4">
-            <option v-for="k in kindChoices" :key="k" :value="k">{{ k }}</option>
-          </select>
+          <fieldset class="border-0 p-0 m-0">
+            <legend class="form-label kinds-legend">Kinds</legend>
+            <div v-for="k in kindChoices" :key="k.id" class="form-check">
+              <input
+                :id="`kind-${k.id}`"
+                v-model="form.kinds"
+                class="form-check-input"
+                type="checkbox"
+                :value="k.id"
+              />
+              <label class="form-check-label" :for="`kind-${k.id}`">{{ k.id }}</label>
+              <button
+                type="button"
+                class="btn btn-link btn-sm p-0 ms-1 align-baseline text-muted"
+                v-tooltip="k.help"
+                :aria-label="`About ${k.id}`"
+              >
+                <i class="bi bi-question-circle" aria-hidden="true"></i>
+              </button>
+            </div>
+          </fieldset>
         </div>
         <div class="col-md-4">
           <label class="form-label">Language</label>
@@ -148,20 +169,21 @@
       </div>
       <div class="mt-3 d-flex gap-2">
         <button class="btn btn-primary" type="button" :disabled="saving" @click="save">
-          {{ saving ? 'Saving…' : 'Save' }}
+          {{ saving ? 'Saving…' : (isUpdatingExisting ? 'Update' : 'Save') }}
         </button>
         <button class="btn btn-outline-secondary" type="button" @click="formOpen = false">Cancel</button>
       </div>
+      <div v-if="errorMessage" class="alert alert-danger py-2 small mt-3 mb-0">{{ errorMessage }}</div>
     </div>
   </main>
 </template>
 
 <script setup>
-import { onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref } from 'vue';
 import { api, authHeaders } from '@/utils/api';
-import { contributionKinds } from '@/utils/contributionKinds';
+import { CONTRIBUTION_KIND_CHOICES, contributionKinds } from '@/utils/contributionKinds';
 
-const kindChoices = ['notebook', 'cli', 'script', 'postgres_extension', 'dataset'];
+const kindChoices = CONTRIBUTION_KIND_CHOICES;
 
 const items = ref([]);
 const loading = ref(false);
@@ -176,6 +198,13 @@ const inspectError = ref('');
 const manifestValidation = ref(null);
 const manifestChecked = ref(false);
 const pairedDataset = ref(null);
+
+const matchingCatalogRow = computed(() => {
+  const key = String(form.slug || '').trim().toLowerCase();
+  if (!key) return null;
+  return items.value.find((row) => String(row.slug).toLowerCase() === key) || null;
+});
+const isUpdatingExisting = computed(() => Boolean(editingSlug.value || matchingCatalogRow.value));
 
 function emptyForm() {
   return {
@@ -239,6 +268,10 @@ async function fetchRepoInfo() {
     );
     const { suggested, manifest, validation, pairedDataset: paired } = res.data;
     Object.assign(form, suggested);
+    form.kinds = contributionKinds(form);
+    if (suggested?.kind && form.kinds.includes(suggested.kind)) {
+      form.kind = suggested.kind;
+    }
     if (manifest) {
       manifestChecked.value = true;
       manifestValidation.value = validation;
@@ -268,16 +301,27 @@ async function save() {
   saving.value = true;
   errorMessage.value = '';
   try {
-    const payload = { ...form, kinds: form.kinds, kind: form.kinds?.[0] || form.kind };
-    if (editingSlug.value) {
-      await api.patch(`/contributions/${encodeURIComponent(editingSlug.value)}`, payload, authHeaders());
+    const kinds = form.kinds || [];
+    const kind = (form.kind && kinds.includes(form.kind)) ? form.kind : (kinds[0] || form.kind);
+    const payload = { ...form, kinds, kind };
+    const targetSlug = editingSlug.value || matchingCatalogRow.value?.slug;
+    if (targetSlug) {
+      await api.patch(`/contributions/${encodeURIComponent(targetSlug)}`, payload, authHeaders());
     } else {
       await api.post('/contributions', payload, authHeaders());
     }
     formOpen.value = false;
     await load();
   } catch (e) {
-    errorMessage.value = e.response?.data?.error || e.message || 'Save failed.';
+    const status = e.response?.status;
+    const apiError = e.response?.data?.error;
+    if (status === 409) {
+      errorMessage.value = apiError
+        ? `${apiError}. Open that row from the list and click Edit, or change the slug.`
+        : 'A contribution with this slug already exists. Open it from the list to update it.';
+    } else {
+      errorMessage.value = apiError || e.message || 'Save failed.';
+    }
   } finally {
     saving.value = false;
   }
@@ -295,3 +339,11 @@ async function remove(row) {
 
 onMounted(load);
 </script>
+
+<style scoped>
+.kinds-legend {
+  float: none;
+  width: auto;
+  font-size: inherit;
+}
+</style>
