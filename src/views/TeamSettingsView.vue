@@ -1,26 +1,29 @@
 <template>
   <main class="container-fluid">
-    <h5 class="mb-3">
-      <i class="bi bi-stars me-1"></i>
-      Team settings
-    </h5>
-    <p v-if="!teamId" class="text-muted">
-      Select a project so we know which lab (team) to configure.
-    </p>
-    <TeamAiSettings
-      v-else
-      :team-id="teamId"
-      :can-edit="canEdit"
-    />
+    <p class="text-muted">Opening Project → Settings…</p>
   </main>
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { onMounted } from 'vue';
+import { useRouter } from 'vue-router';
 import { useTeamContext } from '@/composables/useTeamContext';
-import TeamAiSettings from '@/components/TeamAiSettings.vue';
 
-const { activeTeamId, isActiveTeamAdmin } = useTeamContext();
-const teamId = computed(() => activeTeamId.value || '');
-const canEdit = computed(() => !!isActiveTeamAdmin.value);
+const router = useRouter();
+const { activeProject, activeProjectId, loadProjects } = useTeamContext();
+
+onMounted(async () => {
+  await loadProjects();
+  const p = activeProject.value;
+  const id = p?.slug || p?.id || activeProjectId.value;
+  if (id) {
+    router.replace({
+      name: 'adminProjectsEdit',
+      params: { id },
+      query: { tab: 'settings' },
+    });
+    return;
+  }
+  router.replace({ name: 'home' });
+});
 </script>

@@ -179,7 +179,7 @@
         </div>
       </div>
 
-      <div v-if="canEditTeam" class="col-12">
+      <div v-if="isSuperAdmin(user.role)" class="col-12">
         <TeamAiSettings :team-id="team.id" :can-edit="canEditTeam" />
       </div>
     </div>

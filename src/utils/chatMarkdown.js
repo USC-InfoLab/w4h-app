@@ -3,8 +3,8 @@ import MarkdownIt from 'markdown-it';
 /** Map chat hrefs onto real Vue routes (Claude often emits /projects/{slug}). */
 export function rewriteChatHref(href) {
   const raw = String(href || '').trim();
-  const m = raw.match(/^\/projects\/([^/?#]+)\/?$/);
-  if (m) return `/admin/projects/${m[1]}/edit`;
+  const m = raw.match(/^\/projects\/([^/?#]+)\/?(\?.*)?$/);
+  if (m) return `/admin/projects/${m[1]}/edit${m[2] || ''}`;
   return raw;
 }
 

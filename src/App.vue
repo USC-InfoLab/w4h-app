@@ -11,7 +11,7 @@
 </template>
 
 <script setup>
-import { computed, watch } from 'vue'
+import { computed, onBeforeUnmount, watch } from 'vue'
 import NavBar from '@/components/NavBar.vue'
 import AdminNavBar from '@/components/AdminNavBar.vue'
 import GlobalChatPanel from '@/components/GlobalChatPanel.vue'
@@ -34,6 +34,14 @@ const uiStore = useUIStore();
 const isGuest = computed(() => route.meta.guest === true);
 // Super admin always uses Platform Admin chrome — no toggle into the team app shell.
 const isAdminUI = computed(() => canAccessAdminUi(user.value?.role, user.value?.caps));
+
+function syncBodyShellClasses(guest) {
+  document.body.classList.toggle('w4h-guest', guest);
+  document.body.classList.toggle('w4h-app-shell', !guest);
+}
+
+watch(isGuest, syncBodyShellClasses, { immediate: true });
+onBeforeUnmount(() => syncBodyShellClasses(true));
 
 function syncBootstrapTheme(theme) {
   document.body.dataset.bsTheme = theme;

@@ -1,5 +1,5 @@
 <template>
-  <main class="container-fluid py-3 project-hub">
+  <main class="container-fluid project-hub">
     <nav aria-label="breadcrumb" class="mb-3">
       <ol class="breadcrumb mb-0">
         <li class="breadcrumb-item">

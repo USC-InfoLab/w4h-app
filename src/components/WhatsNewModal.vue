@@ -86,7 +86,10 @@ function close() {
 }
 
 function onDocContentClick(event) {
-  handleDocContentClick(event, router, { onNavigate: close });
+  handleDocContentClick(event, router, {
+    onNavigate: close,
+    hashBasePath: '/docs/whats-new',
+  });
 }
 
 function dontShowAgain() {
@@ -134,5 +137,6 @@ function dontShowAgain() {
 .modal-body :deep(.md-preview td) {
   border: 1px solid var(--bs-border-color-translucent, rgba(0, 0, 0, 0.15));
   padding: 0.4rem 0.6rem;
+  color: var(--bs-body-color, #212529);
 }
 </style>

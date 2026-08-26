@@ -13,6 +13,10 @@
       <div class="col-12 col-lg-7">
         <div class="card p-3">
           <h5 class="card-title mb-3">Dataset</h5>
+          <p v-if="form.status === 'archived'" class="alert alert-secondary py-2 small mb-3">
+            This catalog row is <strong>archived</strong>. It is hidden from projects and link lists.
+            Tables and metadata are kept. Restore it to link or ingest again.
+          </p>
           <p class="small text-muted mb-3">
             A dataset is a catalog of related tables (subjects, wearables, demographics, …), not a single table.
           </p>
@@ -233,6 +237,41 @@
             </template>
           </div>
         </div>
+
+        <div v-if="canManageCatalog" class="card p-3 mt-3 border-secondary">
+          <h5 class="card-title mb-2">Archive catalog row</h5>
+          <p class="small text-muted mb-3">
+            W4H never deletes dataset data. Archive retires a catalog entry you no longer need:
+            it disappears from projects and <strong>Add existing</strong>, revokes outbound shares,
+            and blocks new ingestion. You can restore it later from the archived list.
+          </p>
+          <div v-if="archiveMessage" class="alert py-2" :class="archiveOk ? 'alert-success' : 'alert-danger'">
+            {{ archiveMessage }}
+          </div>
+          <button
+            v-if="form.status !== 'archived'"
+            type="button"
+            class="btn btn-outline-secondary"
+            :disabled="archiveBusy || (form.read_only && !canChangeTeam)"
+            @click="archiveDataset"
+          >
+            <span v-if="archiveBusy" class="spinner-border spinner-border-sm me-2" />
+            Archive dataset
+          </button>
+          <button
+            v-else
+            type="button"
+            class="btn btn-outline-primary"
+            :disabled="archiveBusy"
+            @click="restoreDataset"
+          >
+            <span v-if="archiveBusy" class="spinner-border spinner-border-sm me-2" />
+            Restore dataset
+          </button>
+          <div v-if="form.read_only && form.status !== 'archived' && !canChangeTeam" class="form-text mt-2">
+            Platform sample datasets can only be archived by Super admin.
+          </div>
+        </div>
       </div>
 
       <div class="col-12 col-lg-5">
@@ -289,6 +328,9 @@ const shareBusy = ref(false);
 const shareMessage = ref('');
 const shareOk = ref(false);
 const canShareOwned = ref(false);
+const archiveBusy = ref(false);
+const archiveMessage = ref('');
+const archiveOk = ref(false);
 
 const shareForm = reactive({
   target_team_id: '',
@@ -303,6 +345,7 @@ const form = reactive({
   discoverable: true,
   read_only: false,
   origin: '',
+  status: 'active',
 });
 
 const savedSnapshot = ref(null);
@@ -313,6 +356,9 @@ const canEdit = computed(() =>
 );
 const teamLabel = computed(() => teamName.value || form.team_id || '—');
 const canShare = computed(() => canShareOwned.value && !!form.team_id);
+const canManageCatalog = computed(
+  () => (canShareOwned.value || canChangeTeam.value) && !!form.team_id
+);
 
 function snapshotForm() {
   return {
@@ -348,6 +394,7 @@ function applyDataset(d) {
   form.discoverable = d.discoverable !== false;
   form.read_only = Boolean(d.read_only);
   form.origin = d.origin || '';
+  form.status = d.status === 'archived' ? 'archived' : 'active';
   teamName.value = d.team_name || '';
   tables.value = Array.isArray(d.tables) ? d.tables : [];
   if (Array.isArray(d.projects) && d.projects.length) {
@@ -425,6 +472,50 @@ async function revokeShare(share) {
   } finally {
     shareBusy.value = false;
   }
+}
+
+async function setDatasetStatus(nextStatus) {
+  const verb = nextStatus === 'archived' ? 'archive' : 'restore';
+  const prompt =
+    nextStatus === 'archived'
+      ? `Archive "${form.name}"?\n\nIt will be removed from all projects and sharing lists. Data stays in the database.`
+      : `Restore "${form.name}" to the active team catalog?`;
+  if (!window.confirm(prompt)) return;
+
+  archiveBusy.value = true;
+  archiveMessage.value = '';
+  archiveOk.value = false;
+  try {
+    const res = await api.patch(
+      `datasets/${encodeURIComponent(form.id)}`,
+      { status: nextStatus },
+      authHeaders()
+    );
+    applyDataset(res.data || {});
+    archiveOk.value = true;
+    archiveMessage.value =
+      nextStatus === 'archived'
+        ? 'Dataset archived. Find it under Datasets → Archived.'
+        : 'Dataset restored.';
+    if (canShare.value) {
+      await loadShareTargets();
+      await loadShares();
+    }
+  } catch (error) {
+    archiveOk.value = false;
+    archiveMessage.value =
+      error.response?.data?.error || error.message || `Failed to ${verb} dataset.`;
+  } finally {
+    archiveBusy.value = false;
+  }
+}
+
+function archiveDataset() {
+  return setDatasetStatus('archived');
+}
+
+function restoreDataset() {
+  return setDatasetStatus('active');
 }
 
 onMounted(async () => {

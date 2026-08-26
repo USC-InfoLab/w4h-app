@@ -1,5 +1,5 @@
 <template>
-  <main class="container-fluid py-3">
+  <main class="container-fluid">
     <div class="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-4">
       <div>
         <nav aria-label="breadcrumb">

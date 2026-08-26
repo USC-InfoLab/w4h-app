@@ -1,13 +1,25 @@
 <template>
   <main class="container-fluid" v-if="loaded">
-    <nav aria-label="breadcrumb" class="mb-3">
-      <ol class="breadcrumb">
-        <li v-if="isSuperAdmin(userStore.user?.role)" class="breadcrumb-item">
+    <nav v-if="isSuperAdmin(userStore.user?.role)" aria-label="breadcrumb" class="mb-3">
+      <ol class="breadcrumb mb-0">
+        <li class="breadcrumb-item">
           <router-link to="/admin/projects">Projects</router-link>
         </li>
-        <li class="breadcrumb-item active" aria-current="page">Project</li>
+        <li class="breadcrumb-item active" aria-current="page">
+          {{ form.name || 'Project' }}
+        </li>
       </ol>
     </nav>
+
+    <div
+      v-if="message"
+      class="alert alert-dismissible fade show mb-3"
+      :class="ok ? 'alert-success' : 'alert-danger'"
+      role="alert"
+    >
+      {{ message }}
+      <button type="button" class="btn-close" aria-label="Close" @click="clearMessage"></button>
+    </div>
 
     <ProjectHub
       :can-manage="canManageThisProject"
@@ -44,17 +56,14 @@
       @dataset-pick="onDatasetPick"
       @create-dataset="createDatasetForProject"
       @unlink-dataset="unlinkDataset"
+      @replace-linked-datasets="replaceLinkedDatasets"
       @dataset-run-complete="refreshDatasetsOnly"
     />
-
-    <div v-if="message" class="alert mt-3" :class="ok ? 'alert-success' : 'alert-danger'">
-      {{ message }}
-    </div>
   </main>
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref, watch } from 'vue';
+import { computed, onMounted, onBeforeUnmount, reactive, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { api, authHeaders } from '@/utils/api';
 import { useUserStore } from '@/stores/user';
@@ -155,10 +164,31 @@ const addableDatasets = computed(() => {
   return (availableDatasets.value || []).filter((d) => !linked.has(String(d.id)));
 });
 
+let messageTimer = null;
+
+function clearMessage() {
+  if (messageTimer) {
+    clearTimeout(messageTimer);
+    messageTimer = null;
+  }
+  message.value = '';
+}
+
 function setMessage(success, text) {
   ok.value = success;
   message.value = text;
+  if (messageTimer) {
+    clearTimeout(messageTimer);
+    messageTimer = null;
+  }
+  if (text && success) {
+    messageTimer = setTimeout(() => {
+      if (message.value === text) clearMessage();
+    }, 4000);
+  }
 }
+
+onBeforeUnmount(clearMessage);
 
 function formatProjectDate(value) {
   if (!value) return '';
@@ -180,19 +210,48 @@ function onDatasetPick(selected) {
   datasetToAdd.value = '';
 }
 
-function linkDatasetById(datasetId) {
-  if (!canManageThisProject.value) return;
+function tableCountFor(datasetId) {
   const id = String(datasetId || '');
-  if (!id || linkedDatasetIds.value.includes(id)) return;
-  linkedDatasetIds.value.push(id);
-  persistLinkedDatasets('Dataset added.');
+  const rows = [...(linkedDatasetMeta.value || []), ...(availableDatasets.value || [])];
+  const row = rows.find((d) => String(d.id || d.dataset_id) === id);
+  return Number(row?.table_count ?? row?.physical_table_count ?? row?.summary?.table_count ?? 0);
+}
+
+function linkDatasetById(datasetId) {
+  replaceLinkedDatasets({ linkId: datasetId });
 }
 
 function unlinkDataset(datasetId) {
+  replaceLinkedDatasets({ unlinkId: datasetId, archiveUnlinkIfEmpty: true });
+}
+
+function replaceLinkedDatasets({ linkId, unlinkId, archiveUnlinkIfEmpty = false } = {}) {
   if (!canManageThisProject.value) return;
-  const id = String(datasetId || '');
-  linkedDatasetIds.value = linkedDatasetIds.value.filter((x) => x !== id);
-  persistLinkedDatasets('Dataset removed.');
+  const link = linkId ? String(linkId) : '';
+  const unlink = unlinkId ? String(unlinkId) : '';
+  const current = (linkedDatasetIds.value || []).map(String);
+  let next = unlink ? current.filter((x) => x !== unlink) : [...current];
+  if (link && !next.includes(link)) next.push(link);
+
+  const archiveId =
+    archiveUnlinkIfEmpty && unlink && tableCountFor(unlink) === 0 ? unlink : '';
+  const unchanged =
+    next.length === current.length && next.every((id) => current.includes(id));
+  if (unchanged && !archiveId) return;
+
+  linkedDatasetIds.value = next;
+
+  let successMessage = 'Dataset added.';
+  if (archiveId) {
+    successMessage = unlink && link
+      ? 'Linked the loaded dataset. The empty catalog row was archived so it will not stay under Add existing.'
+      : 'Unlinked. The empty catalog row was archived so it will not stay under Add existing.';
+  } else if (unlink && !link) {
+    successMessage = 'Unlinked from project. The catalog row is still in your team — Add existing lists it so you can link it again.';
+  } else if (unlink && link) {
+    successMessage = 'Linked the loaded dataset and unlinked the empty row from this project.';
+  }
+  persistLinkedDatasets(successMessage, { archiveId });
 }
 
 function slugifyDatasetId(input) {
@@ -227,15 +286,13 @@ async function createDatasetForProject() {
     newDatasetName.value = '';
     datasetToAdd.value = '';
     await persistLinkedDatasets('Dataset created and added to this project.');
-    const refreshed = await api.get(`projects/${encodeURIComponent(form.id)}`, authHeaders());
-    mapOverviewToForm(refreshed.data);
   } catch (error) {
     setMessage(false, error.response?.data?.error || error.message || 'Failed to create dataset.');
     savingDatasets.value = false;
   }
 }
 
-async function persistLinkedDatasets(successMessage) {
+async function persistLinkedDatasets(successMessage, { archiveId } = {}) {
   if (!form.id) return;
   savingDatasets.value = true;
   setMessage(false, '');
@@ -250,6 +307,25 @@ async function persistLinkedDatasets(successMessage) {
       },
       authHeaders()
     );
+    if (archiveId) {
+      try {
+        await api.patch(
+          `datasets/${encodeURIComponent(archiveId)}`,
+          { status: 'archived' },
+          authHeaders()
+        );
+      } catch (archiveError) {
+        await refreshDatasetsOnly();
+        setMessage(
+          false,
+          archiveError.response?.data?.error ||
+            archiveError.message ||
+            'Unlinked, but could not archive the empty catalog row. It may still appear under Add existing.'
+        );
+        return;
+      }
+    }
+    await refreshDatasetsOnly();
     setMessage(true, successMessage);
   } catch (error) {
     setMessage(false, error.response?.data?.error || error.message || 'Failed to update linked datasets.');

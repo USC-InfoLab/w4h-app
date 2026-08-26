@@ -32,8 +32,14 @@ export function rewriteDocMediaUrls(html) {
   return s;
 }
 
-/** Same-origin <a href> in v-html docs: SPA navigate instead of a full reload. */
-export function handleDocContentClick(event, router, { onNavigate } = {}) {
+/**
+ * Same-origin <a href> in v-html docs: SPA navigate instead of a full reload.
+ *
+ * Hash-only hrefs (`#section`) resolve against the current path unless
+ * `hashBasePath` is set (What's New modal highlights must open Help, not
+ * `/home#phi-safe-ai-chat`).
+ */
+export function handleDocContentClick(event, router, { onNavigate, hashBasePath } = {}) {
   const a = event.target.closest?.('a');
   if (!a || a.target === '_blank' || !router) return;
   const href = a.getAttribute('href');
@@ -47,5 +53,8 @@ export function handleDocContentClick(event, router, { onNavigate } = {}) {
   if (url.origin !== window.location.origin) return;
   event.preventDefault();
   onNavigate?.();
-  router.push(url.pathname + url.search + url.hash);
+  const path = href.startsWith('#') && hashBasePath
+    ? hashBasePath
+    : url.pathname;
+  router.push(path + url.search + url.hash);
 }

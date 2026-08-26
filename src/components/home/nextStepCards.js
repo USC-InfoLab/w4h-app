@@ -16,13 +16,13 @@ export const adminNextStepCards = [
   },
   {
     title: '3. Invite members',
-    text: 'Invite anyone by email from Project → People. Skip if they are already on the project.',
+    text: 'Invite and manage collaborators from Project → People.',
     to: { name: 'adminProjects' },
     label: 'Open project',
   },
   {
-    title: '4. Chat, if available',
-    text: 'If the chat icon is in the nav, use it for setup questions. It only works when a team or platform key is configured.',
+    title: '4. AI Chat',
+    text: 'If the chat icon is in the nav, use it to setup questions or chat with the AI. It works when a team or platform key is configured.',
     to: { name: 'docs', params: { slug: 'welcome-admin' } },
     label: 'Open Admin guide',
   },

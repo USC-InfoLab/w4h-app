@@ -281,6 +281,9 @@ const groupedDocs = computed(() => {
 
   for (const doc of allDocs.value) {
     if (doc.slug === 'home') continue;
+    // Agent / generated-index files are not Help pages (API also skips these on import).
+    const metaSlug = String(doc.slug || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
+    if (metaSlug === 'agents' || metaSlug === 'claude' || metaSlug === 'docs_index') continue;
 
     const type = doc.doc_type || '';
     if (!type) {
@@ -338,9 +341,9 @@ async function selectdoc(doc) {
   await refreshMermaidInPreview();
 
   if (route.hash) {
-    const el = safeQueryHash(route.hash);
-    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    await scrollToRouteHash();
   } else {
+    rightPane.value?.scrollTo({ top: 0 });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 }
@@ -360,29 +363,54 @@ watch(hideSidebar, () => {
   });
 });
 
-function initSplitIfNeeded() {
-  // destroy existing instance first
+function destroySplit() {
   if (splitInstance && splitInstance.destroy) {
     try { splitInstance.destroy(); } catch { /* ignore */ }
     splitInstance = null;
   }
+  // HMR / breakpoint flips can leave Split.js gutter nodes behind, which then
+  // sit as extra flex children and pinch the read pane.
+  splitRoot.value?.querySelectorAll(':scope > .gutter').forEach((el) => el.remove());
+  if (leftPane.value) leftPane.value.style.width = '';
+  if (rightPane.value) rightPane.value.style.width = '';
+}
 
-  // Only init split on desktop widths (optional)
-  if (!leftPane.value || !rightPane.value || hideSidebar.value) {
-    // full width for right pane if no sidebar
-    if (rightPane.value) rightPane.value.style.width = '100%';
+function sanitizeSplitSizes(raw) {
+  if (raw == null || raw === '') return [25, 75];
+  let parsed;
+  try {
+    parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+  } catch {
+    return [25, 75];
+  }
+  if (!Array.isArray(parsed) || parsed.length !== 2) return [25, 75];
+  const a = Number(parsed[0]);
+  const b = Number(parsed[1]);
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return [25, 75];
+  const sum = a + b;
+  if (sum < 90 || sum > 110) return [25, 75];
+  if (Math.abs(sum - 100) < 0.05) return [a, b];
+  return [(a / sum) * 100, (b / sum) * 100];
+}
+
+function initSplitIfNeeded() {
+  const canSplit = !!leftPane.value && !!rightPane.value && !hideSidebar.value && window.innerWidth >= 768;
+
+  // Recreating Split.js resets the right pane's scrollTop and drops hash targets.
+  if (!canSplit) {
+    destroySplit();
+    if (rightPane.value) rightPane.value.style.width = hideSidebar.value ? '100%' : '';
+    if (leftPane.value && window.innerWidth < 768) leftPane.value.style.width = '';
     return;
   }
+  if (splitInstance) return;
 
-  if (window.innerWidth < 768) {
-    // small screen: do not create Split; let CSS handle stacking
-    leftPane.value.style.width = '';
-    rightPane.value.style.width = '';
-    return;
+  // Orphan gutters from HMR / a previous instance that didn't clean up.
+  if (splitRoot.value?.querySelector(':scope > .gutter')) {
+    destroySplit();
   }
 
-  const persisted = localStorage.getItem('docs.split.sizes');
-  const sizes = persisted ? JSON.parse(persisted) : [25, 75];
+  const sizes = sanitizeSplitSizes(localStorage.getItem('docs.split.sizes'));
 
   // Patch addEventListener to force passive: true for touch events during split.js init
   const originalAddEventListener = Element.prototype.addEventListener;
@@ -528,19 +556,19 @@ onMounted(async () => {
   document.title = `${APP_NAME} Docs`;
 
   fetchDocTypes({ force: true });
-  handleSlug(route.params.slug);
 
   window.addEventListener('scroll', () => {
     showBackToTop.value = window.scrollY > 300;
   });
-
-  // Wait for DOM refs to be available
-  await nextTick();
-
-  initSplitIfNeeded();
   window.addEventListener('resize', handleResize);
   document.addEventListener('click', onMdPreviewMediaClick);
   watch(() => route.params.slug, handleSlug);
+
+  await handleSlug(route.params.slug);
+  await nextTick();
+  initSplitIfNeeded();
+  await nextTick();
+  await scrollToRouteHash();
 });
 
 watch(
@@ -575,15 +603,33 @@ function safeQueryHash(hash) {
   }
 }
 
+async function scrollToRouteHash() {
+  const hash = route.hash;
+  if (!hash || hash === '#') return;
+  for (let i = 0; i < 12; i += 1) {
+    const el = safeQueryHash(hash);
+    if (el) {
+      const pane = rightPane.value;
+      if (pane && pane.contains(el) && pane !== el) {
+        const margin = parseFloat(getComputedStyle(el).scrollMarginTop) || 8;
+        const top = el.getBoundingClientRect().top - pane.getBoundingClientRect().top + pane.scrollTop - margin;
+        pane.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+      } else {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+      return;
+    }
+    await nextTick();
+    await new Promise((r) => requestAnimationFrame(r));
+  }
+}
+
 watch(
   () => route.hash,
   async (hash) => {
     if (!hash) return;
     await nextTick();
-    const el = safeQueryHash(hash);
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
+    await scrollToRouteHash();
   }
 )
 
@@ -594,10 +640,7 @@ onBeforeUnmount(() => {
     document.body.removeEventListener('click', onDocsCopyButtonClick);
     copyButtonsListenerRegistered = false;
   }
-  if (splitInstance && splitInstance.destroy) {
-    try { splitInstance.destroy(); } catch { /* ignore */ }
-    splitInstance = null;
-  }
+  destroySplit();
 });
 </script>
 
@@ -607,7 +650,7 @@ onBeforeUnmount(() => {
 .docs-content h3,
 .docs-content h4,
 #top {
-  scroll-margin-top: var(--app-navbar-height, 44px);
+  scroll-margin-top: 0.5rem;
 }
 
 @media (max-width: 767.98px) {
@@ -616,7 +659,7 @@ onBeforeUnmount(() => {
   .docs-content h3,
   .docs-content h4,
   #top {
-    scroll-margin-top: calc(var(--app-navbar-height, 44px) + var(--docs-subnav-height, 2.5rem));
+    scroll-margin-top: 0.5rem;
   }
 }
 
@@ -627,10 +670,8 @@ svg[id^="mermaid-"] {
 
 /* Mermaid dark mode — let Mermaid's own 'dark' theme handle colours;
    only override the SVG container background so it blends with the page. */
-@media (prefers-color-scheme: dark) {
-  .mermaid svg {
-    background: transparent !important;
-  }
+[data-bs-theme='dark'] .mermaid svg {
+  background: transparent !important;
 }
 
 /* ---------- General Markdown Styling ---------- */
@@ -808,11 +849,9 @@ svg[id^="mermaid-"] {
 }
 
 /* Dark mode */
-@media (prefers-color-scheme: dark) {
-  .md-preview blockquote {
-    background-color: #333333;
-    color: #e9ecef;
-  }
+[data-bs-theme='dark'] .md-preview blockquote {
+  background-color: #333333;
+  color: #e9ecef;
 }
 
 /* ---------- Alert boxes ---------- */
@@ -836,13 +875,13 @@ div .alert {
   /* shared border */
   padding: 0.5rem 0.75rem;
   text-align: left;
+  color: var(--bs-body-color, #212529);
 }
 
 .md-preview th {
   background-color: #f1f3f5;
   /* slightly darker than even rows */
   font-weight: 600;
-  color: #212529;
   border-bottom: 2px solid rgba(0, 0, 0, 0.15);
   /* emphasize separation from rows */
 }
@@ -855,45 +894,50 @@ div .alert {
   background-color: rgba(0, 0, 0, 0.05);
 }
 
-/* Dark mode */
-@media (prefers-color-scheme: dark) {
-  .md-preview th {
-    background-color: #444;
-    color: #e9ecef;
-    border-bottom: 2px solid rgba(255, 255, 255, 0.2);
-  }
-
-  .md-preview td {
-    border-color: rgba(255, 255, 255, 0.1);
-    color: #e9ecef;
-  }
-
-  .md-preview tr:nth-child(even) td {
-    background-color: rgba(255, 255, 255, 0.05);
-  }
-
-  .md-preview tr:hover td {
-    background-color: rgba(255, 255, 255, 0.1);
-  }
+/* Dark mode — follow app theme (data-bs-theme), not OS prefers-color-scheme */
+[data-bs-theme='dark'] .md-preview th {
+  background-color: #444;
+  color: var(--bs-body-color, #e9ecef);
+  border-bottom: 2px solid rgba(255, 255, 255, 0.2);
 }
 
-/* Split.js gutter styling */
+[data-bs-theme='dark'] .md-preview td {
+  border-color: rgba(255, 255, 255, 0.1);
+  color: var(--bs-body-color, #e9ecef);
+}
+
+[data-bs-theme='dark'] .md-preview tr:nth-child(even) td {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+[data-bs-theme='dark'] .md-preview tr:hover td {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Split.js gutter: 8px hit target, visual 1px divider (not a grey slab) */
 .gutter.gutter-horizontal {
-  width: 4px !important;
-  /* same as before */
+  width: 8px !important;
   cursor: col-resize;
-  background-color: rgba(35, 35, 35, 0.5) !important;
-  /* light gray visible gutter */
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.05);
-  /* subtle inner line */
+  background-color: transparent !important;
+  box-shadow: none;
   position: relative;
   z-index: 10;
-  transition: background-color 0.2s ease;
 }
 
-.gutter.gutter-horizontal:hover {
-  background-color: rgba(0, 0, 0, 0.2) !important;
-  /* darker on hover */
+.gutter.gutter-horizontal::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  transform: translateX(-50%);
+  background-color: var(--bs-border-color, #dee2e6);
+  pointer-events: none;
+}
+
+.gutter.gutter-horizontal:hover::after {
+  background-color: var(--bs-secondary-color, #6c757d);
 }
 
 .md-preview a[target="_blank"]::after {
@@ -953,36 +997,20 @@ div .alert {
   box-sizing: border-box;
 }
 
-/* 🎯 FIX: Override Shiki's inline light theme with its dark theme variables 
-          when the user prefers dark mode. */
-@media (prefers-color-scheme: dark) {
+/* Override Shiki's inline light theme with its dark theme variables when app theme is dark. */
+[data-bs-theme='dark'] .md-preview pre.shiki-themes {
+  background-color: var(--shiki-dark-bg) !important;
+  color: var(--shiki-dark) !important;
+  border: 1px solid #555;
+}
 
-  /* 1. Force the main container background and default color */
-  .md-preview pre.shiki-themes {
-    /* This should already be working for background */
-    background-color: var(--shiki-dark-bg) !important;
-    color: var(--shiki-dark) !important;
-    border: 1px solid #555;
-    /* Darker border for definition */
-
-    /* 🚨 NEW: Explicitly set the top-level foreground color to the dark variable,
-                  using !important to beat the inline light color property. */
-    color: var(--shiki-dark) !important;
-  }
-
-  /* 2. Target the token spans inside the PRE block.
-          This tells the browser to use the dark color variable for individual tokens 
-          that are not specifically colored by Shiki's light theme inline style. */
-  .md-preview pre.shiki-themes span {
-    color: var(--shiki-dark) !important;
-  }
+[data-bs-theme='dark'] .md-preview pre.shiki-themes span {
+  color: var(--shiki-dark) !important;
 }
 
 .md-editor-fullscreen {
-  top: 70px !important;
-  /* was 56px — adds breathing room below navbar */
-  height: calc(100vh - 70px) !important;
-  /* was calc(100vh - var(--app-navbar-height, 44px)) */
+  top: calc(var(--app-navbar-height, 52px) + var(--app-shell-py, 1rem)) !important;
+  height: calc(100vh - var(--app-navbar-height, 52px) - var(--app-shell-py, 1rem)) !important;
   z-index: 1050 !important;
 }
 
@@ -1043,13 +1071,15 @@ div .alert {
   padding-top: 0.75rem;
 }
 
-/* Layout for Split.js panes */
+/* Layout for Split.js panes — fill padded main, do not re-count navbar */
 .docs-split {
   display: flex;
-  height: calc(100vh - var(--app-navbar-height, 44px));
-  /* <--- THIS IS THE FIX */
-  /* adjust to taste */
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  height: auto;
   gap: 0;
+  overflow: hidden;
 }
 
 /* left sidebar */
@@ -1070,6 +1100,7 @@ div .alert {
   .docs-split {
     display: block;
     height: auto;
+    overflow: visible;
   }
 
   .docs-split--subnav {
@@ -1119,27 +1150,16 @@ aside a.text-decoration-none {
 }
 
 .gutter.gutter-horizontal {
-  /* width: 12px; */
-  /* slightly wider */
   cursor: col-resize;
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.02);
+  background-color: transparent;
+  box-shadow: none;
   position: relative;
   z-index: 10;
-  /* sit above sidebar content */
-  transition: background-color 0.2s ease;
-}
-
-.gutter.gutter-horizontal:hover {
-  background-color: rgba(0, 0, 0, 0.08);
 }
 
 .gutter {
   pointer-events: all !important;
 }
-
-/* .docs-content::-webkit-scrollbar {
-  width: 8px;
-} */
 
 .docs-content::-webkit-scrollbar-thumb {
   background-color: rgba(0, 0, 0, 0.2);
@@ -1147,19 +1167,12 @@ aside a.text-decoration-none {
 }
 
 .docs-content {
-  overflow: overlay;
+  flex: 1 1 auto;
+  min-width: 0;
+  width: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
   scroll-behavior: smooth;
-  /* padding: 1rem; */
-}
-
-/* Prevent global horizontal scroll on docs page */
-.docs-split {
-  overflow-x: hidden;
-}
-
-/* Prevent horizontal scroll inside right pane */
-.docs-content {
-  overflow-x: hidden;
 }
 
 /* Keep code blocks scrollable internally, not the whole page */
