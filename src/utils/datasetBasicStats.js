@@ -94,8 +94,29 @@ export function datasetBasicStats(row) {
 
   // D-02 subject_count wins when populated; else cached distinct-from-tables.
   const subjects = firstNumber(row?.subject_count, basic.subjects_total);
+  const tableColumns =
+    (row?.table_columns && typeof row.table_columns === 'object' && !Array.isArray(row.table_columns)
+      ? row.table_columns
+      : null) ||
+    (basic.table_columns && typeof basic.table_columns === 'object' && !Array.isArray(basic.table_columns)
+      ? basic.table_columns
+      : {});
+  const tableNames = [
+    ...new Set([
+      ...(rowCounts ? Object.keys(rowCounts) : []),
+      ...Object.keys(tableColumns),
+    ]),
+  ]
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b));
+  const tables = tableNames.map((name) => ({
+    name,
+    columns: Array.isArray(tableColumns[name])
+      ? tableColumns[name].map((col) => String(col || '').trim()).filter(Boolean)
+      : [],
+  }));
   const tableCount = firstNumber(
-    rowCounts ? Object.keys(rowCounts).length : null,
+    tables.length || null,
     row?.table_count,
     summary.table_count
   );
@@ -117,6 +138,8 @@ export function datasetBasicStats(row) {
     ),
     deviceTypes: formatDeviceTypes(row?.device_type, basic.device_types),
     tableCount,
+    tableNames,
+    tables,
     observations,
     observationsApprox: Boolean(observationsApprox && observations != null && observations > 0),
     rowCounts,

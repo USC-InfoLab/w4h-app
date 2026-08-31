@@ -164,21 +164,6 @@ function formatApproxNumber(value, approx = false) {
   return (approx || abs >= 1e6) && abs > 0 ? `~${text}` : text;
 }
 
-function formatDateRange(summary) {
-  if (!summary) return '';
-  if (summary.date_range) return String(summary.date_range);
-  const start = summary.date_start || summary.start_date;
-  const end = summary.date_end || summary.end_date;
-  if (!start && !end) return '';
-  const fmt = (v) => {
-    const d = new Date(v);
-    if (Number.isNaN(d.getTime())) return String(v);
-    return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short' });
-  };
-  if (start && end) return `${fmt(start)} – ${fmt(end)}`;
-  return fmt(start || end);
-}
-
 function relativeFreshness(value) {
   if (!value) return '';
   const d = new Date(value);
@@ -272,7 +257,7 @@ const hasStats = computed(() => {
     selected.value?.table_count != null ||
     s.observations != null ||
     selectedStats.value.subjects != null ||
-    formatDateRange(s) ||
+    selectedStats.value.dateRange ||
     cohorts.value.length ||
     coverage.value.length
   );
@@ -286,7 +271,7 @@ function rowMeta(row) {
   if (stats.subjects != null) {
     parts.push(`${formatApproxNumber(stats.subjects)} participants`);
   }
-  const range = formatDateRange(s);
+  const range = stats.dateRange;
   if (range) parts.push(range);
   return parts.join(' · ');
 }
@@ -487,9 +472,9 @@ watch(
                   <div class="stat-label">Participants</div>
                 </div>
               </div>
-              <div v-if="formatDateRange(selectedSummary)" class="col-6 col-md-3">
+              <div v-if="selectedStats.dateRange" class="col-6 col-md-3">
                 <div class="stat-tile">
-                  <div class="stat-value stat-value--sm">{{ formatDateRange(selectedSummary) }}</div>
+                  <div class="stat-value stat-value--sm">{{ selectedStats.dateRange }}</div>
                   <div class="stat-label">Date range</div>
                 </div>
               </div>
