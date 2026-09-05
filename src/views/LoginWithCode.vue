@@ -82,7 +82,7 @@ const uiStore = useUIStore();
 
 const copyright = import.meta.env.VITE_COPYRIGHT;
 
-const email = ref(readLastLoginEmail() || String(import.meta.env.VITE_APP_ADMIN_EMAIL || '').trim());
+const email = ref(readLastLoginEmail());
 const code = ref('');
 const emailSent = ref(false);
 const message = ref('');

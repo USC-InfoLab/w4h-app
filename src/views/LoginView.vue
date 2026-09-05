@@ -279,10 +279,10 @@ const db = reactive({
 });
 
 const admin = reactive({
-  email: import.meta.env.VITE_APP_ADMIN_EMAIL || '',
-  name: import.meta.env.VITE_APP_ADMIN_NAME || '',
-  password: import.meta.env.VITE_APP_ADMIN_PASSWORD || '',
-  passwordConfirm: import.meta.env.VITE_APP_ADMIN_PASSWORD || ''
+  email: '',
+  name: '',
+  password: '',
+  passwordConfirm: ''
 });
 
 function suggestAdminPassword() {
@@ -513,12 +513,7 @@ const resetMessage = () => {
 
 function initialLoginFields() {
   const lastEmail = readLastLoginEmail();
-  const envEmail = String(import.meta.env.VITE_APP_ADMIN_EMAIL || '').trim();
-  const envPassword = String(import.meta.env.VITE_APP_ADMIN_PASSWORD || '');
-  // Local .env wins so Sign in is filled; last email is only a fallback.
-  const nextEmail = envEmail || lastEmail;
-  const nextPassword = envEmail && nextEmail === envEmail ? envPassword : '';
-  return { email: nextEmail, password: nextPassword };
+  return { email: lastEmail, password: '' };
 }
 
 const seeded = initialLoginFields();
