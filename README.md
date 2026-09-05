@@ -50,16 +50,6 @@ On a fresh install, the login page walks you through **PostgreSQL connection** t
 
 See [Quick Start](https://github.com/USC-InfoLab/w4h-docs/blob/main/quick-start.md) in `w4h-docs`.
 
-DEV test accounts live in the seeded `w4h-sample` fixture, not in `w4h-app/.env`.
-
-Warning: these are disposable local demo credentials for `node bin/w4h seed-docs` plus `npm run start:sample` only. Do not copy them into production, shared deployments, or real accounts.
-
-| Role | Email | Password |
-| --- | --- | --- |
-| Super admin | `superadmin@example.com` | `DocsOnly!2026` |
-| Admin | `admin@example.com` | `DocsOnly!2026` |
-| User | `user@example.com` | `DocsOnly!2026` |
-
 Seed and run the fixture database with:
 
 ```bash
@@ -80,6 +70,22 @@ Canonical fixture details stay in **`w4h-docs`** at `dev/docs-fixtures.md`.
 | `npm run lint` | ESLint |
 | `npm run test:e2e` | Playwright (run only when needed) |
 | `npm run index:ui` | Regenerate `UI_INDEX.md` |
+
+### Local debug logins
+
+DEV test accounts live in the seeded `w4h-sample` fixture. If you want a local copy/paste note for manual login, keep it in an untracked `w4h-app/.env.development.local`, not in tracked files.
+
+Warning: these are disposable local demo credentials for `node bin/w4h seed-docs` plus `npm run start:sample` only. Do not copy them into production, shared deployments, or real accounts.
+
+Example local-only note file:
+
+```dotenv
+# Untracked local dev notes only. Do not use for production or shared deployments.
+DEV_LOGIN_SUPERADMIN_EMAIL=superadmin@example.com
+DEV_LOGIN_ADMIN_EMAIL=admin@example.com
+DEV_LOGIN_USER_EMAIL=user@example.com
+DEV_LOGIN_PASSWORD=DocsOnly!2026
+```
 
 ## Production / Docker
 
