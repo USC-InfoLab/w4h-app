@@ -164,6 +164,21 @@ function formatApproxNumber(value, approx = false) {
   return (approx || abs >= 1e6) && abs > 0 ? `~${text}` : text;
 }
 
+function formatDateRange(summary) {
+  if (!summary) return '';
+  if (summary.date_range) return String(summary.date_range);
+  const start = summary.date_start || summary.start_date;
+  const end = summary.date_end || summary.end_date;
+  if (!start && !end) return '';
+  const fmt = (v) => {
+    const d = new Date(v);
+    if (Number.isNaN(d.getTime())) return String(v);
+    return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short' });
+  };
+  if (start && end) return `${fmt(start)} – ${fmt(end)}`;
+  return fmt(start || end);
+}
+
 function relativeFreshness(value) {
   if (!value) return '';
   const d = new Date(value);
@@ -203,13 +218,93 @@ const orderedDatasets = computed(() => {
   return rows;
 });
 
+const aggregateSummary = computed(() => {
+  const rows = orderedDatasets.value;
+  const summary = {
+    dataset_count: rows.length,
+    table_count: rows.reduce((total, row) => total + Number(row.table_count || 0), 0),
+    observations: 0,
+    observations_approx: true,
+    participants: 0,
+    participant_days: 0,
+    summary_updated_at: null,
+  };
+  let hasObservations = false;
+  let hasParticipants = false;
+  let hasParticipantDays = false;
+  let latestUpdatedAt = 0;
+
+  let earliest = null;
+  let latest = null;
+
+  for (const row of rows) {
+    const rowSummary = row.summary || {};
+    const stats = datasetBasicStats(row);
+    if (rowSummary.observations != null) {
+      summary.observations += Number(rowSummary.observations || 0);
+      hasObservations = true;
+      if (rowSummary.observations_approx === false) summary.observations_approx = false;
+    }
+    const subjects =
+      stats.subjects != null
+        ? Number(stats.subjects)
+        : rowSummary.participants != null
+          ? Number(rowSummary.participants)
+          : null;
+    if (subjects != null && Number.isFinite(subjects)) {
+      summary.participants += subjects;
+      hasParticipants = true;
+    }
+    if (rowSummary.participant_days != null) {
+      summary.participant_days += Number(rowSummary.participant_days || 0);
+      hasParticipantDays = true;
+    }
+    const start = row.date_start || rowSummary.date_start || rowSummary.basic_stats?.date_range?.start;
+    const end = row.date_end || rowSummary.date_end || rowSummary.basic_stats?.date_range?.end;
+    if (start && (!earliest || String(start) < String(earliest))) earliest = start;
+    if (end && (!latest || String(end) > String(latest))) latest = end;
+    if (row.summary_updated_at) {
+      const updatedAt = new Date(row.summary_updated_at).getTime();
+      if (Number.isFinite(updatedAt) && updatedAt > latestUpdatedAt) latestUpdatedAt = updatedAt;
+    }
+  }
+
+  if (!hasObservations) delete summary.observations;
+  if (!hasParticipants) delete summary.participants;
+  if (!hasParticipantDays) delete summary.participant_days;
+  if (earliest) summary.date_start = earliest;
+  if (latest) summary.date_end = latest;
+  if (latestUpdatedAt > 0) summary.summary_updated_at = new Date(latestUpdatedAt).toISOString();
+  return summary;
+});
+
+const linkedDropdownDatasets = computed(() =>
+  orderedDatasets.value.map((d) => ({
+    id: d.id,
+    name: d.name || d.id,
+    table_count: d.table_count,
+    read_only: d.read_only,
+  }))
+);
+
 const selected = computed(() => {
   const id = selectedId.value;
   return orderedDatasets.value.find((d) => d.id === id) || null;
 });
 
-const selectedSummary = computed(() => selected.value?.summary || {});
-const selectedStats = computed(() => datasetBasicStats(selected.value));
+const selectedSummary = computed(() => {
+  if (showingAllDatasets.value) return aggregateSummary.value;
+  return selected.value?.summary || {};
+});
+const selectedStats = computed(() =>
+  showingAllDatasets.value ? datasetBasicStats({ summary: aggregateSummary.value }) : datasetBasicStats(selected.value)
+);
+
+const showingAllDatasets = computed(() => !selectedId.value);
+
+function showCombinedSummary() {
+  selectedId.value = '';
+}
 
 // Run targets: any non-read-only dataset
 // ("local") or still only in the team catalog ("from catalog"), e.g. a sample
@@ -254,9 +349,13 @@ const canRunImportOnSelected = computed(
 const hasStats = computed(() => {
   const s = selectedSummary.value;
   return Boolean(
+    s.dataset_count != null ||
     selected.value?.table_count != null ||
     s.observations != null ||
+    s.participants != null ||
     selectedStats.value.subjects != null ||
+    s.participant_days != null ||
+    formatDateRange(s) ||
     selectedStats.value.dateRange ||
     cohorts.value.length ||
     coverage.value.length
@@ -270,8 +369,10 @@ function rowMeta(row) {
   if (s?.modality || s?.type) parts.push(s.modality || s.type);
   if (stats.subjects != null) {
     parts.push(`${formatApproxNumber(stats.subjects)} participants`);
+  } else if (s?.participants != null) {
+    parts.push(`${formatApproxNumber(s.participants)} participants`);
   }
-  const range = stats.dateRange;
+  const range = stats.dateRange || formatDateRange(s);
   if (range) parts.push(range);
   return parts.join(' · ');
 }
@@ -294,8 +395,11 @@ function selectDefault() {
     selectedId.value = '';
     return;
   }
-  if (!selectedId.value || !rows.some((r) => r.id === selectedId.value)) {
-    selectedId.value = rows[0].id;
+  if (!selectedId.value) {
+    return;
+  }
+  if (!rows.some((r) => r.id === selectedId.value)) {
+    selectedId.value = '';
   }
 }
 
@@ -318,14 +422,13 @@ watch(
         <div class="p-3 border-bottom d-flex align-items-center justify-content-between gap-2">
           <h5 class="mb-0">Datasets on this project</h5>
           <div class="d-flex gap-2">
-            <button
-              v-if="canManage"
-              type="button"
-              class="btn btn-sm btn-outline-primary flex-shrink-0"
-              :class="{ active: selectedId === ADD_ID }"
-              @click="selectedId = ADD_ID"
-            >
-              <i class="bi bi-plus-lg" aria-hidden="true"></i> Add
+            <button type="button" class="btn btn-sm btn-outline-secondary flex-shrink-0"
+              :class="{ active: showingAllDatasets }" @click="showCombinedSummary">
+              Combined summary
+            </button>
+            <button v-if="canManage" type="button" class="btn btn-sm btn-outline-primary flex-shrink-0"
+              :class="{ active: selectedId === ADD_ID }" @click="selectedId = ADD_ID">
+              <i class="bi bi-plus-lg" aria-hidden="true"></i> Link
             </button>
           </div>
         </div>
@@ -376,13 +479,19 @@ watch(
             <div class="row g-2 align-items-end">
               <div class="col">
                 <label class="form-label small mb-0">Add existing</label>
-                <select
-                  class="form-select form-select-sm"
-                  :value="datasetToAdd"
-                  :disabled="savingDatasets"
-                  @change="onDatasetSelect"
-                >
+                <select class="form-select form-select-sm" :value="datasetToAdd" :disabled="savingDatasets"
+                  @change="onDatasetSelect">
                   <option value="">Select…</option>
+                  <optgroup v-if="linkedDropdownDatasets.length" label="Already on this project">
+                    <option v-for="d in linkedDropdownDatasets" :key="`linked-${d.id}`" disabled>
+                      {{ d.name || d.id
+                      }}{{
+                        Number(d.table_count ?? 0) > 0
+                          ? ' · loaded'
+                          : ' · empty'
+                      }}{{ d.read_only ? ' (read-only sample)' : '' }}
+                    </option>
+                  </optgroup>
                   <option v-for="d in addableDatasets" :key="d.id" :value="String(d.id)">
                     {{ d.name || d.id
                     }}{{
@@ -397,59 +506,60 @@ watch(
             </div>
             <div v-if="datasetToAdd === '__new__'" class="row g-2 align-items-end mt-2">
               <div class="col">
-                <input
-                  class="form-control form-control-sm"
-                  placeholder="Dataset name"
-                  :value="newDatasetName"
-                  :disabled="savingDatasets"
-                  @input="emit('update:newDatasetName', $event.target.value)"
-                  @keyup.enter="emit('create-dataset')"
-                />
+                <input class="form-control form-control-sm" placeholder="Dataset name" :value="newDatasetName"
+                  :disabled="savingDatasets" @input="emit('update:newDatasetName', $event.target.value)"
+                  @keyup.enter="emit('create-dataset')" />
               </div>
               <div class="col-auto">
-                <button
-                  type="button"
-                  class="btn btn-sm btn-primary"
-                  :disabled="savingDatasets || !newDatasetName"
-                  @click="emit('create-dataset')"
-                >
+                <button type="button" class="btn btn-sm btn-primary" :disabled="savingDatasets || !newDatasetName"
+                  @click="emit('create-dataset')">
                   Create
                 </button>
               </div>
             </div>
           </template>
         </div>
-        <div v-else-if="selected" class="p-3 h-100 d-flex flex-column">
+        <div v-else-if="showingAllDatasets || selected" class="p-3 h-100 d-flex flex-column">
           <div class="d-flex flex-wrap align-items-start justify-content-between gap-2 mb-3">
             <div class="min-w-0">
               <div class="small text-muted text-uppercase">Dataset overview</div>
-              <h5 class="mb-0 text-truncate">{{ selected.name }}</h5>
-              <div v-if="selected.read_only || selected.source_label" class="small text-muted mt-1">
+              <h5 class="mb-0 text-truncate">{{ showingAllDatasets ? 'All datasets' : selected.name }}</h5>
+              <div v-if="!showingAllDatasets && (selected.read_only || selected.source_label)"
+                class="small text-muted mt-1">
                 {{ selected.source_label || selected.origin || 'W4H Samples' }}
+              </div>
+              <div v-else-if="showingAllDatasets" class="small text-muted mt-1">
+                Combined summary across all datasets linked to this project.
               </div>
             </div>
             <div class="d-flex flex-column align-items-end gap-2">
-              <button
-                v-if="canRunImportOnSelected"
-                type="button"
-                class="btn btn-sm btn-primary flex-shrink-0"
-                @click="openRunDialog"
-              >
+              <button v-if="canRunImportOnSelected" type="button" class="btn btn-sm btn-primary flex-shrink-0"
+                @click="openRunDialog">
                 <i class="bi bi-play-fill" aria-hidden="true"></i> Run import…
               </button>
-              <small v-if="selected.summary_updated_at" class="text-muted">
-                {{ relativeFreshness(selected.summary_updated_at) }}
+              <small v-if="selectedSummary.summary_updated_at" class="text-muted">
+                {{ relativeFreshness(selectedSummary.summary_updated_at) }}
               </small>
             </div>
           </div>
 
           <template v-if="hasStats">
             <div class="row g-2 mb-3">
+              <div v-if="showingAllDatasets" class="col-6 col-md-3">
+                <div class="stat-tile">
+                  <div class="stat-value">{{ aggregateSummary.dataset_count }}</div>
+                  <div class="stat-label">
+                    {{ aggregateSummary.dataset_count === 1 ? 'Dataset' : 'Datasets' }}
+                  </div>
+                </div>
+              </div>
               <div class="col-6 col-md-3">
                 <div class="stat-tile">
-                  <div class="stat-value">{{ selected.table_count }}</div>
+                  <div class="stat-value">{{ showingAllDatasets ? aggregateSummary.table_count : selected.table_count }}
+                  </div>
                   <div class="stat-label">
-                    {{ selected.table_count === 1 ? 'Table' : 'Tables' }}
+                    {{ (showingAllDatasets ? aggregateSummary.table_count : selected.table_count) === 1 ? 'Table' :
+                      'Tables' }}
                   </div>
                 </div>
               </div>
@@ -466,15 +576,29 @@ watch(
                   <div class="stat-label">Observations</div>
                 </div>
               </div>
-              <div v-if="selectedStats.subjects != null" class="col-6 col-md-3">
+              <div v-if="(showingAllDatasets ? selectedSummary.participants : selectedStats.subjects) != null" class="col-6 col-md-3">
                 <div class="stat-tile">
-                  <div class="stat-value">{{ formatApproxNumber(selectedStats.subjects) }}</div>
+                  <div class="stat-value">{{
+                    formatApproxNumber(
+                      showingAllDatasets ? selectedSummary.participants : selectedStats.subjects
+                    )
+                  }}</div>
                   <div class="stat-label">Participants</div>
                 </div>
               </div>
-              <div v-if="selectedStats.dateRange" class="col-6 col-md-3">
+              <div v-if="selectedSummary.participant_days != null" class="col-6 col-md-3">
                 <div class="stat-tile">
-                  <div class="stat-value stat-value--sm">{{ selectedStats.dateRange }}</div>
+                  <div class="stat-value">{{ formatApproxNumber(selectedSummary.participant_days) }}</div>
+                  <div class="stat-label">Participant-days</div>
+                </div>
+              </div>
+              <div v-if="showingAllDatasets ? formatDateRange(selectedSummary) : selectedStats.dateRange || formatDateRange(selectedSummary)" class="col-6 col-md-3">
+                <div class="stat-tile">
+                  <div class="stat-value stat-value--sm">{{
+                    showingAllDatasets
+                      ? formatDateRange(selectedSummary)
+                      : (selectedStats.dateRange || formatDateRange(selectedSummary))
+                  }}</div>
                   <div class="stat-label">Date range</div>
                 </div>
               </div>
@@ -506,67 +630,62 @@ watch(
               </div>
             </div>
 
-            <p v-if="selected.read_only" class="small mb-3">
+            <p v-if="!showingAllDatasets && selected.read_only" class="small mb-3">
               Super admin seeded this sample. It is read-only — do not re-ingest.
             </p>
-            <p v-else-if="selected.table_count === 0 && canRunImportOnSelected" class="small text-muted mb-3">
+            <p v-else-if="!showingAllDatasets && selected.table_count === 0 && canRunImportOnSelected"
+              class="small text-muted mb-3">
               Not loaded yet. Use <strong>Run import…</strong> to populate from a catalog contribution,
               or link an existing loaded catalog row under <strong>Add</strong>.
             </p>
-            <div
-              v-if="loadedLinkHint && selected.table_count === 0"
-              class="alert alert-info py-2 small mb-3"
-            >
+            <div v-if="!showingAllDatasets && loadedLinkHint && selected.table_count === 0"
+              class="alert alert-info py-2 small mb-3">
               <strong>{{ loadedLinkHint.name }}</strong> already has this sample loaded
               {{ loadedLinkHint.alreadyLinked ? 'on this project' : 'in your team catalog' }}.
-              <button
-                type="button"
-                class="btn btn-link btn-sm p-0 align-baseline"
-                @click="linkLoadedAlternative"
-              >
+              <button type="button" class="btn btn-link btn-sm p-0 align-baseline" @click="linkLoadedAlternative">
                 Link it instead
               </button>
               — that uses the existing tables. This empty row will be unlinked and archived.
             </div>
-            <p v-else-if="selected.table_count === 0" class="small text-muted mb-3">
+            <p v-else-if="!showingAllDatasets && selected.table_count === 0" class="small text-muted mb-3">
               Not loaded yet. Adapt a notebook or deploy a CLI from a Contributions example
               into your team catalog. Tables and stats appear here after that.
             </p>
-            <p v-else-if="selected.physical_table_count === 0" class="small text-muted mb-3">
+            <p v-else-if="!showingAllDatasets && selected.physical_table_count === 0" class="small text-muted mb-3">
               Catalog exists but no tables are in the database yet.
             </p>
-            <p v-else-if="Number(selectedSummary.observations) === 0" class="small text-muted mb-3">
+            <p v-else-if="!showingAllDatasets && Number(selectedSummary.observations) === 0"
+              class="small text-muted mb-3">
               The registered tables exist and currently report 0 observations.
+            </p>
+            <p v-else-if="showingAllDatasets" class="small text-muted mb-3">
+              Select a dataset on the left for dataset-specific details, ingest actions, and unlink controls.
             </p>
           </template>
 
           <div v-else class="text-muted small mb-3 flex-grow-1">
-            <p v-if="selected.description" class="mb-2">{{ selected.description }}</p>
-            <p v-if="selected.table_count === 0 && canRunImportOnSelected" class="mb-2">
-              Not loaded yet. Use <strong>Run import…</strong> above to populate this dataset from a catalog contribution.
+            <p v-if="!showingAllDatasets && selected.description" class="mb-2">{{ selected.description }}</p>
+            <p v-if="!showingAllDatasets && selected.table_count === 0 && canRunImportOnSelected" class="mb-2">
+              Not loaded yet. Use <strong>Run import…</strong> above to populate this dataset from a catalog
+              contribution.
             </p>
             <p class="mb-0">
-              Summary statistics are not available yet for this dataset. They appear here from a
+              Summary statistics are not available yet for {{ showingAllDatasets ? 'these datasets' : 'this dataset' }}.
+              They
+              appear here from a
               cached metadata layer after ingestion — this page does not run live full-table counts.
             </p>
           </div>
 
           <div class="mt-auto pt-2 d-flex flex-wrap align-items-center justify-content-between gap-2">
-            <button
-              v-if="selected.id"
-              type="button"
-              class="btn btn-link btn-sm small text-decoration-none px-0"
-              @click="openDetailsDialog"
-            >
+            <button v-if="!showingAllDatasets && selected.id" type="button"
+              class="btn btn-link btn-sm small text-decoration-none px-0" @click="openDetailsDialog">
               Dataset details →
             </button>
-            <button
-              v-if="canManage && selected.id"
-              type="button"
+            <button v-if="canManage && !showingAllDatasets && selected.id" type="button"
               class="btn btn-sm btn-outline-danger"
               title="Removes this dataset from the project. A loaded catalog row stays in the team and appears under Add existing. An empty catalog row is archived so it does not stay in that list."
-              @click="emit('unlink-dataset', selected.id)"
-            >
+              @click="emit('unlink-dataset', selected.id)">
               Unlink from project
             </button>
           </div>
@@ -575,18 +694,10 @@ watch(
     </div>
   </div>
 
-  <RunContributionDialog
-    ref="runDialogRef"
-    variant="import"
-    :contributions="runnableContributions"
-    :local-run-targets="localRunTargets"
-    :catalog-run-targets="catalogRunTargets"
-    :can-manage="canManage"
-    :project-id="projectId"
-    @run-complete="onRunComplete"
-    @dataset-pick="emit('dataset-pick', $event)"
-    @link-existing="onLinkExisting"
-  />
+  <RunContributionDialog ref="runDialogRef" variant="import" :contributions="runnableContributions"
+    :local-run-targets="localRunTargets" :catalog-run-targets="catalogRunTargets" :can-manage="canManage"
+    :project-id="projectId" @run-complete="onRunComplete" @dataset-pick="emit('dataset-pick', $event)"
+    @link-existing="onLinkExisting" />
 
   <div class="modal fade" tabindex="-1" ref="detailsModalEl" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-scrollable">

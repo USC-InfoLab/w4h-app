@@ -1,12 +1,7 @@
 <template>
   <div class="d-flex flex-column align-items-center justify-content-center">
-    <form
-      class="form-signin mx-auto"
-      autocomplete="on"
-      method="post"
-      action="/login"
-      @submit.prevent="emailSent ? login() : sendCode()"
-    >
+    <form class="form-signin mx-auto" autocomplete="on" method="post" action="/login"
+      @submit.prevent="emailSent ? login() : sendCode()">
       <img class="login-mark login-mark-hero mt-5 mx-auto d-block" src="/w4h-light.svg" :alt="`${APP_NAME} logo`" />
       <div class="logotype mb-4 text-center">{{ APP_NAME }}</div>
 
@@ -20,18 +15,8 @@
                 Enter the account email from your invitation.
               </p>
               <label for="email" class="form-label">Email</label>
-              <input
-                id="email"
-                name="username"
-                v-model="email"
-                type="email"
-                class="form-control mb-3"
-                required
-                autofocus
-                autocomplete="username"
-                placeholder="you@example.com"
-                @input="clearMessage"
-              />
+              <input id="email" name="username" v-model="email" type="email" class="form-control mb-3" required
+                autofocus autocomplete="username" placeholder="you@example.com" @input="clearMessage" />
             </template>
 
             <template v-else>
@@ -39,9 +24,9 @@
                 Enter the 6-digit code sent to <strong>{{ email }}</strong>.
               </p>
               <label for="code" class="form-label">Verification code</label>
-              <input id="code" v-model="code" type="text" inputmode="numeric" pattern="[0-9]{6}"
-                maxlength="6" class="form-control mb-3 font-monospace" required autofocus
-                autocomplete="one-time-code" @input="clearMessage" />
+              <input id="code" v-model="code" type="text" inputmode="numeric" pattern="[0-9]{6}" maxlength="6"
+                class="form-control mb-3 font-monospace" required autofocus autocomplete="one-time-code"
+                @input="clearMessage" />
             </template>
           </div>
 
@@ -82,7 +67,7 @@ const uiStore = useUIStore();
 
 const copyright = import.meta.env.VITE_COPYRIGHT;
 
-const email = ref(readLastLoginEmail() || String(import.meta.env.VITE_APP_ADMIN_EMAIL || '').trim());
+const email = ref(readLastLoginEmail());
 const code = ref('');
 const emailSent = ref(false);
 const message = ref('');

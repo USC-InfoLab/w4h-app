@@ -50,25 +50,42 @@ On a fresh install, the login page walks you through **PostgreSQL connection** t
 
 See [Quick Start](https://github.com/USC-InfoLab/w4h-docs/blob/main/quick-start.md) in `w4h-docs`.
 
-Optional dev-only prefills in `.env` (never commit secrets):
+Seed and run the fixture database with:
 
 ```bash
-VITE_APP_ADMIN_EMAIL=
-VITE_APP_ADMIN_PASSWORD=
+cd ../w4h-api
+node bin/w4h seed-docs
+npm run start:sample
 ```
 
-Docs capture / Playwright accounts are seeded in **`w4h-api`** (`w4h-sample` DB) and configured in **`w4h-docs`** (`dev/docs-fixtures.md`), not in this file.
+Canonical fixture details stay in **`w4h-docs`** at `dev/docs-fixtures.md`.
 
 ## Scripts
 
 | Command | Purpose |
-|---|---|
+| --- | --- |
 | `npm run dev` | Vite dev server with HMR |
 | `npm run build` | Production bundle to `dist/` |
 | `npm run preview` | Serve production build locally |
 | `npm run lint` | ESLint |
 | `npm run test:e2e` | Playwright (run only when needed) |
 | `npm run index:ui` | Regenerate `UI_INDEX.md` |
+
+### Local debug logins
+
+DEV test accounts live in the seeded `w4h-sample` fixture. If you want a local copy/paste note for manual login, keep it in an untracked `w4h-app/.env.development.local`, not in tracked files.
+
+Warning: these are disposable local demo credentials for `node bin/w4h seed-docs` plus `npm run start:sample` only. Do not copy them into production, shared deployments, or real accounts.
+
+Example local-only note file:
+
+```dotenv
+# Untracked local dev notes only. Do not use for production or shared deployments.
+DEV_LOGIN_SUPERADMIN_EMAIL=superadmin@example.com
+DEV_LOGIN_ADMIN_EMAIL=admin@example.com
+DEV_LOGIN_USER_EMAIL=user@example.com
+DEV_LOGIN_PASSWORD=DocsOnly!2026
+```
 
 ## Production / Docker
 
@@ -95,7 +112,7 @@ The production app image builds with `VITE_API_URL=/api/`; nginx proxies API and
 ## Roles (UI labels)
 
 | Role | Shell after login |
-|---|---|
+| --- | --- |
 | Super admin | Platform Admin only (`/admin/*`) |
 | Admin (team admin) | App shell — teams, datasets, projects |
 | User | App shell — assigned projects |

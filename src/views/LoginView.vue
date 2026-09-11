@@ -23,7 +23,8 @@
             <div class="col-md-9">
               <label class="form-label">Host</label>
               <input v-model="db.host" class="form-control" placeholder="host.docker.internal" required />
-              <small class="form-text text-muted">On Docker Desktop (Mac/Windows), use <code>host.docker.internal</code> for Postgres on your laptop.</small>
+              <small class="form-text text-muted">On Docker Desktop (Mac/Windows), use <code>host.docker.internal</code>
+                for Postgres on your laptop.</small>
             </div>
             <div class="col-md-3">
               <label class="form-label">Port</label>
@@ -175,48 +176,20 @@
       </div>
     </div>
 
-    <form
-      v-else
-      class="form-signin mx-auto"
-      autocomplete="on"
-      method="post"
-      action="/login"
-      @submit.prevent="login()"
-    >
+    <form v-else class="form-signin mx-auto" autocomplete="on" method="post" action="/login" @submit.prevent="login()">
       <img class="login-mark login-mark-hero mt-5 mx-auto d-block" src="/w4h-light.svg" :alt="`${APP_NAME} logo`" />
       <div class="logotype mb-4 text-center">{{ APP_NAME }}</div>
 
       <label for="inputEmail" class="form-label text-start w-100 mb-1">Email</label>
-      <input
-        id="inputEmail"
-        name="username"
-        type="email"
-        class="form-control"
-        placeholder="you@example.com"
-        required
-        autofocus
-        v-model="email"
-        autocomplete="username"
-        @input="resetMessage"
-        @change="syncLoginFromDom"
-        @animationstart="onLoginAutofill"
-      />
+      <input id="inputEmail" name="username" type="email" class="form-control" placeholder="you@example.com" required
+        autofocus v-model="email" autocomplete="username" @input="resetMessage" @change="syncLoginFromDom"
+        @animationstart="onLoginAutofill" />
 
       <label for="inputPassword" class="form-label text-start w-100 mb-1 mt-2">Password</label>
       <div class="position-relative mb-3">
-        <input
-          id="inputPassword"
-          name="password"
-          :type="showLoginPassword ? 'text' : 'password'"
-          class="form-control"
-          placeholder="Password"
-          required
-          v-model="password"
-          autocomplete="current-password"
-          @input="onPasswordInput"
-          @change="syncLoginFromDom"
-          @animationstart="onLoginAutofill"
-        />
+        <input id="inputPassword" name="password" :type="showLoginPassword ? 'text' : 'password'" class="form-control"
+          placeholder="Password" required v-model="password" autocomplete="current-password" @input="onPasswordInput"
+          @change="syncLoginFromDom" @animationstart="onLoginAutofill" />
         <button type="button" class="btn-eye-toggle" @click="showLoginPassword = !showLoginPassword" tabindex="-1">
           <i :class="showLoginPassword ? 'bi bi-eye-slash' : 'bi bi-eye'"></i>
         </button>
@@ -279,10 +252,10 @@ const db = reactive({
 });
 
 const admin = reactive({
-  email: import.meta.env.VITE_APP_ADMIN_EMAIL || '',
-  name: import.meta.env.VITE_APP_ADMIN_NAME || '',
-  password: import.meta.env.VITE_APP_ADMIN_PASSWORD || '',
-  passwordConfirm: import.meta.env.VITE_APP_ADMIN_PASSWORD || ''
+  email: '',
+  name: '',
+  password: '',
+  passwordConfirm: ''
 });
 
 function suggestAdminPassword() {
@@ -513,12 +486,7 @@ const resetMessage = () => {
 
 function initialLoginFields() {
   const lastEmail = readLastLoginEmail();
-  const envEmail = String(import.meta.env.VITE_APP_ADMIN_EMAIL || '').trim();
-  const envPassword = String(import.meta.env.VITE_APP_ADMIN_PASSWORD || '');
-  // Local .env wins so Sign in is filled; last email is only a fallback.
-  const nextEmail = envEmail || lastEmail;
-  const nextPassword = envEmail && nextEmail === envEmail ? envPassword : '';
-  return { email: nextEmail, password: nextPassword };
+  return { email: lastEmail, password: '' };
 }
 
 const seeded = initialLoginFields();
@@ -671,12 +639,22 @@ onMounted(async () => {
 }
 
 @keyframes w4h-onAutoFillStart {
-  from { opacity: 0.99; }
-  to { opacity: 1; }
+  from {
+    opacity: 0.99;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes w4h-onAutoFillCancel {
-  from { opacity: 0.99; }
-  to { opacity: 1; }
+  from {
+    opacity: 0.99;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 </style>
