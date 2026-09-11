@@ -244,9 +244,13 @@
         style="max-width: 32rem; width: min(90vw, 32rem);">
         <div class="p-4">
           <h5 class="mb-3">
-            {{ pendingAction === 'delete' ? 'Confirm permanent delete' : pendingAction === 'archive' ? 'Confirm archive'
-              :
-            'Confirm restore' }}
+            {{
+              pendingAction === 'delete'
+                ? 'Confirm permanent delete'
+                : pendingAction === 'archive'
+                  ? 'Confirm archive'
+                  : 'Confirm restore'
+            }}
           </h5>
           <p class="small text-muted mb-3">
             Type <strong>{{ form.name }}</strong> exactly and check the box below to continue.
@@ -266,9 +270,13 @@
             <button type="button" class="btn btn-outline-danger"
               :disabled="deleteBusy || archiveBusy || !isConfirmationValid" @click="commitPendingAction">
               <span v-if="archiveBusy || deleteBusy" class="spinner-border spinner-border-sm me-2" />
-              {{ pendingAction === 'delete' ? 'Delete dataset' : pendingAction === 'archive' ? 'Archive dataset' :
-                'Restore
-              dataset' }}
+              {{
+                pendingAction === 'delete'
+                  ? 'Delete dataset'
+                  : pendingAction === 'archive'
+                    ? 'Archive dataset'
+                    : 'Restore dataset'
+              }}
             </button>
           </div>
         </div>
