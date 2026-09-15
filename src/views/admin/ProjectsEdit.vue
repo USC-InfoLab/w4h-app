@@ -151,6 +151,7 @@ const linkedDatasetRows = computed(() => {
       read_only: Boolean(meta?.read_only),
       origin: meta?.origin || '',
       source_label: meta?.source_label || '',
+      metadata_summary: meta?.metadata_summary ?? null,
     };
   });
 });

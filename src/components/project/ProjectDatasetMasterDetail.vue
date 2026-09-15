@@ -6,6 +6,8 @@ import { contributionKinds } from '@/utils/contributionKinds';
 import { importerSlugForDataset, findLoadedLinkAlternative } from '@/utils/importerSlugForDataset';
 import DatasetsEdit from '@/views/admin/DatasetsEdit.vue';
 import RunContributionDialog from '@/components/project/RunContributionDialog.vue';
+import ProjectMetadataSummaryCard from '@/components/project/ProjectMetadataSummaryCard.vue';
+import { formatApproxNumber, formatSummaryDateRange } from '@/utils/datasetFormat.js';
 
 const props = defineProps({
   datasets: { type: Array, default: () => [] },
@@ -150,34 +152,6 @@ function summaryOf(row) {
   return typeof raw === 'object' ? raw : null;
 }
 
-function formatApproxNumber(value, approx = false) {
-  if (value == null || value === '') return '';
-  const n = Number(value);
-  if (!Number.isFinite(n)) return String(value);
-  const abs = Math.abs(n);
-  let text;
-  if (abs >= 1e9) text = `${(n / 1e9).toFixed(1).replace(/\.0$/, '')}B`;
-  else if (abs >= 1e6) text = `${(n / 1e6).toFixed(1).replace(/\.0$/, '')}M`;
-  else if (abs >= 1e3) text = `${(n / 1e3).toFixed(0)}k`;
-  else text = String(Math.round(n));
-  return (approx || abs >= 1e6) && abs > 0 ? `~${text}` : text;
-}
-
-function formatDateRange(summary) {
-  if (!summary) return '';
-  if (summary.date_range) return String(summary.date_range);
-  const start = summary.date_start || summary.start_date;
-  const end = summary.date_end || summary.end_date;
-  if (!start && !end) return '';
-  const fmt = (v) => {
-    const d = new Date(v);
-    if (Number.isNaN(d.getTime())) return String(v);
-    return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short' });
-  };
-  if (start && end) return `${fmt(start)} – ${fmt(end)}`;
-  return fmt(start || end);
-}
-
 function relativeFreshness(value) {
   if (!value) return '';
   const d = new Date(value);
@@ -206,6 +180,7 @@ const orderedDatasets = computed(() => {
     read_only: Boolean(d.read_only),
     origin: d.origin || '',
     source_label: d.source_label || '',
+    metadata_summary: d.metadata_summary || null,
     loaded: Number(d.physical_table_count ?? summaryOf(d)?.physical_table_count ?? d.table_count ?? 0) > 0,
   }));
   // Stable alphabetical default until projects support an explicit primary dataset.
@@ -313,6 +288,19 @@ const coverage = computed(() => {
   return Array.isArray(list) && list.length ? list : [];
 });
 
+const selectedMetadataSummary = computed(() => {
+  if (showingAllDatasets.value || !selected.value) return null;
+  return selected.value.metadata_summary || null;
+});
+
+/** Legacy stat tiles — hidden when per-dataset metadata summary covers the same fields. */
+const showLegacyStatTiles = computed(() => {
+  if (showingAllDatasets.value) return true;
+  if (selectedMetadataSummary.value) return false;
+  const s = selectedSummary.value;
+  return s.participants != null || s.participant_days != null;
+});
+
 const canRunImportOnSelected = computed(
   () =>
     props.canManage &&
@@ -330,7 +318,7 @@ const hasStats = computed(() => {
     s.observations != null ||
     s.participants != null ||
     s.participant_days != null ||
-    formatDateRange(s) ||
+    formatSummaryDateRange(s) ||
     cohorts.value.length ||
     coverage.value.length
   );
@@ -343,7 +331,7 @@ function rowMeta(row) {
   if (s?.participants != null) {
     parts.push(`${formatApproxNumber(s.participants)} participants`);
   }
-  const range = formatDateRange(s);
+  const range = formatSummaryDateRange(s);
   if (range) parts.push(range);
   return parts.join(' · ');
 }
@@ -416,7 +404,7 @@ watch(
                 <div class="min-w-0">
                   <div class="fw-semibold text-truncate">{{ row.name }}</div>
                   <div class="small">
-                    <span v-if="row.read_only" class="badge text-bg-info me-1">Read-only sample</span>
+                    <span v-if="row.read_only" class="badge text-bg-info me-1">Platform sample</span>
                     <span v-else-if="row.loaded" class="badge text-bg-success me-1">Loaded</span>
                     <span v-else class="badge text-bg-warning me-1">Needs ingest</span>
                   </div>
@@ -460,7 +448,7 @@ watch(
                         Number(d.table_count ?? 0) > 0
                           ? ' · loaded'
                           : ' · empty'
-                      }}{{ d.read_only ? ' (read-only sample)' : '' }}
+                      }}{{ d.read_only ? ' (platform sample)' : '' }}
                     </option>
                   </optgroup>
                   <option v-for="d in addableDatasets" :key="d.id" :value="String(d.id)">
@@ -469,7 +457,7 @@ watch(
                       Number(d.table_count ?? d.summary?.table_count ?? 0) > 0
                         ? ' · loaded'
                         : ' · empty'
-                    }}{{ d.read_only ? ' (read-only sample)' : '' }}
+                    }}{{ d.read_only ? ' (platform sample)' : '' }}
                   </option>
                   <option value="__new__">Create new catalog dataset…</option>
                 </select>
@@ -514,8 +502,14 @@ watch(
             </div>
           </div>
 
+          <ProjectMetadataSummaryCard
+            v-if="selectedMetadataSummary"
+            class="mb-3"
+            :metadata="selectedMetadataSummary"
+          />
+
           <template v-if="hasStats">
-            <div class="row g-2 mb-3">
+            <div v-if="showLegacyStatTiles" class="row g-2 mb-3">
               <div v-if="showingAllDatasets" class="col-6 col-md-3">
                 <div class="stat-tile">
                   <div class="stat-value">{{ aggregateSummary.dataset_count }}</div>
@@ -524,29 +518,35 @@ watch(
                   </div>
                 </div>
               </div>
-              <div class="col-6 col-md-3">
-                <div class="stat-tile">
-                  <div class="stat-value">{{ showingAllDatasets ? aggregateSummary.table_count : selected.table_count }}
-                  </div>
-                  <div class="stat-label">
-                    {{ (showingAllDatasets ? aggregateSummary.table_count : selected.table_count) === 1 ? 'Table' :
-                      'Tables' }}
+              <template v-if="showingAllDatasets">
+                <div class="col-6 col-md-3">
+                  <div class="stat-tile">
+                    <div class="stat-value">{{ aggregateSummary.table_count }}</div>
+                    <div class="stat-label">
+                      {{ aggregateSummary.table_count === 1 ? 'Table' : 'Tables' }}
+                    </div>
                   </div>
                 </div>
-              </div>
-              <div v-if="selectedSummary.observations != null" class="col-6 col-md-3">
-                <div class="stat-tile">
-                  <div class="stat-value">
-                    {{
-                      formatApproxNumber(
-                        selectedSummary.observations,
-                        selectedSummary.observations_approx !== false
-                      )
-                    }}
+                <div v-if="selectedSummary.observations != null" class="col-6 col-md-3">
+                  <div class="stat-tile">
+                    <div class="stat-value">
+                      {{
+                        formatApproxNumber(
+                          selectedSummary.observations,
+                          selectedSummary.observations_approx !== false
+                        )
+                      }}
+                    </div>
+                    <div class="stat-label">Observations</div>
                   </div>
-                  <div class="stat-label">Observations</div>
                 </div>
-              </div>
+                <div v-if="formatSummaryDateRange(selectedSummary)" class="col-6 col-md-3">
+                  <div class="stat-tile">
+                    <div class="stat-value stat-value--sm">{{ formatSummaryDateRange(selectedSummary) }}</div>
+                    <div class="stat-label">Date range</div>
+                  </div>
+                </div>
+              </template>
               <div v-if="selectedSummary.participants != null" class="col-6 col-md-3">
                 <div class="stat-tile">
                   <div class="stat-value">{{ formatApproxNumber(selectedSummary.participants) }}</div>
@@ -557,12 +557,6 @@ watch(
                 <div class="stat-tile">
                   <div class="stat-value">{{ formatApproxNumber(selectedSummary.participant_days) }}</div>
                   <div class="stat-label">Participant-days</div>
-                </div>
-              </div>
-              <div v-if="formatDateRange(selectedSummary)" class="col-6 col-md-3">
-                <div class="stat-tile">
-                  <div class="stat-value stat-value--sm">{{ formatDateRange(selectedSummary) }}</div>
-                  <div class="stat-label">Date range</div>
                 </div>
               </div>
             </div>
@@ -624,6 +618,7 @@ watch(
             <p v-else-if="showingAllDatasets" class="small text-muted mb-3">
               Select a dataset on the left for dataset-specific details, ingest actions, and unlink controls.
             </p>
+
           </template>
 
           <div v-else class="text-muted small mb-3 flex-grow-1">
