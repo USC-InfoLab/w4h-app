@@ -483,7 +483,12 @@ watch(
             <div class="min-w-0">
               <div class="small text-muted text-uppercase">Dataset overview</div>
               <h5 class="mb-0 text-truncate">{{ showingAllDatasets ? 'All datasets' : selected.name }}</h5>
-              <div v-if="!showingAllDatasets && (selected.read_only || selected.source_label)"
+              <div
+                v-if="
+                  !showingAllDatasets &&
+                  (selected.read_only ||
+                    (selected.source_label && selected.source_label !== 'This team'))
+                "
                 class="small text-muted mt-1">
                 {{ selected.source_label || selected.origin || 'W4H Samples' }}
               </div>
