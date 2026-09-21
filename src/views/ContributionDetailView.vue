@@ -23,7 +23,10 @@
         <dt class="col-sm-3">Repository</dt>
         <dd class="col-sm-9">
           <a :href="row.repo_url" target="_blank" rel="noopener">{{ row.repo_url }}</a>
-          <span class="text-muted"> · {{ row.repo_ref || 'main' }}</span>
+          <span class="text-muted">
+            · {{ row.repo_ref || 'main' }}
+            <template v-if="row.version"> ({{ row.version }})</template>
+          </span>
         </dd>
       </dl>
 

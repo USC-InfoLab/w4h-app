@@ -57,7 +57,10 @@
         >
           <div class="card-body">
             <h6 class="card-title mb-1">{{ row.title || row.slug }}</h6>
-            <div class="small text-muted mb-2">{{ row.publisher }}</div>
+            <div class="small text-muted mb-2">
+              {{ row.publisher }}
+              <span v-if="row.version"> · {{ row.version }}</span>
+            </div>
             <div class="mb-2">
               <ContributionKindBadges :row="row" />
             </div>

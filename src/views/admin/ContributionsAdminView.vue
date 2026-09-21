@@ -9,11 +9,17 @@
         <p class="small text-muted mb-0">
           Super admin catalog. Published rows appear in the app-shell
           <router-link :to="{ name: 'contributions' }">Contributions</router-link> browse.
+          Pin a GitHub release/tag rather than following <code>main</code>.
         </p>
       </div>
-      <button class="btn btn-sm btn-primary" type="button" @click="openNew">
-        <i class="bi bi-plus"></i> Add contribution
-      </button>
+      <div class="d-flex flex-wrap gap-2">
+        <button class="btn btn-sm btn-outline-primary" type="button" :disabled="checkingUpdates || loading" @click="checkUpdates">
+          {{ checkingUpdates ? 'Checking…' : 'Check for updates' }}
+        </button>
+        <button class="btn btn-sm btn-primary" type="button" @click="openNew">
+          <i class="bi bi-plus"></i> Add contribution
+        </button>
+      </div>
     </div>
 
     <div v-if="errorMessage" class="alert alert-danger">{{ errorMessage }}</div>
@@ -21,13 +27,16 @@
       <div class="spinner-border text-primary" role="status"></div>
     </div>
 
-    <table v-else class="table table-sm align-middle">
+    <div v-if="checkSummary" class="alert alert-info py-2 small">{{ checkSummary }}</div>
+
+    <table v-if="!loading" class="table table-sm align-middle">
       <thead>
         <tr>
           <th>Title</th>
           <th>Publisher</th>
           <th>Kind</th>
           <th>Language</th>
+          <th>Version</th>
           <th>Status</th>
           <th></th>
         </tr>
@@ -41,8 +50,22 @@
           <td>{{ row.publisher }}</td>
           <td>{{ (row.kinds && row.kinds.length ? row.kinds : [row.kind]).join(', ') }}</td>
           <td>{{ row.language }}</td>
+          <td>
+            <div class="font-monospace small">{{ pinnedLabel(row) }}</div>
+            <span v-if="row.update_available" class="badge text-bg-warning">Update available</span>
+            <div v-if="row.update_available" class="small text-muted">{{ row.latest_repo_ref }}</div>
+          </td>
           <td>{{ row.status }}</td>
-          <td class="text-end">
+          <td class="text-end text-nowrap">
+            <button
+              v-if="row.update_available"
+              class="btn btn-sm btn-primary me-1"
+              type="button"
+              :disabled="previewingSlug === row.slug"
+              @click="openUpdate(row)"
+            >
+              {{ previewingSlug === row.slug ? 'Loading…' : `Update to ${row.latest_repo_ref}` }}
+            </button>
             <button class="btn btn-sm btn-outline-secondary me-1" type="button" @click="openEdit(row)">Edit</button>
             <button class="btn btn-sm btn-outline-danger" type="button" @click="remove(row)">Delete</button>
           </td>
@@ -153,13 +176,18 @@
 
         <div class="col-12">
           <button class="btn btn-link btn-sm px-0" type="button" @click="showAdvanced = !showAdvanced">
-            {{ showAdvanced ? 'Hide' : 'Show' }} advanced (non-default branch or docs path)
+            {{ showAdvanced ? 'Hide' : 'Show' }} advanced (git tag, version, or docs path)
           </button>
         </div>
         <template v-if="showAdvanced">
           <div class="col-md-4">
-            <label class="form-label">Git ref/branch</label>
-            <input v-model="form.repo_ref" class="form-control font-monospace" placeholder="main" />
+            <label class="form-label">Git ref (tag or branch)</label>
+            <input v-model="form.repo_ref" class="form-control font-monospace" placeholder="v0.1.0" />
+            <div class="form-text">Prefer a <code>vMAJOR.MINOR.PATCH</code> tag. <code>main</code> is a moving target.</div>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Pinned version</label>
+            <input v-model="form.version" class="form-control font-monospace" placeholder="0.1.0" />
           </div>
           <div class="col-md-4">
             <label class="form-label">Docs path in repo</label>
@@ -175,11 +203,76 @@
       </div>
       <div v-if="errorMessage" class="alert alert-danger py-2 small mt-3 mb-0">{{ errorMessage }}</div>
     </div>
+
+    <div class="modal fade" tabindex="-1" ref="updateModalEl" aria-hidden="true">
+      <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">
+              Update {{ updatePreview?.slug }} to {{ updatePreview?.to?.repo_ref }}
+            </h5>
+            <button type="button" class="btn-close" aria-label="Close" @click="closeUpdate"></button>
+          </div>
+          <div class="modal-body">
+            <div v-if="updateError" class="alert alert-danger py-2 small">{{ updateError }}</div>
+            <template v-if="updatePreview">
+              <p class="small mb-3">
+                Pin <code>{{ updatePreview.to.repo_ref }}</code>
+                ({{ updatePreview.to.version || 'no semver' }})
+                in place of
+                <code>{{ updatePreview.from.repo_ref || 'main' }}</code>
+                <span v-if="updatePreview.from.version">({{ updatePreview.from.version }})</span>.
+                In-app Run will clone this tag. This does not auto-follow <code>main</code>.
+              </p>
+              <div v-if="updatePreview.release?.body" class="mb-3">
+                <div class="fw-semibold small mb-1">Release notes</div>
+                <pre class="small bg-light border rounded p-2 mb-0 release-notes">{{ updatePreview.release.body }}</pre>
+                <a
+                  v-if="updatePreview.release.html_url"
+                  class="small"
+                  :href="updatePreview.release.html_url"
+                  target="_blank"
+                  rel="noopener"
+                >Open on GitHub</a>
+              </div>
+              <div v-if="updatePreview.inspect?.suggested" class="small mb-3">
+                <div class="fw-semibold mb-1">Detected at this tag</div>
+                <div>Kinds: {{ (updatePreview.inspect.suggested.kinds || []).join(', ') || updatePreview.inspect.suggested.kind }}</div>
+                <div>Language: {{ updatePreview.inspect.suggested.language }}</div>
+              </div>
+              <div
+                v-if="updatePreview.inspect?.validation && (updatePreview.inspect.validation.errors?.length || updatePreview.inspect.validation.warnings?.length)"
+                class="alert alert-warning py-2 small"
+              >
+                <div class="fw-semibold mb-1">manifest.yaml sanity check</div>
+                <ul class="mb-0 ps-3">
+                  <li v-for="(msg, i) in updatePreview.inspect.validation.errors || []" :key="`ue${i}`" class="text-danger">{{ msg }}</li>
+                  <li v-for="(msg, i) in updatePreview.inspect.validation.warnings || []" :key="`uw${i}`">{{ msg }}</li>
+                </ul>
+              </div>
+              <div v-if="updatePreview.pairedUpdate" class="alert alert-warning py-2 small mb-0">
+                Paired sample-data repo <code>{{ updatePreview.pairedUpdate.slug }}</code>
+                also has {{ updatePreview.pairedUpdate.latest_repo_ref }} available
+                (pinned {{ updatePreview.pairedUpdate.repo_ref || 'main' }}).
+                Importer and dataset version independently — update that listing too if this release needs new sample files.
+              </div>
+            </template>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-secondary btn-sm" type="button" @click="closeUpdate">Cancel</button>
+            <button class="btn btn-primary btn-sm" type="button" :disabled="pinning || !updatePreview" @click="confirmUpdate">
+              {{ pinning ? 'Updating…' : 'Pin this release' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </main>
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
+import { Modal } from 'bootstrap';
 import { api, authHeaders } from '@/utils/api';
 import { CONTRIBUTION_KIND_CHOICES, contributionKinds } from '@/utils/contributionKinds';
 
@@ -198,6 +291,14 @@ const inspectError = ref('');
 const manifestValidation = ref(null);
 const manifestChecked = ref(false);
 const pairedDataset = ref(null);
+const checkingUpdates = ref(false);
+const checkSummary = ref('');
+const previewingSlug = ref('');
+const pinning = ref(false);
+const updatePreview = ref(null);
+const updateError = ref('');
+const updateModalEl = ref(null);
+let updateModal = null;
 
 const matchingCatalogRow = computed(() => {
   const key = String(form.slug || '').trim().toLowerCase();
@@ -219,13 +320,20 @@ function emptyForm() {
     repo_ref: 'main',
     docs_path: 'README.md',
     status: 'published',
+    version: '',
   };
+}
+
+function pinnedLabel(row) {
+  if (row?.version) return row.version;
+  return row?.repo_ref || 'main';
 }
 
 function assignForm(src) {
   const next = emptyForm();
   Object.assign(next, src || {});
   next.kinds = contributionKinds(src || next);
+  next.version = src?.version || '';
   Object.assign(form, next);
 }
 
@@ -249,7 +357,7 @@ function openEdit(row) {
   assignForm(row);
   resetInspectState();
   showAdvanced.value = Boolean(
-    (row.repo_ref && row.repo_ref !== 'main') || (row.docs_path && row.docs_path !== 'README.md')
+    (row.repo_ref && row.repo_ref !== 'main') || (row.docs_path && row.docs_path !== 'README.md') || row.version
   );
   formOpen.value = true;
 }
@@ -297,6 +405,74 @@ async function load() {
   }
 }
 
+async function checkUpdates() {
+  checkingUpdates.value = true;
+  errorMessage.value = '';
+  checkSummary.value = '';
+  try {
+    const res = await api.post('/contributions/check-updates', {}, authHeaders());
+    items.value = Array.isArray(res.data?.rows) ? res.data.rows : items.value;
+    const updates = Number(res.data?.updates) || 0;
+    const without = Number(res.data?.without_releases) || 0;
+    const failed = (res.data?.results || []).filter((r) => r.error).length;
+    const parts = [];
+    if (updates) parts.push(`${updates} update${updates === 1 ? '' : 's'} available.`);
+    else parts.push('No newer GitHub releases than the current pins.');
+    if (without) parts.push(`${without} listing${without === 1 ? '' : 's'} still have no releases (often still on main).`);
+    if (failed) parts.push(`${failed} could not be checked.`);
+    checkSummary.value = parts.join(' ');
+  } catch (e) {
+    errorMessage.value = e.response?.data?.error || e.message || 'Failed to check for updates.';
+  } finally {
+    checkingUpdates.value = false;
+  }
+}
+
+async function openUpdate(row) {
+  previewingSlug.value = row.slug;
+  updateError.value = '';
+  updatePreview.value = null;
+  try {
+    const res = await api.post(
+      `/contributions/${encodeURIComponent(row.slug)}/update-version`,
+      { repo_ref: row.latest_repo_ref, confirm: false },
+      authHeaders()
+    );
+    updatePreview.value = res.data?.preview || null;
+    updateModal?.show();
+  } catch (e) {
+    errorMessage.value = e.response?.data?.error || e.message || 'Failed to preview update.';
+  } finally {
+    previewingSlug.value = '';
+  }
+}
+
+function closeUpdate() {
+  updateModal?.hide();
+}
+
+async function confirmUpdate() {
+  if (!updatePreview.value) return;
+  pinning.value = true;
+  updateError.value = '';
+  try {
+    const res = await api.post(
+      `/contributions/${encodeURIComponent(updatePreview.value.slug)}/update-version`,
+      { repo_ref: updatePreview.value.to.repo_ref, confirm: true },
+      authHeaders()
+    );
+    const next = res.data?.row;
+    if (next) {
+      items.value = items.value.map((row) => (row.slug === next.slug ? next : row));
+    }
+    closeUpdate();
+  } catch (e) {
+    updateError.value = e.response?.data?.error || e.message || 'Failed to pin this release.';
+  } finally {
+    pinning.value = false;
+  }
+}
+
 async function save() {
   saving.value = true;
   errorMessage.value = '';
@@ -337,7 +513,20 @@ async function remove(row) {
   }
 }
 
-onMounted(load);
+onMounted(() => {
+  load();
+  if (!updateModalEl.value) return;
+  updateModal = new Modal(updateModalEl.value);
+  updateModalEl.value.addEventListener('hidden.bs.modal', () => {
+    updatePreview.value = null;
+    updateError.value = '';
+  });
+});
+
+onBeforeUnmount(() => {
+  updateModal?.dispose();
+  updateModal = null;
+});
 </script>
 
 <style scoped>
@@ -345,5 +534,10 @@ onMounted(load);
   float: none;
   width: auto;
   font-size: inherit;
+}
+.release-notes {
+  max-height: 12rem;
+  overflow: auto;
+  white-space: pre-wrap;
 }
 </style>
