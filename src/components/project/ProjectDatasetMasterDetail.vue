@@ -6,7 +6,7 @@ import { contributionKinds } from '@/utils/contributionKinds';
 import { importerSlugForDataset, findLoadedLinkAlternative } from '@/utils/importerSlugForDataset';
 import DatasetsEdit from '@/views/admin/DatasetsEdit.vue';
 import RunContributionDialog from '@/components/project/RunContributionDialog.vue';
-import ProjectMetadataSummaryCard from '@/components/project/ProjectMetadataSummaryCard.vue';
+import DatasetMetadataPanel from '@/components/project/DatasetMetadataPanel.vue';
 import { formatApproxNumber, formatSummaryDateRange } from '@/utils/datasetFormat.js';
 
 const props = defineProps({
@@ -288,18 +288,16 @@ const coverage = computed(() => {
   return Array.isArray(list) && list.length ? list : [];
 });
 
-const selectedMetadataSummary = computed(() => {
-  if (showingAllDatasets.value || !selected.value) return null;
-  return selected.value.metadata_summary || null;
-});
-
-/** Legacy stat tiles — hidden when per-dataset metadata summary covers the same fields. */
+/** Legacy stat tiles — combined summary only; per-dataset view uses DatasetMetadataPanel. */
 const showLegacyStatTiles = computed(() => {
-  if (showingAllDatasets.value) return true;
-  if (selectedMetadataSummary.value) return false;
+  if (!showingAllDatasets.value) return false;
   const s = selectedSummary.value;
   return s.participants != null || s.participant_days != null;
 });
+
+const showDatasetMetadataPanel = computed(
+  () => !showingAllDatasets.value && Boolean(selected.value)
+);
 
 const canRunImportOnSelected = computed(
   () =>
@@ -422,7 +420,7 @@ watch(
         </div>
       </div>
 
-      <div class="col-12 col-lg-7">
+      <div class="col-12 col-lg-7 dataset-detail-pane">
         <div v-if="canManage && selectedId === ADD_ID" class="p-3 h-100">
           <div class="small text-muted text-uppercase mb-1">Add to this project</div>
           <h5 class="mb-2">Create or link a dataset</h5>
@@ -507,13 +505,14 @@ watch(
             </div>
           </div>
 
-          <ProjectMetadataSummaryCard
-            v-if="selectedMetadataSummary"
+          <div class="dataset-detail-scroll flex-grow-1 overflow-auto">
+          <DatasetMetadataPanel
+            v-if="showDatasetMetadataPanel"
             class="mb-3"
-            :metadata="selectedMetadataSummary"
+            :dataset="selected"
           />
 
-          <template v-if="hasStats">
+          <template v-if="hasStats && showingAllDatasets">
             <div v-if="showLegacyStatTiles" class="row g-2 mb-3">
               <div v-if="showingAllDatasets" class="col-6 col-md-3">
                 <div class="stat-tile">
@@ -592,16 +591,25 @@ watch(
               </div>
             </div>
 
-            <p v-if="!showingAllDatasets && selected.read_only" class="small mb-3">
+            <p class="small text-muted mb-3">
+              Select a dataset on the left for dataset-specific details, ingest actions, and unlink controls.
+            </p>
+
+          </template>
+
+          <div v-else-if="showingAllDatasets" class="text-muted small mb-3 flex-grow-1">
+            <p class="mb-0">Summary statistics are not available yet for these datasets.</p>
+          </div>
+
+          <template v-if="showDatasetMetadataPanel">
+            <p v-if="selected.read_only" class="small mb-3">
               Super admin seeded this sample. It is read-only — do not re-ingest.
             </p>
-            <p v-else-if="!showingAllDatasets && selected.table_count === 0 && canRunImportOnSelected"
-              class="small text-muted mb-3">
+            <p v-else-if="selected.table_count === 0 && canRunImportOnSelected" class="small text-muted mb-3">
               Not loaded yet. Use <strong>Run import…</strong> to populate from a catalog contribution,
               or link an existing loaded catalog row under <strong>Add</strong>.
             </p>
-            <div v-if="!showingAllDatasets && loadedLinkHint && selected.table_count === 0"
-              class="alert alert-info py-2 small mb-3">
+            <div v-if="loadedLinkHint && selected.table_count === 0" class="alert alert-info py-2 small mb-3">
               <strong>{{ loadedLinkHint.name }}</strong> already has this sample loaded
               {{ loadedLinkHint.alreadyLinked ? 'on this project' : 'in your team catalog' }}.
               <button type="button" class="btn btn-link btn-sm p-0 align-baseline" @click="linkLoadedAlternative">
@@ -609,38 +617,17 @@ watch(
               </button>
               — that uses the existing tables. This empty row will be unlinked and archived.
             </div>
-            <p v-else-if="!showingAllDatasets && selected.table_count === 0" class="small text-muted mb-3">
+            <p v-else-if="selected.table_count === 0" class="small text-muted mb-3">
               Not loaded yet. Adapt a notebook or deploy a CLI from a Contributions example
               into your team catalog. Tables and stats appear here after that.
             </p>
-            <p v-else-if="!showingAllDatasets && selected.physical_table_count === 0" class="small text-muted mb-3">
+            <p v-else-if="selected.physical_table_count === 0" class="small text-muted mb-3">
               Catalog exists but no tables are in the database yet.
             </p>
-            <p v-else-if="!showingAllDatasets && Number(selectedSummary.observations) === 0"
-              class="small text-muted mb-3">
-              The registered tables exist and currently report 0 observations.
-            </p>
-            <p v-else-if="showingAllDatasets" class="small text-muted mb-3">
-              Select a dataset on the left for dataset-specific details, ingest actions, and unlink controls.
-            </p>
-
           </template>
-
-          <div v-else class="text-muted small mb-3 flex-grow-1">
-            <p v-if="!showingAllDatasets && selected.description" class="mb-2">{{ selected.description }}</p>
-            <p v-if="!showingAllDatasets && selected.table_count === 0 && canRunImportOnSelected" class="mb-2">
-              Not loaded yet. Use <strong>Run import…</strong> above to populate this dataset from a catalog
-              contribution.
-            </p>
-            <p class="mb-0">
-              Summary statistics are not available yet for {{ showingAllDatasets ? 'these datasets' : 'this dataset' }}.
-              They
-              appear here from a
-              cached metadata layer after ingestion — this page does not run live full-table counts.
-            </p>
           </div>
 
-          <div class="mt-auto pt-2 d-flex flex-wrap align-items-center justify-content-between gap-2">
+          <div class="dataset-detail-footer pt-2 d-flex flex-wrap align-items-center justify-content-between gap-2">
             <button v-if="!showingAllDatasets && selected.id" type="button"
               class="btn btn-link btn-sm small text-decoration-none px-0" @click="openDetailsDialog">
               Dataset details →
@@ -688,6 +675,20 @@ watch(
 .dataset-row--selected {
   background: rgba(13, 110, 253, 0.06);
   border-left-color: var(--bs-primary);
+}
+
+.dataset-detail-pane {
+  max-height: min(80vh, 900px);
+}
+
+.dataset-detail-scroll {
+  min-height: 0;
+}
+
+.dataset-detail-footer {
+  flex-shrink: 0;
+  border-top: 1px solid var(--bs-border-color);
+  background: var(--bs-body-bg);
 }
 
 .stat-tile {
