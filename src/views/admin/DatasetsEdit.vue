@@ -261,8 +261,7 @@
               :disabled="deleteBusy || archiveBusy || !isConfirmationValid" @click="commitPendingAction">
               <span v-if="archiveBusy || deleteBusy" class="spinner-border spinner-border-sm me-2" />
               {{ pendingAction === 'delete' ? 'Delete dataset' : pendingAction === 'archive' ? 'Archive dataset' :
-                'Restore
-              dataset' }}
+                'Restore dataset' }}
             </button>
           </div>
         </div>
