@@ -292,6 +292,94 @@ function onInputKeydown(e) {
   }
 }
 
+function apiUrl(path) {
+  const base = api.defaults.baseURL || '/';
+  return base.endsWith('/') ? `${base}${path}` : `${base}/${path}`;
+}
+
+async function scrollToBottom() {
+  await nextTick();
+  if (historyEl.value) historyEl.value.scrollTop = historyEl.value.scrollHeight;
+}
+
+// Posts to ai/chat as an SSE stream and appends text deltas onto the
+// conversation's last (assistant) message as they arrive. Resolves with the
+// final {conversation, model, usage, phi_safe} from the 'done' event, same
+// shape the old non-streaming response carried. Throws an Error carrying
+// `.code`/`.data` (mirroring axios's err.response.data shape) for PHI_BLOCKED/
+// PHI_CONFIRM/other errors, so the existing catch-side handling keeps working.
+async function streamChat(payload) {
+  const res = await fetch(apiUrl('ai/chat'), {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', ...authHeaders().headers },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok || !res.body) {
+    const data = await res.json().catch(() => ({}));
+    const err = new Error(data.error || `Chat failed (${res.status})`);
+    err.data = data;
+    throw err;
+  }
+
+  const conv = chatStore.activeConversation;
+  conv.messages = [...conv.messages, { role: 'assistant', content: '' }];
+  const assistantIndex = conv.messages.length - 1;
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let finalEvent = null;
+
+  function processSseFrame(raw) {
+    const dataLine = raw.split('\n').find((l) => l.startsWith('data:'));
+    if (!dataLine) return;
+    let evt;
+    try {
+      evt = JSON.parse(dataLine.slice(5).trim());
+    } catch {
+      return;
+    }
+    if (evt.type === 'delta') {
+      const next = [...conv.messages];
+      next[assistantIndex] = {
+        role: 'assistant',
+        content: (next[assistantIndex]?.content || '') + evt.text,
+      };
+      conv.messages = next;
+      scrollToBottom();
+    } else if (evt.type === 'done') {
+      finalEvent = evt;
+    } else if (evt.type === 'error') {
+      const err = new Error(evt.error || 'Chat failed');
+      err.data = evt;
+      throw err;
+    }
+  }
+
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const chunks = buffer.split('\n\n');
+    buffer = chunks.pop() || '';
+    for (const raw of chunks) processSseFrame(raw);
+  }
+  // The stream closed -- flush whatever's left in buffer in case the
+  // server's last frame (often the "done" event itself) had no trailing
+  // blank-line separator. Without this, a connection that closes right
+  // after writing its final frame silently drops it instead of erroring.
+  if (buffer.trim()) processSseFrame(buffer);
+
+  if (!finalEvent) {
+    const err = new Error('The response stream ended before completing — try again.');
+    err.data = { error: err.message };
+    throw err;
+  }
+
+  return finalEvent;
+}
+
 async function send(preset) {
   const text = String(preset || input.value || '').trim();
   if (!text || loading.value || !available.value) return;
@@ -303,8 +391,7 @@ async function send(preset) {
   resizeInput();
   conv.messages = [...(conv.messages || []), { role: 'user', content: text }];
   loading.value = true;
-  await nextTick();
-  if (historyEl.value) historyEl.value.scrollTop = historyEl.value.scrollHeight;
+  await scrollToBottom();
 
   try {
     const payload = {
@@ -312,32 +399,28 @@ async function send(preset) {
       messages: conv.messages,
       ...contextPayload(),
     };
-    let res;
+    let finalEvent;
     try {
-      res = await api.post('ai/chat', payload, authHeaders());
+      finalEvent = await streamChat(payload);
     } catch (err) {
-      if (err.response?.data?.code === 'PHI_CONFIRM') {
-        const ok = window.confirm(`${err.response.data.error}\n\nSend anyway?`);
+      if (err.data?.code === 'PHI_CONFIRM') {
+        const ok = window.confirm(`${err.data.error}\n\nSend anyway?`);
         if (!ok) throw err;
-        res = await api.post('ai/chat', { ...payload, confirm_no_phi: true }, authHeaders());
+        finalEvent = await streamChat({ ...payload, confirm_no_phi: true });
       } else {
         throw err;
       }
     }
-    if (res.data.conversation) {
-      chatStore.applyConversation(res.data.conversation);
-    } else {
-      conv.messages = [...conv.messages, { role: 'assistant', content: res.data.reply || '' }];
+    if (finalEvent?.conversation) {
+      chatStore.applyConversation(finalEvent.conversation);
     }
     await refreshStatus();
   } catch (err) {
-    const data = err.response?.data;
-    error.value = data?.error || err.message || 'Chat failed';
+    error.value = err.data?.error || err.message || 'Chat failed';
     conv.messages = conv.messages.slice(0, -1);
   } finally {
     loading.value = false;
-    await nextTick();
-    if (historyEl.value) historyEl.value.scrollTop = historyEl.value.scrollHeight;
+    await scrollToBottom();
     inputEl.value?.focus();
   }
 }
