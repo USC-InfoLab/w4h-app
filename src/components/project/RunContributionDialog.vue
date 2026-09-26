@@ -1,7 +1,9 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { useRouter } from 'vue-router';
 import { Modal } from 'bootstrap';
 import { api, authHeaders } from '@/utils/api';
+import FitbitFileUpload from './FitbitFileUpload.vue';
 import { contributionKinds } from '@/utils/contributionKinds';
 import { resolveRunSlug, importerSlugForDataset, findLoadedLinkAlternative } from '@/utils/importerSlugForDataset';
 
@@ -19,6 +21,15 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['run-complete', 'dataset-pick', 'link-existing']);
+
+const router = useRouter();
+
+// Setup instructions open in a new tab rather than an in-app <router-link> —
+// this dialog is a modal over an in-progress import/run, so navigating the
+// whole app away from it mid-flow is disruptive.
+function setupInstructionsHref(slug) {
+  return router.resolve({ name: 'contributionDetail', params: { slug } }).href;
+}
 
 const modalEl = ref(null);
 let modal = null;
@@ -46,6 +57,10 @@ const isAnalysis = computed(() => props.variant === 'analysis');
 const activeContribution = computed(
   () => props.contributions.find((c) => c.slug === runSlug.value) || null
 );
+
+// ponytail: hardcoded slug, mirrors the API's UPLOAD_SLUGS; use a contribution.yaml `inputs: files` flag for a 2nd module
+const fileUploadRef = ref(null);
+const needsFiles = computed(() => !isAnalysis.value && runSlug.value === 'w4h-fitbit-csv-file-importer');
 
 const activeIsSql = computed(() => {
   const kinds = contributionKinds(activeContribution.value || {});
@@ -97,14 +112,24 @@ const runProgressPct = computed(() => {
   return Math.max(0, Math.min(100, Math.round((p.rows_done / p.rows_total) * 100)));
 });
 
+// Must search both lists, not just localRunTargets -- the dataset picker
+// (below) legitimately lets an admin target a dataset that's only in the
+// team catalog, not yet linked to this project. Missing catalogRunTargets
+// here meant runTargetEmpty/runTargetLoaded silently resolved to false for
+// any catalog-only target, which suppressed the "Link X instead"/"Load a
+// copy into..." UI even when findLoadedLinkAlternative() would have found a
+// match. Matches the combined-list pattern already used elsewhere in this
+// file (fixedDatasetLabel below, and useLinkAlternative()).
 const runTargetLoaded = computed(() => {
-  const local = props.localRunTargets.find((d) => d.id === runDatasetId.value);
-  return Boolean(local && local.table_count > 0);
+  const all = [...props.localRunTargets, ...props.catalogRunTargets];
+  const target = all.find((d) => d.id === runDatasetId.value);
+  return Boolean(target && target.table_count > 0);
 });
 
 const runTargetEmpty = computed(() => {
-  const local = props.localRunTargets.find((d) => d.id === runDatasetId.value);
-  return Boolean(local && local.table_count === 0);
+  const all = [...props.localRunTargets, ...props.catalogRunTargets];
+  const target = all.find((d) => d.id === runDatasetId.value);
+  return Boolean(target && target.table_count === 0);
 });
 
 async function refreshDependents() {
@@ -256,7 +281,11 @@ function open(options = {}) {
       importerSlugForDataset(datasetRow, props.contributions))
   );
   runSlug.value = resolveRunSlug({
-    slug: datasetEmpty ? undefined : options.slug,
+    // An explicit contextual slug (e.g. a preselected importer
+    // slug) is honoured even on an empty dataset — only the non-contextual
+    // fallback (guessed from naming) is dropped when there's nothing to
+    // guess from yet.
+    slug: (options.contextual && options.slug) ? options.slug : (datasetEmpty ? undefined : options.slug),
     datasetId: runDatasetId.value,
     localRunTargets: props.localRunTargets,
     catalogRunTargets: props.catalogRunTargets,
@@ -280,6 +309,13 @@ async function startRun() {
   try {
     const body = { dataset_id: runDatasetId.value };
     if (!isAnalysis.value) body.mode = runMode.value;
+    if (needsFiles.value) {
+      if (!fileUploadRef.value?.hasFiles()) {
+        runError.value = 'Choose your Fitbit CSV files first.';
+        return;
+      }
+      body.upload_id = await fileUploadRef.value.upload(runSlug.value, runDatasetId.value);
+    }
     const res = await api.post(
       `/contributions/${runSlug.value}/run`,
       body,
@@ -482,6 +518,8 @@ defineExpose({ open, close });
             The API binds roles from this dataset’s mapping and materializes a derived table per the contribution manifest.
           </p>
 
+          <FitbitFileUpload v-if="needsFiles" ref="fileUploadRef" />
+
           <button
             type="button"
             class="btn btn-sm"
@@ -542,9 +580,9 @@ defineExpose({ open, close });
               Runnable importers ship <code>run.sh</code> — same API key and access checks.
             </p>
             <pre class="run-log mb-1 p-2 border rounded small">W4H_DATASET_ID={{ runDatasetId || '&lt;dataset-id&gt;' }} ./run.sh import --mode {{ runMode === 'full' ? 'replace' : 'append' }}</pre>
-            <router-link :to="{ name: 'contributionDetail', params: { slug: activeContribution.slug } }">
+            <a :href="setupInstructionsHref(activeContribution.slug)" target="_blank" rel="noopener">
               View setup instructions →
-            </router-link>
+            </a>
           </details>
 
           <details v-else-if="activeContribution && isAnalysis" class="small mt-3">
@@ -554,9 +592,9 @@ defineExpose({ open, close });
               <code>POST /datasets/:id/contributions/{{ activeContribution.slug }}/sql</code>
               for a direct sync result, or use the contribution repo’s notebook/CLI.
             </p>
-            <router-link :to="{ name: 'contributionDetail', params: { slug: activeContribution.slug } }">
+            <a :href="setupInstructionsHref(activeContribution.slug)" target="_blank" rel="noopener">
               View {{ activeContribution.title }} setup instructions →
-            </router-link>
+            </a>
           </details>
         </div>
         <div class="modal-footer">
