@@ -399,6 +399,7 @@ async function send(preset) {
       conversation_id: conv.id,
       messages: conv.messages,
       ...contextPayload(),
+      stream: true,
     };
     let finalEvent;
     try {
