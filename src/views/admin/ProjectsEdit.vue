@@ -362,8 +362,7 @@ function mapOverviewToForm(data) {
   linkedDatasetMeta.value = Array.isArray(data?.datasets) ? data.datasets : [];
 
   availableDatasets.value = Array.isArray(data?.linkable_datasets) ? data.linkable_datasets : [];
-  canManageThisProject.value =
-    !!data?.capabilities?.can_manage || isSuperAdmin(userStore.user?.role);
+  canManageThisProject.value = !!data?.capabilities?.can_manage;
 
   memberRows.value = mapMemberRows(data?.members);
 
