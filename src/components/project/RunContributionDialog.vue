@@ -60,6 +60,7 @@ const activeContribution = computed(
 
 // ponytail: hardcoded slug, mirrors the API's UPLOAD_SLUGS; use a contribution.yaml `inputs: files` flag for a 2nd module
 const fileUploadRef = ref(null);
+const uploading = ref(false);
 const needsFiles = computed(() => !isAnalysis.value && runSlug.value === 'w4h-fitbit-csv-file-importer');
 
 const activeIsSql = computed(() => {
@@ -255,6 +256,7 @@ function useLinkAlternative() {
 }
 
 function open(options = {}) {
+  fileUploadRef.value?.reset();
   runError.value = '';
   run.value = null;
   contextualRun.value = Boolean(options.contextual);
@@ -301,7 +303,7 @@ function close() {
 }
 
 async function startRun() {
-  if (!runSlug.value || !runDatasetId.value || runInFlight.value || fullReimportBlocked.value) return;
+  if (!runSlug.value || !runDatasetId.value || runInFlight.value || uploading.value || fullReimportBlocked.value) return;
   runError.value = '';
   run.value = null;
   const isLocal = props.localRunTargets.some((d) => d.id === runDatasetId.value);
@@ -314,7 +316,12 @@ async function startRun() {
         runError.value = 'Choose your Fitbit CSV files first.';
         return;
       }
-      body.upload_id = await fileUploadRef.value.upload(runSlug.value, runDatasetId.value);
+      uploading.value = true;
+      try {
+        body.upload_id = await fileUploadRef.value.upload(runSlug.value, runDatasetId.value);
+      } finally {
+        uploading.value = false;
+      }
     }
     const res = await api.post(
       `/contributions/${runSlug.value}/run`,
@@ -524,13 +531,14 @@ defineExpose({ open, close });
             type="button"
             class="btn btn-sm"
             :class="linkAlternative && !isAnalysis ? 'btn-outline-secondary' : 'btn-primary'"
-            :disabled="!runSlug || !runDatasetId || runInFlight || fullReimportBlocked || !canManage"
+            :disabled="!runSlug || !runDatasetId || runInFlight || uploading || fullReimportBlocked || !canManage"
             @click="startRun"
           >
             <span v-if="runInFlight">
               <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
               Running…
             </span>
+            <span v-else-if="uploading">Uploading files…</span>
             <span v-else>{{ runButtonLabel }}</span>
           </button>
 

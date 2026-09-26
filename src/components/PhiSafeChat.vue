@@ -344,7 +344,7 @@ async function streamChat(payload) {
       const next = [...conv.messages];
       next[assistantIndex] = {
         role: 'assistant',
-        content: (next[assistantIndex]?.content || '') + evt.text,
+        content: (next[assistantIndex]?.content || '') + (evt.text ?? ''),
       };
       conv.messages = next;
       scrollToBottom();
@@ -389,6 +389,7 @@ async function send(preset) {
   error.value = '';
   input.value = '';
   resizeInput();
+  const lengthBeforeSend = (conv.messages || []).length;
   conv.messages = [...(conv.messages || []), { role: 'user', content: text }];
   loading.value = true;
   await scrollToBottom();
@@ -417,7 +418,8 @@ async function send(preset) {
     await refreshStatus();
   } catch (err) {
     error.value = err.data?.error || err.message || 'Chat failed';
-    conv.messages = conv.messages.slice(0, -1);
+    // Drop the user turn and any streamed assistant placeholder: the server persisted neither.
+    conv.messages = conv.messages.slice(0, lengthBeforeSend);
   } finally {
     loading.value = false;
     await scrollToBottom();

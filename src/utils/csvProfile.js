@@ -7,9 +7,8 @@ const DELIMITERS = [',', '\t', ';'];
 const PREVIEW_ROWS = 20;
 
 // Local UX/performance guards, not a storage-cost or PHI control -- nothing
-// is uploaded at this stage. Protects the tab from freezing on
-// parseFullFile()'s full in-memory read at import time, or from an
-// accidental selection far larger than a per-metric CSV export. Mirrors the
+// is uploaded at this stage. Protects the tab from freezing on a
+// full in-memory read, or from an accidental selection far larger than a per-metric CSV export. Mirrors the
 // caps in w4h-api/lib/contribution-uploads.js.
 export const MAX_FILES = 200;
 export const MAX_FILE_SIZE_BYTES = 200 * 1024 * 1024; // 200MB/file
@@ -84,10 +83,8 @@ const TYPE_MATCH_THRESHOLD = 0.95;
 // Kaggle Fitbit CSVs: "3/25/2016", "3/12/2016 12:00:00 AM"), not just ISO-8601
 // -- confirmed live against real Fitabase sample files, where every date/
 // timestamp column silently fell through to 'text' without this. That
-// mistyping isn't cosmetic: buildSignalDeterministic() (ingest-assistant.js)
-// picks the geomts_mapping time axis purely from the already-inferred column
-// type, so a 'text'-mistyped date column never becomes the time axis, which
-// then drops out of dedupe_columns too -- a real multi-row-per-subject file
+// mistyping isn't cosmetic: a 'text'-mistyped date column is not recognised as
+// a time axis, which then drops out of dedupe_columns too -- a real multi-row-per-subject file
 // silently collapses to ~1 row/subject on import under ON CONFLICT DO
 // NOTHING, with no error surfaced anywhere. Postgres itself parses M/D/YYYY
 // values fine on insert (default DateStyle is MDY-tolerant); this was purely
@@ -535,7 +532,7 @@ export { VENDOR_REGISTRY };
  * per-column types, and an approximate row count.
  */
 // Only a header + a bounded preview is ever needed here -- reading the whole
-// file (file.text()) was real live risk: a folder-connect can queue up to
+// file (file.text()) was real live risk: a selection can include up to
 // MAX_FILES files totaling MAX_TOTAL_SIZE_BYTES (1GB), and holding even one
 // full 200MB file as a JS string while profiling can freeze or crash the tab.
 // 256KB comfortably covers a header line + PREVIEW_ROWS data rows for any

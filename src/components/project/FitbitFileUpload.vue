@@ -23,7 +23,13 @@ async function onPick(e) {
     error.value = limit;
     return;
   }
-  const profiles = await Promise.all(picked.map((f) => buildFileProfile(f)));
+  let profiles;
+  try {
+    profiles = await Promise.all(picked.map((f) => buildFileProfile(f)));
+  } catch (err) {
+    error.value = `Could not read the chosen files: ${err.message || err}`;
+    return;
+  }
   const gate = classifyVendor(profiles);
   if (gate.band !== 'detected' || gate.top?.vendor !== 'fitbit') {
     error.value = 'These files do not look like Fitbit exports. This importer accepts Fitbit CSV files only.';
@@ -50,7 +56,12 @@ async function upload(slug, datasetId) {
   }
 }
 
-defineExpose({ upload, hasFiles: () => files.value.length > 0 });
+function reset() {
+  files.value = [];
+  error.value = '';
+}
+
+defineExpose({ upload, reset, busy, hasFiles: () => files.value.length > 0 });
 </script>
 
 <template>
