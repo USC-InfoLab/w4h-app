@@ -1,7 +1,8 @@
 <script setup>
 // File chooser for the "W4H Fitbit CSV File Importer" catalog module. Fitbit-only:
-// every chosen file is profiled locally and must classify as Fitbit (same
-// classifier as "Fitbit CSV files"; read-only reuse of utils/csvProfile.js).
+// every chosen file is profiled locally and must classify as Fitbit, using the
+// same detection logic the retired "Fitbit CSV files" ingest assistant used
+// (carried over into utils/csvProfile.js).
 import { ref } from 'vue';
 import { api, authHeaders } from '@/utils/api';
 import { buildFileProfile, checkFileLimits, classifyVendor } from '@/utils/csvProfile';
@@ -65,7 +66,10 @@ async function upload(slug, datasetId) {
   } catch (err) {
     // A failed file PUT leaves a staged-but-incomplete upload record on the
     // server; clean it up now instead of waiting on the server's 24h sweep.
-    if (uploadId) await api.delete(`/contributions/uploads/${uploadId}`, authHeaders()).catch(() => {});
+    if (uploadId) {
+      await api.delete(`/contributions/uploads/${uploadId}`, authHeaders())
+        .catch((cleanupErr) => console.warn('upload cleanup failed', uploadId, cleanupErr));
+    }
     throw err;
   } finally {
     busy.value = false;
