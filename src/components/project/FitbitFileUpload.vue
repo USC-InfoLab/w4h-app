@@ -6,6 +6,10 @@ import { ref } from 'vue';
 import { api, authHeaders } from '@/utils/api';
 import { buildFileProfile, checkFileLimits, classifyVendor } from '@/utils/csvProfile';
 
+// Mirrors the server's SAFE_NAME_RE (w4h-api/lib/contribution-uploads.js) so a
+// bad filename is rejected here instead of after a round-trip to the API.
+const SAFE_NAME_RE = /^[A-Za-z0-9][A-Za-z0-9 ._()-]*\.csv$/i;
+
 const files = ref([]);
 const error = ref('');
 const busy = ref(false);
@@ -16,6 +20,11 @@ async function onPick(e) {
   const picked = Array.from(e.target.files || []).filter((f) => /\.csv$/i.test(f.name));
   if (!picked.length) {
     error.value = 'Choose one or more .csv files.';
+    return;
+  }
+  const badName = picked.find((f) => !SAFE_NAME_RE.test(f.name));
+  if (badName) {
+    error.value = `"${badName.name}" has characters the importer can't accept — use letters, digits, spaces, . _ ( ) -.`;
     return;
   }
   const limit = checkFileLimits(picked);
@@ -41,16 +50,23 @@ async function onPick(e) {
 /** Stages the chosen files on the API; resolves to the upload id used by POST /contributions/:slug/run. */
 async function upload(slug, datasetId) {
   busy.value = true;
+  let uploadId;
   try {
     const { data } = await api.post(`/contributions/${slug}/uploads`, { dataset_id: datasetId }, authHeaders());
+    uploadId = data.upload_id;
     for (const f of files.value) {
       await api.put(
-        `/contributions/uploads/${data.upload_id}/files/${encodeURIComponent(f.name)}`,
+        `/contributions/uploads/${uploadId}/files/${encodeURIComponent(f.name)}`,
         f,
         { headers: { ...authHeaders().headers, 'content-type': 'application/octet-stream' } }
       );
     }
-    return data.upload_id;
+    return uploadId;
+  } catch (err) {
+    // A failed file PUT leaves a staged-but-incomplete upload record on the
+    // server; clean it up now instead of waiting on the server's 24h sweep.
+    if (uploadId) await api.delete(`/contributions/uploads/${uploadId}`, authHeaders()).catch(() => {});
+    throw err;
   } finally {
     busy.value = false;
   }
