@@ -524,8 +524,6 @@ export function classifyVendor(profiles) {
   return { band: 'unknown', candidates, top: null };
 }
 
-export { VENDOR_REGISTRY };
-
 /**
  * Reads a File for a human-facing preview: headers, a handful of sample rows
  * (as raw arrays, for on-screen display only — never sent anywhere), inferred
