@@ -15,7 +15,7 @@ function getInitialThemeMode() {
   if (legacyDarkMode === 'true') return 'dark';
   if (legacyDarkMode === 'false') return 'light';
 
-  return 'light';
+  return 'system';
 }
 
 export const useUIStore = defineStore('ui', () => {

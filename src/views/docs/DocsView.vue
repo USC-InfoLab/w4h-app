@@ -669,10 +669,7 @@ svg[id^="mermaid-"] {
 }
 
 /* Mermaid dark mode — let Mermaid's own 'dark' theme handle colours;
-   only override the SVG container background so it blends with the page.
-   Keyed off the app's own theme switch (UI Settings → data-bs-theme), not
-   the OS media query — otherwise this fires whenever the OS prefers dark
-   even while the app itself is set to Light. */
+   only override the SVG container background so it blends with the page. */
 [data-bs-theme='dark'] .mermaid svg {
   background: transparent !important;
 }
@@ -851,7 +848,7 @@ svg[id^="mermaid-"] {
   border-radius: 0.25rem;
 }
 
-/* Dark mode — follows the app's UI Settings theme (data-bs-theme), not the OS preference */
+/* Dark mode */
 [data-bs-theme='dark'] .md-preview blockquote {
   background-color: #333333;
   color: #e9ecef;
@@ -897,10 +894,7 @@ div .alert {
   background-color: rgba(0, 0, 0, 0.05);
 }
 
-/* Dark mode — follows the app's UI Settings theme (data-bs-theme), not the OS
-   preference. Previously gated on @media (prefers-color-scheme: dark), which fired
-   whenever the OS/browser preferred dark even while the app's own theme was Light,
-   leaving near-white text (#e9ecef) on the light theme's white background. */
+/* Dark mode — follow app theme (data-bs-theme), not OS prefers-color-scheme */
 [data-bs-theme='dark'] .md-preview th {
   background-color: #444;
   color: var(--bs-body-color, #e9ecef);
@@ -1003,10 +997,7 @@ div .alert {
   box-sizing: border-box;
 }
 
-/* Override Shiki's inline light theme with its dark theme variables when the
-   app's own theme (UI Settings → data-bs-theme) is dark — not whenever the
-   OS/browser prefers dark, which used to apply this even while the app
-   itself was set to Light. */
+/* Override Shiki's inline light theme with its dark theme variables when app theme is dark. */
 [data-bs-theme='dark'] .md-preview pre.shiki-themes {
   background-color: var(--shiki-dark-bg) !important;
   color: var(--shiki-dark) !important;
