@@ -33,8 +33,12 @@ export function isSuperAdmin(role) {
   return role === USER_ROLES.SUPER_ADMIN || role === USER_ROLES.ADMIN;
 }
 
-export function isTeamAdmin(role) {
-  return role === USER_ROLES.TEAM_ADMIN;
+/**
+ * Team admin is per-team (`team_members.role`), not a platform role. A non–Super-admin
+ * "scoped Team admin" is whoever the server flags with `user.caps.team_admin`.
+ */
+export function isScopedTeamAdmin(user) {
+  return !!user && !isSuperAdmin(user.role) && canManageTeam(user.role, user.caps);
 }
 
 /** Platform Admin UI ("W4H Toolkit Admin") — Super admin only. Prefer server `user.caps` when present. */
@@ -50,7 +54,7 @@ export function canManageTeam(role, caps = null) {
   if (caps && typeof caps.team_admin === 'boolean') {
     return caps.team_admin;
   }
-  return isSuperAdmin(role) || isTeamAdmin(role);
+  return isSuperAdmin(role);
 }
 
 export function roleLabel(role) {

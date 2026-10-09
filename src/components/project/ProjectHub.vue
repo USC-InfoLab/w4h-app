@@ -5,15 +5,20 @@ import { projectMemberUiValue } from '@/utils/roles';
 import ProjectDocsCard from '@/components/project/ProjectDocsCard.vue';
 import ProjectDatasetMasterDetail from '@/components/project/ProjectDatasetMasterDetail.vue';
 import ProjectAnalyticsPanel from '@/components/project/ProjectAnalyticsPanel.vue';
+import ProjectReportsPanel from '@/components/project/ProjectReportsPanel.vue';
 import TeamAiSettings from '@/components/TeamAiSettings.vue';
 
 const props = defineProps({
   canManage: { type: Boolean, default: false },
+  // false for a team member who is not on this project: overview only (MVP P-06, R-11)
+  isParticipant: { type: Boolean, default: true },
   form: { type: Object, required: true },
   teamLabel: { type: String, default: '' },
   createdByLabel: { type: String, default: '' },
   createdAtLabel: { type: String, default: '' },
   memberRows: { type: Array, default: () => [] },
+  collaboratingTeams: { type: Array, default: () => [] },
+  invitableTeams: { type: Array, default: () => [] },
   linkedDatasetRows: { type: Array, default: () => [] },
   addableDatasets: { type: Array, default: () => [] },
   datasetToAdd: { type: String, default: '' },
@@ -37,6 +42,8 @@ const emit = defineEmits([
   'invite-member',
   'change-member-role',
   'delete-member',
+  'invite-team',
+  'remove-team',
   'update:datasetToAdd',
   'update:newDatasetName',
   'update:inviteEmail',
@@ -52,12 +59,14 @@ const emit = defineEmits([
 const route = useRoute();
 const router = useRouter();
 const selectedDatasetId = ref('');
+const teamToInvite = ref('');
 
 const VALID_TABS = ['overview', 'docs', 'analytics', 'jupyter', 'people', 'settings'];
 
 function tabFromQuery() {
   const t = String(route.query.tab || '');
   if (t === 'settings' && !props.canManage) return 'overview';
+  if (!props.isParticipant && !['overview', 'people'].includes(t)) return 'overview';
   if (VALID_TABS.includes(t)) return t;
   return 'overview';
 }
@@ -89,13 +98,19 @@ function goDatasetsTab() {
 }
 
 const navItems = computed(() => {
-  const items = [
-    { id: 'overview', label: 'Datasets', icon: 'bi bi-database' },
-    { id: 'docs', label: 'Documentation', icon: 'bi bi-file-earmark-text' },
-    { id: 'analytics', label: 'Analytics', icon: 'bi bi-graph-up' },
-    { id: 'jupyter', label: 'Jupyter', icon: 'bi bi-journal-code' },
-    { id: 'people', label: 'People', icon: 'bi bi-people' },
-  ];
+  const items = props.isParticipant
+    ? [
+        { id: 'overview', label: 'Datasets', icon: 'bi bi-database' },
+        { id: 'docs', label: 'Documentation', icon: 'bi bi-file-earmark-text' },
+        { id: 'analytics', label: 'Analytics', icon: 'bi bi-graph-up' },
+        { id: 'jupyter', label: 'Jupyter', icon: 'bi bi-journal-code' },
+        { id: 'people', label: 'People', icon: 'bi bi-people' },
+      ]
+    // Not on the project: the overview and the roster only; data, pages and reports stay closed.
+    : [
+        { id: 'overview', label: 'Datasets', icon: 'bi bi-database' },
+        { id: 'people', label: 'People', icon: 'bi bi-people' },
+      ];
   if (props.canManage) {
     items.push({ id: 'settings', label: 'Settings', icon: 'bi bi-gear' });
   }
@@ -159,6 +174,10 @@ const canInvite = computed(() => {
       </div>
 
       <div class="col-12 col-lg-9 col-xl-10">
+        <div v-if="!isParticipant" class="alert alert-info small" role="status">
+          You can see this project because you are on its team, but you are not a member of it.
+          Ask a project Admin to add you to open its analytics, documentation and reports.
+        </div>
         <section v-if="section === 'overview'">
           <ProjectDatasetMasterDetail
             :datasets="linkedDatasetRows"
@@ -199,6 +218,13 @@ const canInvite = computed(() => {
             @run-complete="emit('dataset-run-complete')"
             @go-datasets="goDatasetsTab"
           />
+          <ProjectReportsPanel
+            class="mt-3"
+            :project-id="form.id ? String(form.id) : ''"
+            :datasets="linkedDatasetRows"
+            :can-manage="canManage"
+            :current-user-id="currentUserId"
+          />
         </section>
 
         <section v-else-if="section === 'jupyter'">
@@ -229,6 +255,8 @@ const canInvite = computed(() => {
               <p class="small text-muted mb-3">
                 Invite anyone by email. If they are already on this project, nothing changes.
                 New accounts join this project’s team and receive an activation link.
+                To add someone from another organization, invite their team under
+                <strong>Collaborating teams</strong> below first.
               </p>
               <div class="row g-2 align-items-end mb-3">
                 <div class="col-md-4">
@@ -288,7 +316,15 @@ const canInvite = computed(() => {
               class="row g-2 align-items-end mb-2"
             >
               <div class="col-7">
-                <div class="fw-semibold">{{ memberDisplayName(row) }}</div>
+                <div class="fw-semibold">
+                  {{ memberDisplayName(row) }}
+                  <span
+                    v-for="t in row.home_teams || []"
+                    :key="t.id"
+                    class="badge ms-1"
+                    :class="row.is_collaborator ? 'text-bg-info' : 'text-bg-light border'"
+                  >{{ t.name }}</span>
+                </div>
                 <div class="small text-muted">{{ row.email }}</div>
               </div>
               <div class="col-3">
@@ -299,7 +335,7 @@ const canInvite = computed(() => {
                   :disabled="savingMembers || isLastProjectAdmin(row)"
                   @change="emit('change-member-role', row, $event.target.value)"
                 >
-                  <option value="owner">Admin</option>
+                  <option value="owner" :disabled="row.is_collaborator">Admin</option>
                   <option value="editor">User</option>
                 </select>
                 <span v-else class="badge text-bg-secondary">
@@ -314,6 +350,58 @@ const canInvite = computed(() => {
                   @click="emit('delete-member', row)"
                 >
                   Remove
+                </button>
+              </div>
+            </div>
+          </div>
+          <div v-if="collaboratingTeams.length || canManage" class="card p-3 mt-3">
+            <h5 class="card-title mb-2">Collaborating teams</h5>
+            <p class="small text-muted mb-3">
+              Teams from other organizations can contribute people and their own datasets to this
+              project. They see only this project. Each team keeps control of the datasets it
+              contributes, and removing a team removes its people and datasets immediately.
+            </p>
+            <div v-if="collaboratingTeams.length === 0" class="small text-muted mb-2">
+              No collaborating teams.
+            </div>
+            <div
+              v-for="t in collaboratingTeams"
+              :key="t.team_id"
+              class="d-flex align-items-center justify-content-between mb-2"
+            >
+              <div>
+                <span class="fw-semibold">{{ t.team_name }}</span>
+                <span
+                  class="badge ms-2"
+                  :class="t.status === 'active' ? 'text-bg-success' : 'text-bg-warning'"
+                >{{ t.status === 'active' ? 'Active' : 'Waiting for their Admin' }}</span>
+              </div>
+              <button
+                v-if="canManage"
+                type="button"
+                class="btn btn-sm btn-outline-danger"
+                :disabled="savingMembers"
+                @click="emit('remove-team', t)"
+              >
+                Remove
+              </button>
+            </div>
+            <div v-if="canManage" class="row g-2 align-items-end border-top pt-3 mt-2">
+              <div class="col-9">
+                <label class="form-label small mb-0">Invite a team</label>
+                <select v-model="teamToInvite" class="form-select form-select-sm">
+                  <option value="">Select team…</option>
+                  <option v-for="t in invitableTeams" :key="t.id" :value="t.id">{{ t.name }}</option>
+                </select>
+              </div>
+              <div class="col-3">
+                <button
+                  type="button"
+                  class="btn btn-sm btn-primary w-100"
+                  :disabled="savingMembers || !teamToInvite"
+                  @click="emit('invite-team', teamToInvite); teamToInvite = ''"
+                >
+                  Invite
                 </button>
               </div>
             </div>

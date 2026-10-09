@@ -12,6 +12,8 @@ const routes = [
   // Public routes
   { path: '/login', name: 'login', component: Login, meta: { guest: true } },
   { path: '/loginCode', name: 'loginCode', component: LoginWithCode, meta: { guest: true } },
+  { path: '/request-access', name: 'requestAccess', component: () => import('../views/RequestAccessView.vue'), meta: { guest: true } },
+  { path: '/request-access/verify', name: 'requestAccessVerify', component: () => import('../views/RequestAccessVerifyView.vue'), meta: { guest: true } },
   { path: '/invite/:token', name: 'acceptInvite', component: () => import('../views/AcceptInviteView.vue'), meta: { guest: true } },
   { path: '/logout', redirect: '/login' },
   { path: '/', name: 'default', component: Login, meta: { guest: true } },
@@ -25,6 +27,7 @@ const routes = [
   { path: '/packages', redirect: '/contributions' },
   { path: '/packages/:slug', redirect: (to) => ({ name: 'contributionDetail', params: { slug: to.params.slug } }) },
   { path: '/userProfileEdit', name: 'userProfileEdit', component: () => import('../views/UserProfileEdit.vue'), meta: { requiresAuth: true } },
+  { path: '/team/new', name: 'newTeam', component: () => import('../views/NewTeamView.vue'), meta: { requiresAuth: true } },
   { path: '/team/settings', name: 'teamSettings', component: () => import('../views/TeamSettingsView.vue'), meta: { requiresAuth: true } },
 
   // Docs routes
@@ -49,6 +52,7 @@ const routes = [
 
   // Platform Admin UI — Super admin only
   { path: '/admin/home', name: 'adminHome', component: () => import('../views/admin/HomeView.vue'), meta: { requiresAuth: true, adminPage: true } },
+  { path: '/admin/access-requests', name: 'adminAccessRequests', component: () => import('../views/admin/AccessRequestsView.vue'), meta: { requiresAuth: true, adminPage: true, superAdminOnly: true } },
   { path: '/admin/contributions', name: 'adminContributions', component: () => import('../views/admin/ContributionsAdminView.vue'), meta: { requiresAuth: true, adminPage: true, superAdminOnly: true } },
   { path: '/admin/settings', name: 'adminSettings', component: () => import('../views/admin/SettingsView.vue'), meta: { requiresAuth: true, adminPage: true, superAdminOnly: true } },
   { path: '/admin/audit-log', name: 'adminAuditLog', component: () => import('../views/admin/AuditLogView.vue'), meta: { requiresAuth: true } },
@@ -56,7 +60,6 @@ const routes = [
   { path: '/admin/api-usage', redirect: '/admin/usage' },
   { path: '/admin/style-guide', name: 'adminStyleGuide', component: () => import('../views/admin/StyleGuideView.vue'), meta: { requiresAuth: true, adminPage: true, superAdminOnly: true } },
   { path: '/admin/database', name: 'adminDatabase', redirect: '/admin/settings' },
-  { path: '/admin/teams/add', name: 'adminTeamsAdd', component: () => import('../views/admin/TeamsAdd.vue'), meta: { requiresAuth: true, adminPage: true, superAdminOnly: true } },
   { path: '/admin/accounts', name: 'accounts', component: () => import('../views/admin/AccountsView.vue'), meta: { requiresAuth: true, adminPage: true, superAdminOnly: true } },
   { path: '/admin/accounts/:id/edit', name: 'accountsEdit', component: () => import('../views/admin/AccountsEdit.vue'), props: true, meta: { requiresAuth: true, adminPage: true, superAdminOnly: true } },
   { path: '/admin/accounts/add', name: 'accountsAdd', component: () => import('../views/admin/AccountsAdd.vue'), meta: { requiresAuth: true, adminPage: true, superAdminOnly: true } },
@@ -140,6 +143,18 @@ router.beforeEach(async (to, from, next) => {
     if (to.name === 'home' || to.name === 'projects' || to.name === 'default') {
       return next({ name: 'adminHome' });
     }
+  }
+
+  // An approved Admin with no team yet (ADR-028) creates their team first.
+  if (
+    token &&
+    !isSuperAdmin(user?.role) &&
+    user?.caps?.can_create_teams &&
+    !(user?.team_memberships || []).length &&
+    to.name !== 'newTeam' &&
+    !to.meta.guest
+  ) {
+    return next({ name: 'newTeam' });
   }
 
   if (to.meta.adminPage) {

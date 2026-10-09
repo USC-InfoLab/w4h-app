@@ -42,6 +42,10 @@
 
           <div v-if="needsTeam" class="mb-3">
             <label class="form-label">Team memberships</label>
+            <div v-if="awaitingFirstTeam" class="alert alert-info py-2 small">
+              Approved Admin — no team yet. They create their own team on first sign-in, so there is
+              nothing to assign here.
+            </div>
             <div v-for="(row, idx) in user.teams" :key="idx" class="row g-2 align-items-center mb-2">
               <div class="col">
                 <select v-model="row.team_id" class="form-select form-select-sm" :disabled="teamLocked">
@@ -65,7 +69,7 @@
                 <button
                   type="button"
                   class="btn btn-sm btn-outline-danger"
-                  :disabled="teamLocked || user.teams.length <= 1"
+                  :disabled="teamLocked || (user.teams.length <= 1 && !awaitingFirstTeam)"
                   @click="user.teams.splice(idx, 1)"
                 >
                   Remove
@@ -196,7 +200,7 @@
 import { ref, onMounted, watch, computed } from 'vue';
 import { api, authHeaders } from '../../utils/api';
 import { validatePassword } from '@/utils/password-validator';
-import { isSuperAdmin, isTeamAdmin, roleLabel, USER_ROLES, TEAM_MEMBER_ROLES } from '@/utils/roles';
+import { isSuperAdmin, isScopedTeamAdmin, roleLabel, USER_ROLES, TEAM_MEMBER_ROLES } from '@/utils/roles';
 import { useUserStore } from '@/stores/user';
 
 import { useRoute, useRouter } from 'vue-router';
@@ -237,13 +241,15 @@ function suggestPassword() {
 const user = ref(null);
 let originalUser = null;
 const originalRole = ref('');
+// An Admin approved from an access request who has not created their first team (ADR-028).
+const awaitingFirstTeam = ref(false);
 
 const roleOptions = ref([]);
 const teamOptions = ref([]);
 const message = ref('');
 const isProtectedSuperAdmin = computed(() => isSuperAdmin(originalRole.value));
 const callerIsSuper = computed(() => isSuperAdmin(userStore.user?.role));
-const teamLocked = computed(() => isTeamAdmin(userStore.user?.role) && !callerIsSuper.value);
+const teamLocked = computed(() => isScopedTeamAdmin(userStore.user) && !callerIsSuper.value);
 
 const needsTeam = computed(() => {
   if (isProtectedSuperAdmin.value) return false;
@@ -309,10 +315,11 @@ onMounted(async () => {
         }))
       : (Array.isArray(data.team_ids) ? data.team_ids : []).map((id) => ({
           team_id: String(id),
-          role: isTeamAdmin(data.role) ? TEAM_MEMBER_ROLES.TEAM_ADMIN : TEAM_MEMBER_ROLES.MEMBER,
+          role: TEAM_MEMBER_ROLES.MEMBER,
         }));
 
-    if (!teams.length && !isSuperAdmin(data.role)) {
+    awaitingFirstTeam.value = !teams.length && !isSuperAdmin(data.role) && !!data.can_create_teams;
+    if (!teams.length && !isSuperAdmin(data.role) && !awaitingFirstTeam.value) {
       teams = [{ team_id: '', role: TEAM_MEMBER_ROLES.MEMBER }];
     }
 
@@ -376,7 +383,7 @@ async function onSave() {
               : TEAM_MEMBER_ROLES.MEMBER,
           }));
 
-    if (!isSuperAdmin(role) && !teams.length) {
+    if (!isSuperAdmin(role) && !teams.length && !awaitingFirstTeam.value) {
       messageIsError.value = true;
       message.value = 'At least one team membership is required.';
       return;

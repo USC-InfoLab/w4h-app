@@ -34,6 +34,8 @@
       </div>
     </div>
 
+    <CollaborationInvites v-if="canCreateProject" />
+
     <div v-if="errorMessage" class="alert alert-danger">
       {{ errorMessage }}
     </div>
@@ -90,6 +92,7 @@ import { api, authHeaders } from '@/utils/api';
 import { useUserStore } from '@/stores/user';
 import { canManageTeam } from '@/utils/roles';
 import { useTeamContext } from '@/composables/useTeamContext';
+import CollaborationInvites from '@/components/project/CollaborationInvites.vue';
 
 const router = useRouter();
 const userStore = useUserStore();

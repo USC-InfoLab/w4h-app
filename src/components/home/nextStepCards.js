@@ -3,26 +3,32 @@ export const USER_NEXT_STEPS_KEY = 'w4h.userNextSteps';
 
 export const adminNextStepCards = [
   {
-    title: '1. Create a project',
+    title: '1. Create a team',
+    text: 'A team is your lab or study group — the boundary for your people, datasets and projects. You made your first when you signed in; add another for a separate study.',
+    to: { name: 'newTeam' },
+    label: 'New team',
+  },
+  {
+    title: '2. Create a project',
     text: 'Workspace for members, linked datasets, and project pages.',
     to: { name: 'adminProjectsAdd' },
     label: 'Add project',
   },
   {
-    title: '2. Contributions & datasets',
+    title: '3. Invite people',
+    text: 'Invite and manage collaborators from Project → People. To work with another organization, invite their team into the project.',
+    to: { name: 'adminProjects' },
+    label: 'Open project',
+  },
+  {
+    title: '4. Contributions & datasets',
     text: 'Link datasets on the project. Load tables by adapting a notebook or CLI from a Contributions example. Sample datasets on a demonstration project are read-only.',
     to: { name: 'contributions' },
     label: 'Open Contributions',
   },
   {
-    title: '3. Invite members',
-    text: 'Invite and manage collaborators from Project → People.',
-    to: { name: 'adminProjects' },
-    label: 'Open project',
-  },
-  {
-    title: '4. AI Chat',
-    text: 'If the chat icon is in the nav, use it to setup questions or chat with the AI. It works when a team or platform key is configured.',
+    title: '5. AI Chat',
+    text: 'If the chat icon is in the nav, use it for setup questions or to chat with the AI. It works when a team or platform key is configured.',
     to: { name: 'docs', params: { slug: 'welcome-admin' } },
     label: 'Open Admin guide',
   },

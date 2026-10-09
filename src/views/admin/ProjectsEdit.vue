@@ -23,11 +23,14 @@
 
     <ProjectHub
       :can-manage="canManageThisProject"
+      :is-participant="isParticipant"
       :form="form"
       :team-label="teamLabel"
       :created-by-label="createdByLabel"
       :created-at-label="createdAtLabel"
       :member-rows="memberRows"
+      :collaborating-teams="collaboratingTeams"
+      :invitable-teams="invitableTeams"
       :linked-dataset-rows="linkedDatasetRows"
       :addable-datasets="addableDatasets"
       :dataset-to-add="datasetToAdd"
@@ -48,6 +51,8 @@
       @invite-member="inviteMember"
       @change-member-role="changeMemberRole"
       @delete-member="deleteMember"
+      @invite-team="inviteTeam"
+      @remove-team="removeTeam"
       @update:dataset-to-add="datasetToAdd = $event"
       @update:new-dataset-name="newDatasetName = $event"
       @update:invite-email="inviteEmail = $event"
@@ -93,6 +98,9 @@ const form = reactive({
 
 const teams = ref([]);
 const memberRows = ref([]);
+const collaboratingTeams = ref([]);
+const isParticipant = ref(true);
+const invitableTeams = ref([]);
 const availableDatasets = ref([]);
 const linkedDatasetIds = ref([]);
 const linkedDatasetMeta = ref([]);
@@ -127,7 +135,9 @@ function mapMemberRows(rows) {
     user_id: m.user_id,
     name: m.name || '',
     email: m.email || '',
-    role: m.role === 'owner' ? 'owner' : 'editor'
+    role: m.role === 'owner' ? 'owner' : 'editor',
+    home_teams: Array.isArray(m.home_teams) ? m.home_teams : [],
+    is_collaborator: !!m.is_collaborator,
   }));
 }
 
@@ -363,8 +373,11 @@ function mapOverviewToForm(data) {
 
   availableDatasets.value = Array.isArray(data?.linkable_datasets) ? data.linkable_datasets : [];
   canManageThisProject.value = !!data?.capabilities?.can_manage;
+  isParticipant.value = data?.capabilities?.is_participant !== false;
 
   memberRows.value = mapMemberRows(data?.members);
+  collaboratingTeams.value = Array.isArray(data?.collaborating_teams) ? data.collaborating_teams : [];
+  if (data?.capabilities?.can_manage) loadInvitableTeams();
 
   // Doc-11: anyone with access to this project can edit its docs, unless the server denies it.
   canEditPages.value = data?.capabilities?.can_edit_pages !== false;
@@ -536,6 +549,59 @@ async function changeMemberRole(row, nextRole) {
     setMessage(true, 'Member role updated.');
   } catch (error) {
     setMessage(false, error.response?.data?.error || error.message || 'Failed to update member role.');
+  } finally {
+    savingMembers.value = false;
+  }
+}
+
+async function loadInvitableTeams() {
+  try {
+    const res = await api.get(`projects/${encodeURIComponent(form.id)}/invitable-teams`, authHeaders());
+    invitableTeams.value = Array.isArray(res.data) ? res.data : [];
+  } catch {
+    invitableTeams.value = [];
+  }
+}
+
+async function inviteTeam(teamId) {
+  if (!canManageThisProject.value || !teamId) return;
+  savingMembers.value = true;
+  setMessage(false, '');
+  try {
+    const res = await api.post(
+      `projects/${encodeURIComponent(form.id)}/teams`,
+      { team_id: teamId },
+      authHeaders()
+    );
+    collaboratingTeams.value = Array.isArray(res.data?.teams) ? res.data.teams : collaboratingTeams.value;
+    await loadInvitableTeams();
+    setMessage(true, 'Team invited. Their Admin must accept before anyone can be added.');
+  } catch (error) {
+    setMessage(false, error.response?.data?.error || error.message || 'Failed to invite team.');
+  } finally {
+    savingMembers.value = false;
+  }
+}
+
+async function removeTeam(team) {
+  if (!canManageThisProject.value || !team?.team_id) return;
+  if (!window.confirm(
+    `Remove ${team.team_name || 'this team'} from the project? Their people and the datasets they contributed leave the project immediately.`
+  )) return;
+  savingMembers.value = true;
+  setMessage(false, '');
+  try {
+    const res = await api.delete(
+      `projects/${encodeURIComponent(form.id)}/teams/${encodeURIComponent(team.team_id)}`,
+      authHeaders()
+    );
+    collaboratingTeams.value = Array.isArray(res.data?.teams) ? res.data.teams : collaboratingTeams.value;
+    memberRows.value = Array.isArray(res.data?.members) ? mapMemberRows(res.data.members) : memberRows.value;
+    await loadInvitableTeams();
+    await refreshDatasetsOnly();
+    setMessage(true, 'Team removed.');
+  } catch (error) {
+    setMessage(false, error.response?.data?.error || error.message || 'Failed to remove team.');
   } finally {
     savingMembers.value = false;
   }

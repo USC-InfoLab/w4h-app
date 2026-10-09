@@ -200,6 +200,9 @@
       <div class="btn btn-link mt-3 w-100 text-center" @click="router.push({ name: 'loginCode' })">
         Login with email code
       </div>
+      <div class="btn btn-link w-100 text-center" @click="router.push({ name: 'requestAccess' })">
+        Request access (USC researchers)
+      </div>
 
       <p class="mt-2 fw-bold text-danger text-center">{{ message }}</p>
     </form>

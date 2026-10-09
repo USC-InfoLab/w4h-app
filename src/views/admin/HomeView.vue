@@ -159,19 +159,13 @@ const setupCards = [
     label: 'Open Settings',
   },
   {
-    title: '2. Initial team',
-    text: 'Create the PI’s first team. You do not approve later trials.',
-    to: { name: 'adminTeamsAdd' },
-    label: 'Add Team',
+    title: '2. Approve PIs',
+    text: 'PIs ask for access from the login screen. You approve who may join; they create and define their own teams.',
+    to: { name: 'adminAccessRequests' },
+    label: 'Review requests',
   },
   {
-    title: '3. Invite Admin',
-    text: 'Invite the PI as Team admin on that team.',
-    to: { name: 'usersAdd' },
-    label: 'Invite user',
-  },
-  {
-    title: '4. Checklist',
+    title: '3. Checklist',
     text: 'Refresh Help, optional Claude key, HIPAA before real PHI.',
     to: { name: 'docs', params: { slug: 'welcome-super-admin' } },
     label: 'Open guide',
@@ -220,6 +214,13 @@ const healthItems = computed(() => {
 const attentionItems = computed(() => {
   const a = snapshot.value?.attention || {};
   return [
+    {
+      label: 'Access requests waiting',
+      value: a.access_requests_pending ?? 0,
+      raise: (a.access_requests_pending ?? 0) > 0,
+      to: { name: 'adminAccessRequests' },
+      linkLabel: 'Review requests',
+    },
     {
       label: 'Invites pending',
       value: a.invites_pending ?? 0,

@@ -72,8 +72,8 @@
             </select>
             <div v-if="!teamOptions.length" class="form-text text-warning">
               No teams available.
-              <router-link v-if="callerIsSuper" :to="{ name: 'adminTeamsAdd' }">Create a team</router-link>
-              <span v-else> Ask a Super admin to assign you to a team.</span>
+              <span v-if="callerIsSuper"> Teams are created by approved Admins.</span>
+              <span v-else> Create a team from the account menu → New team.</span>
             </div>
             <div v-else-if="teamLocked" class="form-text">Team is fixed to your membership.</div>
           </div>
@@ -122,7 +122,7 @@ import { useRoute } from 'vue-router';
 import { storeToRefs } from 'pinia';
 import { api, authHeaders } from '../../utils/api';
 import { APP_NAME } from '@/utils/defs';
-import { isSuperAdmin, isTeamAdmin, USER_ROLES, roleLabel } from '@/utils/roles';
+import { isSuperAdmin, isScopedTeamAdmin, USER_ROLES, roleLabel } from '@/utils/roles';
 import { useUserStore } from '@/stores/user';
 
 const route = useRoute();
@@ -144,7 +144,7 @@ const submitted = ref(false);
 const sending = ref(false);
 
 const callerIsSuper = computed(() => isSuperAdmin(currentUser.value?.role));
-const callerIsTeam = computed(() => isTeamAdmin(currentUser.value?.role));
+const callerIsTeam = computed(() => isScopedTeamAdmin(currentUser.value));
 
 const needsTeam = computed(() => form.value.role && form.value.role !== USER_ROLES.SUPER_ADMIN);
 const teamLocked = computed(() => callerIsTeam.value && !callerIsSuper.value);

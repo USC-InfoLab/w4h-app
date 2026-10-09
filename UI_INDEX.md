@@ -3,7 +3,7 @@
 Structural map of `w4h-app` for agents and humans. **Index only** — not feature docs.
 
 - Regenerate: `npm run index:ui`
-- Generated: 2026-08-26
+- Generated: 2026-10-05
 - Do not hand-edit the lists below; change code, then re-run the script.
 
 ## Orientation
@@ -26,6 +26,8 @@ Shells: app (`NavBar`) vs Platform Admin (`AdminNavBar`). Project workspace: `Pr
 |------|------|------|------|
 | `/login` | login | `views/LoginView.vue` | guest |
 | `/loginCode` | loginCode | `views/LoginWithCode.vue` | guest |
+| `/request-access` | requestAccess | `views/RequestAccessView.vue` | guest |
+| `/request-access/verify` | requestAccessVerify | `views/RequestAccessVerifyView.vue` | guest |
 | `/invite/:token` | acceptInvite | `views/AcceptInviteView.vue` | guest |
 | `/logout` | — | `→ /login` | — |
 | `/` | default | `views/LoginView.vue` | guest |
@@ -37,11 +39,13 @@ Shells: app (`NavBar`) vs Platform Admin (`AdminNavBar`). Project workspace: `Pr
 | `/packages` | — | `→ /contributions` | — |
 | `/packages/:slug` | contributionDetail | `—` | — |
 | `/userProfileEdit` | userProfileEdit | `views/UserProfileEdit.vue` | auth |
+| `/team/new` | newTeam | `views/NewTeamView.vue` | auth |
 | `/team/settings` | teamSettings | `views/TeamSettingsView.vue` | auth |
 | `/docs/new` | docNew | `views/docs/DocsView.vue` | auth |
 | `/docs` | — | `→ /docs/home` | — |
 | `/docs/:slug` | docs | `views/docs/DocsView.vue` | auth |
 | `/admin/home` | adminHome | `views/admin/HomeView.vue` | auth, adminPage |
+| `/admin/access-requests` | adminAccessRequests | `views/admin/AccessRequestsView.vue` | auth, adminPage, superAdmin |
 | `/admin/contributions` | adminContributions | `views/admin/ContributionsAdminView.vue` | auth, adminPage, superAdmin |
 | `/admin/settings` | adminSettings | `views/admin/SettingsView.vue` | auth, adminPage, superAdmin |
 | `/admin/audit-log` | adminAuditLog | `views/admin/AuditLogView.vue` | auth |
@@ -49,7 +53,6 @@ Shells: app (`NavBar`) vs Platform Admin (`AdminNavBar`). Project workspace: `Pr
 | `/admin/api-usage` | — | `→ /admin/usage` | — |
 | `/admin/style-guide` | adminStyleGuide | `views/admin/StyleGuideView.vue` | auth, adminPage, superAdmin |
 | `/admin/database` | adminDatabase | `→ /admin/settings` | — |
-| `/admin/teams/add` | adminTeamsAdd | `views/admin/TeamsAdd.vue` | auth, adminPage, superAdmin |
 | `/admin/accounts` | accounts | `views/admin/AccountsView.vue` | auth, adminPage, superAdmin |
 | `/admin/accounts/:id/edit` | accountsEdit | `views/admin/AccountsEdit.vue` | auth, adminPage, superAdmin |
 | `/admin/accounts/add` | accountsAdd | `views/admin/AccountsAdd.vue` | auth, adminPage, superAdmin |
@@ -68,7 +71,7 @@ Shells: app (`NavBar`) vs Platform Admin (`AdminNavBar`). Project workspace: `Pr
 | `/admin/usersEdit/:email` | usersEdit | `views/admin/UsersEdit.vue` | auth, teamAdmin |
 | `/:pathMatch(.*)*` | not-found | `views/LoginView.vue` | guest |
 
-## Views (33)
+## Views (36)
 
 ### `src/views/`
 - AcceptInviteView.vue
@@ -77,12 +80,16 @@ Shells: app (`NavBar`) vs Platform Admin (`AdminNavBar`). Project workspace: `Pr
 - HomeView.vue
 - LoginView.vue
 - LoginWithCode.vue
+- NewTeamView.vue
 - ProjectsView.vue
 - ProjectWorkspaceView.vue
+- RequestAccessVerifyView.vue
+- RequestAccessView.vue
 - TeamSettingsView.vue
 - UserProfileEdit.vue
 
 ### `src/views/admin/`
+- AccessRequestsView.vue
 - AccountsAdd.vue
 - AccountsEdit.vue
 - AccountsView.vue
@@ -98,7 +105,6 @@ Shells: app (`NavBar`) vs Platform Admin (`AdminNavBar`). Project workspace: `Pr
 - ProjectsView.vue
 - SettingsView.vue
 - StyleGuideView.vue
-- TeamsAdd.vue
 - TeamsEdit.vue
 - TeamsView.vue
 - UsageView.vue
@@ -109,7 +115,7 @@ Shells: app (`NavBar`) vs Platform Admin (`AdminNavBar`). Project workspace: `Pr
 ### `src/views/docs/`
 - DocsView.vue
 
-## Components (37)
+## Components (42)
 
 ### `src/components/`
 - AboutModal.vue
@@ -146,15 +152,22 @@ Shells: app (`NavBar`) vs Platform Admin (`AdminNavBar`). Project workspace: `Pr
 - WelcomeNextSteps.vue
 
 ### `src/components/project/`
+- CachedCohortSummary.vue
 - CohortAnalyticsPanel.vue
 - CohortLineChart.vue
+- CollaborationInvites.vue
 - ProjectAdminPanel.vue
 - ProjectAnalyticsPanel.vue
 - ProjectDatasetMasterDetail.vue
 - ProjectDocsCard.vue
 - ProjectHub.vue
+- ProjectReportsPanel.vue
 - ProjectUserPanel.vue
 - RunContributionDialog.vue
+
+### `src/components/viz/`
+- ChartCard.vue
+- SignalExplorer.vue
 
 ## Supporting modules
 

@@ -98,7 +98,7 @@ onMounted(() => {
       <WelcomeNextSteps
         v-if="showAdminWelcome && showAdminNextSteps"
         title="Welcome — Admin"
-        subtitle="Set up your trial in the app shell. Super admin does not create projects for you."
+        subtitle="Set up your trial in the app shell: your team, a project, and the people in it. Super admin does not do this for you."
         :cards="adminNextStepCards"
         dismissable
         @dismiss="hideAdminNextSteps"

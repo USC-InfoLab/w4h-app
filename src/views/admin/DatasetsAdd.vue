@@ -110,7 +110,7 @@ import { onMounted, reactive, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { api, authHeaders } from '@/utils/api';
 import { useUserStore } from '@/stores/user';
-import { isSuperAdmin, isTeamAdmin } from '@/utils/roles';
+import { isSuperAdmin, isScopedTeamAdmin } from '@/utils/roles';
 import { useTeamContext } from '@/composables/useTeamContext';
 
 const route = useRoute();
@@ -166,7 +166,7 @@ onMounted(async () => {
         teamLocked.value = true;
       }
     } else if (
-      isTeamAdmin(userStore.user?.role) &&
+      isScopedTeamAdmin(userStore.user) &&
       !isSuperAdmin(userStore.user?.role) &&
       teams.value.length === 1
     ) {

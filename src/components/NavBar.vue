@@ -85,6 +85,9 @@
               </RouterLink>
             </li>
             <li><hr class="dropdown-divider" /></li>
+            <li v-if="user.caps?.can_create_teams">
+              <RouterLink class="dropdown-item" :to="{ name: 'newTeam' }">New team</RouterLink>
+            </li>
             <li>
               <button type="button" class="dropdown-item" @click="showAbout = true">
                 About
@@ -214,7 +217,6 @@ watch(isActiveProjectAdmin, (admin) => {
   if (admin) return;
   const memberBlocked = new Set([
     'adminTeams',
-    'adminTeamsAdd',
     'users',
     'usersAdd',
     'usersEdit',

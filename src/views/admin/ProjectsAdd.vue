@@ -116,7 +116,7 @@ import { onMounted, reactive, ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { api, authHeaders } from '@/utils/api';
 import { useUserStore } from '@/stores/user';
-import { isSuperAdmin, isTeamAdmin } from '@/utils/roles';
+import { isSuperAdmin, isScopedTeamAdmin } from '@/utils/roles';
 
 const router = useRouter();
 const userStore = useUserStore();
@@ -175,7 +175,7 @@ onMounted(async () => {
     teams.value = Array.isArray(teamsRes.data) ? teamsRes.data : [];
     seedProjects.value = Array.isArray(projectsRes.data) ? projectsRes.data : [];
     if (
-      isTeamAdmin(userStore.user?.role) &&
+      isScopedTeamAdmin(userStore.user) &&
       !callerIsSuper &&
       teams.value.length === 1
     ) {

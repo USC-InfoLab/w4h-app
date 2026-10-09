@@ -7,16 +7,11 @@
           Teams
         </h5>
       </div>
-      <div class="col-auto ms-auto">
-        <button class="btn btn-sm btn-primary" @click="$router.push({ name: 'adminTeamsAdd' })">
-          <i class="bi bi-plus"></i> Add Team
-        </button>
-      </div>
     </div>
 
     <p class="small text-muted mb-3">
       <template v-if="isSuperAdmin(user.role)">
-        Create an <strong>initial team</strong> when onboarding a PI, then invite them as Team admin.
+        You do not create teams. You approve who may join under <router-link :to="{ name: 'adminAccessRequests' }">Requests</router-link>; each approved Admin then creates and defines their own teams. Here you can review, edit or deactivate them.
         Day-to-day trial setup (projects, datasets) is done by the Team admin in the app shell — not here.
       </template>
       <template v-else>
@@ -32,12 +27,10 @@
 
     <div v-else-if="!rows.length" class="text-center my-5">
       <p class="text-muted mb-3">No teams yet.</p>
-      <button
-        class="btn btn-primary btn-sm"
-        @click="$router.push({ name: 'adminTeamsAdd' })"
-      >
-        Create the first team
-      </button>
+      <p class="small text-muted mb-0">
+        Teams appear here once an approved Admin creates one. Approve access requests under
+        <router-link :to="{ name: 'adminAccessRequests' }">Requests</router-link>.
+      </p>
     </div>
 
     <div v-else class="row g-3">
@@ -54,6 +47,7 @@
           </div>
           <div class="small text-muted mt-2">
             {{ row.member_count }} {{ row.member_count === 1 ? 'member' : 'members' }}
+            · {{ row.project_count ?? 0 }} {{ row.project_count === 1 ? 'project' : 'projects' }}
           </div>
         </button>
       </div>

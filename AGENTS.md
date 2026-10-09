@@ -32,8 +32,12 @@ When implementation and documentation appear inconsistent, identify the discrepa
 
 - **Team** = tenancy. **Project** = primary access / work unit.
 - UI labels: **Super admin** · **Admin** · **User** (`src/utils/roles.js`). No “Project admin”.
-- Super admin → Platform Admin shell only. Admins/Users → app shell.
+- Team admin is **per team** (`team_members.role`), not a platform role. Gate Admin UI on the server's `user.caps` (`canManageTeam`, `isScopedTeamAdmin` in `roles.js`), never on `user.role === 'team_admin'`. `caps.can_create_teams` marks an approved Admin with no team yet: the router sends them to `/team/new` first.
+- Super admin → Platform Admin shell only. Admins/Users → app shell. The Super admin **approves access requests** (`/admin/access-requests`) and does **not** create or approve teams; Admins create their own (`/team/new`, account menu → *New team*).
+- A project may have **collaborating teams** (ADR-027); members show their home team. A team member who is not on a project sees only its Datasets and People tabs (`capabilities.is_participant`).
 - W4H does not register project-owned notebooks. Browse **Contributions** (`/contributions`).
+- **Charts** (ADR-029): `src/components/viz/` is the only chart layer — Apache ECharts, tree-shaken in `echarts.js`, options built by pure functions in `vizOptions.js`, framed by `ChartCard.vue`. Do not add per-vendor chart code or another chart library. Charts take data from `POST /datasets/:id/analytics/series`; they never fetch raw rows. Keep it lazy-loaded (`defineAsyncComponent`) so ECharts stays out of the main bundle. Times are wall-clock values sent as UTC-labelled text: keep `useUTC: true` and never `toLocaleString()` them.
+- **Published reports** render only inside `<iframe sandbox="allow-scripts" :srcdoc>` (`ProjectReportsPanel.vue`). Never add `allow-same-origin`, `allow-top-navigation`, `allow-popups` or `allow-forms`.
 - Dataset stats/overview always appear in the context of a **selected dataset**.
 - Project docs are project-private and are not platform Help.
 - API credential UI is masked by default.
@@ -59,6 +63,8 @@ npm run lint
 npm run test:e2e
 npm run index:ui   # regenerate UI_INDEX.md (routes / views / components)
 ```
+
+Dependencies are added deliberately (the lock-file change is part of the task): ECharts + `vue-echarts` are the approved chart stack (ADR-029).
 
 Structural UI map: [`UI_INDEX.md`](./UI_INDEX.md) (generated; not feature docs). Re-run `npm run index:ui` when routes or the `src/views` / `src/components` tree change. Do not regenerate on every build.
 

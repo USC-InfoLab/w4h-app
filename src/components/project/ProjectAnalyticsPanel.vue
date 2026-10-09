@@ -1,11 +1,14 @@
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, defineAsyncComponent, onMounted, ref, watch } from 'vue';
 import { Modal } from 'bootstrap';
 import { api, authHeaders } from '@/utils/api';
 import { contributionKinds } from '@/utils/contributionKinds';
 import ContributionKindBadges from '@/components/contributions/ContributionKindBadges.vue';
 import RunContributionDialog from '@/components/project/RunContributionDialog.vue';
-import CohortAnalyticsPanel from '@/components/project/CohortAnalyticsPanel.vue';
+const CohortAnalyticsPanel = defineAsyncComponent(() => import('@/components/project/CohortAnalyticsPanel.vue'));
+// Charts pull in ECharts — load it only when the Analytics tab is opened (ADR-029).
+import CachedCohortSummary from '@/components/project/CachedCohortSummary.vue';
+const SignalExplorer = defineAsyncComponent(() => import('@/components/viz/SignalExplorer.vue'));
 
 const props = defineProps({
   datasets: { type: Array, default: () => [] },
@@ -51,6 +54,7 @@ const orderedDatasets = computed(() => {
       d.physical_table_count ?? summaryOf(d)?.physical_table_count ?? 0
     ),
     read_only: Boolean(d.read_only),
+    summary_updated_at: d.summary_updated_at || null,
     loaded:
       Number(d.physical_table_count ?? summaryOf(d)?.physical_table_count ?? d.table_count ?? 0) > 0,
   }));
@@ -195,8 +199,6 @@ function onRunComplete(payload) {
 
 const localRunTargets = computed(() => orderedDatasets.value.filter((d) => !d.read_only));
 
-const metsSummary = computed(() => selectedSummary.value?.mets_summary || null);
-const wearSummary = computed(() => selectedSummary.value?.wear_compliance || null);
 </script>
 
 <template>
@@ -205,8 +207,8 @@ const wearSummary = computed(() => selectedSummary.value?.wear_compliance || nul
       <div>
         <h5 class="card-title mb-1">Analytics</h5>
         <p class="small text-muted mb-0">
-          Compare a selected cohort to a control group, then run curated analysis contributions
-          against the same dataset. SQL jobs use the same
+          Chart the dataset's signals, compare a selected cohort to a control group, then run curated
+          analysis contributions against the same dataset. SQL jobs use the same
           <code>POST /contributions/:slug/run</code> entry as imports.
         </p>
       </div>
@@ -245,33 +247,24 @@ const wearSummary = computed(() => selectedSummary.value?.wear_compliance || nul
       </div>
     </div>
 
+    <SignalExplorer
+      :dataset-id="selectedDatasetId"
+      :loaded="Boolean(selectedDataset?.loaded)"
+    />
+
     <CohortAnalyticsPanel
       :dataset-id="selectedDatasetId"
       :loaded="Boolean(selectedDataset?.loaded)"
     />
 
-    <div v-if="selectedDataset?.loaded && (metsSummary || wearSummary)" class="mb-3">
-      <div class="small fw-semibold mb-2">Cached cohort summary</div>
-      <div class="row g-2">
-        <div v-if="wearSummary" class="col-md-6">
-          <div class="border rounded p-2 small">
-            <div class="text-muted">Wear compliance</div>
-            <div class="fw-semibold">
-              {{ wearSummary.subjects_compliant ?? '—' }} /
-              {{ wearSummary.subjects_total ?? '—' }} subjects
-            </div>
-          </div>
-        </div>
-        <div v-if="metsSummary" class="col-md-6">
-          <div class="border rounded p-2 small">
-            <div class="text-muted">METs summary</div>
-            <div class="fw-semibold">
-              Cohort mean {{ metsSummary.cohort_mean_mets ?? '—' }} MET
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+    <CachedCohortSummary
+      v-if="selectedDataset?.loaded"
+      :dataset-id="selectedDatasetId"
+      :summary="selectedSummary"
+      :updated-at="selectedDataset?.summary_updated_at || null"
+      :can-manage="canManage"
+      @refreshed="emit('run-complete', { refreshed: true })"
+    />
 
     <div class="mb-2 d-flex align-items-center justify-content-between gap-2">
       <div class="small fw-semibold mb-0">Contributions for this dataset</div>

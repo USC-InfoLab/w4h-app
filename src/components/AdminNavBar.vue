@@ -31,6 +31,7 @@
             >
               <i :class="item.icon" aria-hidden="true"></i>
               <span class="nav-link-label" :data-text="item.label">{{ item.label }}</span>
+              <span v-if="item.badge" class="badge rounded-pill text-bg-danger ms-1">{{ item.badge }}</span>
             </RouterLink>
           </li>
         </ul>
@@ -118,6 +119,7 @@ import { useUIStore } from '../stores/ui';
 import { isSuperAdmin, roleLabel } from '@/utils/roles';
 import AboutModal from '@/components/AboutModal.vue';
 import { clearUsageSessionFlags } from '@/utils/clientUsage';
+import { api, authHeaders } from '@/utils/api';
 import { useChatStore } from '@/stores/chat';
 const uiStore = useUIStore();
 const chatStore = useChatStore();
@@ -182,7 +184,6 @@ const isAuditLogActive = computed(() => route.name === 'adminAuditLog');
 const isUsageActive = computed(() => route.name === 'adminUsage');
 const isTeamsActive = computed(() =>
   route.name === 'adminTeams' ||
-  route.name === 'adminTeamsAdd' ||
   route.name === 'adminTeamsEdit'
 );
 const isUsersActive = computed(() =>
@@ -205,7 +206,30 @@ const isContributionsActive = computed(() =>
   route.name === 'adminContributions'
 );
 
+const pendingRequests = ref(0);
+async function loadPendingRequests() {
+  if (!isSuperAdmin(user.value?.role)) return;
+  try {
+    const res = await api.get('access-requests/count', authHeaders());
+    pendingRequests.value = Number(res.data?.pending) || 0;
+  } catch {
+    pendingRequests.value = 0;
+  }
+}
+// Refresh the badge when moving between pages (e.g. after fulfilling a request).
+watch(() => route.fullPath, loadPendingRequests);
+onMounted(loadPendingRequests);
+
 const navItems = computed(() => [
+  {
+    key: 'requests',
+    label: 'Requests',
+    icon: 'bi bi-person-plus',
+    to: { name: 'adminAccessRequests' },
+    active: route.name === 'adminAccessRequests',
+    show: showSettings.value,
+    badge: pendingRequests.value || '',
+  },
   {
     key: 'teams',
     label: 'Teams',

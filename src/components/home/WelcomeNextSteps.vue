@@ -14,7 +14,7 @@ const emit = defineEmits(['dismiss']);
     <h5 class="alert-heading mb-1">{{ title }}</h5>
     <p v-if="subtitle" class="mb-3 small">{{ subtitle }}</p>
     <div class="row g-2">
-      <div v-for="card in cards" :key="card.title" class="col-12 col-sm-6 col-xl-3">
+      <div v-for="card in cards" :key="card.title" class="col-12 col-sm-6 col-xl">
         <div class="card h-100">
           <div class="card-body d-flex flex-column">
             <h6 class="card-title">{{ card.title }}</h6>
