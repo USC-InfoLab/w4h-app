@@ -4,19 +4,19 @@ Agent instructions for the Wearables for Health (W4H) multi-repo workspace.
 
 These instructions apply to the entire `w4h-app/` repository unless overridden by a more specific nested `AGENTS.md`.
 
-## Workspace map
+The shared W4H architecture overview (all repos, concepts, flows) is at the end of this file.
 
-| Repo | Role |
-|------|------|
-| **w4h-docs** | Product docs, ADRs, MVP, architecture, guides |
-| **w4h-app** (this repo) | Vue 3 + Vite web UI |
-| **w4h-api** | Express API + PostgreSQL schema / ACL |
-| **w4h-utils** | Scripts, CLI helpers, utility notebooks |
-| **w4h-datasets** | Sample / synthetic CSV and JSON |
-| **w4h-notebooks** | Index of legacy notebooks; new tools are one repo per contribution |
-| **w4h-docker** | Docker Compose packaging; bakes `VITE_API_URL=/api/` and optional `VITE_JUPYTER_URL` |
+## Where this repo fits in W4H
 
-Open these together via `w4h-repos.code-workspace` when changing cross-cutting behavior.
+- **The only human-facing client.** The SPA talks to `w4h-api` only (`VITE_API_URL`, wrapper in `src/utils/api.js`); it never touches Postgres or contribution repos. Business rules, ACL and expensive computation live in the API.
+- **Two shells:** Super admin lands in the **Platform Admin** shell (`/admin/home`, settings, accounts, teams, usage, audit, `/admin/contributions` catalog curation). Admins and Users land in the **app shell** (`/home`, `/projects`, `/projects/:id`, `/contributions`, `/docs`). Team-admin pages (`/admin/projects`, `/admin/datasets`, `/admin/datasets/shares`, `/admin/users`) live under `/admin/*` but in the app shell. Route guards and `meta` flags are in `src/router/index.js`.
+- **Where the platform flows surface:**
+  - `ProjectWorkspaceView.vue` (`/projects/:id`) is the main workspace: linked datasets, the Dataset overview pane with **Run import...** (ADR-022), and Analytics with **Run analysis...** (ADR-023). Both call `POST /contributions/:slug/run` and poll `GET /contributions/runs/:id`. `src/utils/importerSlugForDataset.js` infers which importer loaded a dataset on re-runs.
+  - `/contributions` and `/contributions/:slug` browse the catalog (`w4h.contributions`); `src/utils/contributionKinds.js` labels kinds.
+  - `/docs/*` renders Help imported from `w4h-docs`.
+  - Profile → API keys issues the `w4h_sk_` keys that notebooks, CLIs and `run.sh` use.
+- **Known UI gaps:** `src/components/project/ProjectUserPanel.vue` (personal API credential Generate/Rotate/Reveal, calling `users/me/api-key*`) is not rendered by any view, so users only see their key on the one-time screens in `LoginView.vue` (initial admin) and `AcceptInviteView.vue`. Help text still says "Profile → API keys". There is also no upload UI yet for the API's staged-upload path (`POST /contributions/:slug/uploads`, used by `w4h-fitbit-csv-file-importer`).
+- **Packaging:** `w4h-docker` builds this app with `VITE_API_URL=/api/` behind nginx on `127.0.0.1:5180`, plus an optional `VITE_JUPYTER_URL` link to the convenience Jupyter.
 
 When app behavior depends on another repository, inspect the relevant sibling repo rather than guessing its behavior or contract.
 
@@ -135,3 +135,35 @@ For cross-cutting behavior:
 3. Update **w4h-app** to consume the resulting contract.
 4. Update ADR/MVP/architecture documentation in **w4h-docs** when product behavior or architecture changes.
 5. Avoid duplicating business
+
+<!-- BEGIN w4h-system-overview: identical in every W4H repo's AGENTS.md. Edit all copies together. -->
+
+## W4H system overview (shared across all repos)
+
+**W4H (Wearables for Health) Toolkit** loads wearable-device data into PostgreSQL, organizes it by team, project and dataset, controls access, and runs curated analyses on it. Each signal is a **GeoMTS** (Geospatial Multivariate Time Series) table whose roles (`subject`, `time`, optional `geo`, `values[]`) are stored in `w4h.tables.mapping_json`, not in fixed column names. Three repos form the platform, one packages it, and the rest are **contributions** listed in the in-app catalog (`w4h.contributions`).
+
+| Repo | Role |
+|---|---|
+| `w4h-api` | Express API and Postgres DDL (`w4h` schema): auth, ACL, ingest, catalog, contribution runner, SQL engine. Port 2026 |
+| `w4h-app` | Vue 3 + Vite SPA; talks only to `w4h-api`. Port 5173 |
+| `w4h-docs` | Product rules, MVP, ADRs and guides; imported by the API as in-app Help. Owns product decisions |
+| `w4h-docker` | Compose stack (`api`, `app`, `notebooks`) built from sibling repos; Postgres is external |
+| `w4h-sample-fitbit-csv`, `w4h-sample-icde-demo-csv` | Synthetic sample CSVs plus `manifest.yaml` (ICDE includes a `gps_track` geo signal) |
+| `w4h-sample-fitbit-csv-importer`, `w4h-sample-icde-demo-csv-importer` | Runnable importers (notebook, CLI, `run.sh`) for those samples |
+| `w4h-fitbit-csv-file-importer` | Runnable importer for user-supplied Fitbit CSVs: profile headers, review a drafted mapping, ingest |
+| `w4h-sql-compute-mets` | SQL contribution (YAML + SQL template) that `w4h-api` executes in-process |
+| `fft_approximate` | Postgres C extension, catalog slug `fft-approximate`; no API involvement |
+| `w4h-demo-approximate-queries` | Notebook comparing `fft_approximate` with exact averages over direct Postgres |
+
+**Main flows:**
+
+1. **Ingest:** importers post 500-row chunks to `POST /datasets/:id/import/csv-batch`. `lib/ingest-csv.js` creates `ds_<dataset_id>.<table_prefix>_<signal>` and upserts its `w4h.tables` mapping.
+2. **In-app Run (ADR-022):** `POST /contributions/:slug/run` makes `lib/contribution-runner.js` spawn `../<slug>/run.sh` with the user's `W4H_API_KEY`, `W4H_API_BASE` and `W4H_DATASET_ID`. Stdout lines `@@PROGRESS@@ {json}` drive the progress bar.
+3. **SQL analytics (ADR-023):** `lib/sql-contribution-engine.js` reads `../<slug>/manifest.yaml` and `sql/`, binds identifiers from `w4h.tables`, and runs in-process. There is no free-SQL endpoint.
+4. **Extensions:** the operator installs `fft_approximate` on their Postgres; notebooks call it directly.
+
+**Layout:** clone every repo as a sibling in one folder. The API finds contributions at `../<slug>` (override `CONTRIBUTION_RUNNER_REPO_ROOT`) and docs at `DOCS_REPO_PATH=../w4h-docs`.
+
+**Cross-repo changes:** `w4h-api` first (regenerate `API_INDEX.md`), then `w4h-app`, then `w4h-docs`. Catalog rows are seeded in `w4h-api/data/schema.sql`. Start at `w4h-docs/dev/mvp.md` and `w4h-docs/dev/ADR-README.md` for decisions, and `w4h-docs/dev/developer-setup.md` for local setup, getting an API key, test personas, troubleshooting, per-repo test commands, default branches and a glossary. Do not commit or push unless asked; never commit `.env` files, API keys or participant data.
+
+<!-- END w4h-system-overview -->
