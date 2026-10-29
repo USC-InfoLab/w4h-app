@@ -45,19 +45,10 @@
             </div>
           </div>
 
-          <div v-if="canChangeTeam" class="mb-3">
-            <div class="form-check">
-              <input id="sample-ro" v-model="form.read_only" class="form-check-input" type="checkbox" />
-              <label class="form-check-label" for="sample-ro">
-                Platform sample (read-only)
-              </label>
-            </div>
-            <div class="form-text">
-              Super admin seeds these tables. Teams may query them on a demonstration project.
-              They must not re-ingest. Origin shown to users:
-            </div>
-            <input v-if="form.read_only" v-model.trim="form.origin" class="form-control form-control-sm mt-2"
-              placeholder="W4H Samples" />
+          <div v-if="form.read_only" class="alert alert-secondary py-2 small mb-3">
+            <strong>Platform sample (read-only).</strong>
+            {{ form.origin ? `Origin: ${form.origin}.` : '' }}
+            Teams may query this catalog on a demonstration project; do not re-ingest.
           </div>
 
           <div v-if="message" class="alert" :class="ok ? 'alert-success' : 'alert-danger'">
@@ -91,9 +82,8 @@
             </select>
             <div v-else>{{ teamLabel || '—' }}</div>
             <div class="form-text">
-              Every dataset has one owning team (set on create
-              <template v-if="canChangeTeam">; only Super admins can reassign it</template>).
-              Other teams can use it only after an explicit share; they never become co-owners.
+              Every dataset has one owning team (set on create). Other teams can use it only after an
+              explicit share; they never become co-owners.
             </div>
           </div>
 
@@ -355,7 +345,7 @@ const form = reactive({
 
 const savedSnapshot = ref(null);
 
-const canChangeTeam = computed(() => isSuperAdmin(userStore.user?.role));
+const canChangeTeam = computed(() => false);
 const teamLabel = computed(() => teamName.value || form.team_id || '—');
 const canShare = computed(() => canShareOwned.value && !!form.team_id);
 const canManageCatalog = computed(
@@ -607,11 +597,7 @@ onMounted(async () => {
       ...authHeaders(),
       params: { catalog: 1 }
     })];
-    if (isSuperAdmin(userStore.user?.role)) {
-      requests.push(api.get('teams', authHeaders()));
-    }
-    const [datasetRes, teamsRes] = await Promise.all(requests);
-    if (teamsRes) teams.value = Array.isArray(teamsRes.data) ? teamsRes.data : [];
+    const [datasetRes] = await Promise.all(requests);
     applyDataset(datasetRes.data || {});
 
     // Probe share management (403 for recipients of inbound shares).
@@ -646,11 +632,6 @@ async function save() {
       description: form.description || null,
       discoverable: form.discoverable,
     };
-    if (canChangeTeam.value) {
-      payload.team_id = form.team_id || null;
-      payload.read_only = !!form.read_only;
-      payload.origin = form.read_only ? (form.origin || 'W4H Samples') : null;
-    }
     const res = await api.patch(
       `datasets/${encodeURIComponent(form.id)}`,
       payload,

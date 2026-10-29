@@ -49,7 +49,7 @@
           </div>
 
           <div v-else-if="selecteddoc">
-            <div v-if="showDocAdminActions" class="docs-admin-actions d-none d-md-block">
+            <div v-if="showDocAdminActions" class="docs-admin-actions d-none d-md-flex">
               <button class="btn btn-sm btn-primary edit-btn me-2" @click="editMode = true">
                 <i class="bi bi-pencil me-1"></i> Edit
               </button>
@@ -735,33 +735,21 @@ svg[id^="mermaid-"] {
   overflow-x: auto;
 }
 
-/* Edit button fixed to top-right of docs-content */
 .docs-content {
   position: relative;
 }
 
-/* Edit/Delete fixed top-right — desktop only */
-@media (min-width: 768px) {
-  .docs-content .edit-btn {
-    position: fixed;
-    top: 4.3rem;
-    right: 1.5rem;
-    z-index: 9999;
-    transition: opacity 0.2s ease-in-out, transform 0.2s ease-in-out;
-  }
-
-  .docs-content .delete-btn {
-    position: fixed;
-    top: 4.3rem;
-    right: 7rem;
-    z-index: 9999;
-    transition: opacity 0.2s ease-in-out, transform 0.2s ease-in-out;
-  }
-
-  .docs-content .edit-btn:hover {
-    opacity: 1;
-    transform: scale(1.05);
-  }
+/* Stay below navbar account menu (never compete with z-index 9999) */
+.docs-admin-actions {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: var(--bs-body-bg);
+  border-bottom: 1px solid var(--bs-border-color);
 }
 
 .md-preview img {

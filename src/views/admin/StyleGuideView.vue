@@ -5,7 +5,7 @@
         <nav aria-label="breadcrumb">
           <ol class="breadcrumb mb-1">
             <li class="breadcrumb-item">
-              <router-link :to="{ name: 'adminHome' }">Admin</router-link>
+              <router-link :to="{ name: 'adminSettings' }">Settings</router-link>
             </li>
             <li class="breadcrumb-item active" aria-current="page">UI kit</li>
           </ol>

@@ -1,14 +1,5 @@
 <template>
   <main class="container-fluid">
-    <nav aria-label="breadcrumb" class="mb-3">
-      <ol class="breadcrumb">
-        <li class="breadcrumb-item">
-          <router-link to="/admin/home">Admin</router-link>
-        </li>
-        <li class="breadcrumb-item active" aria-current="page">Settings</li>
-      </ol>
-    </nav>
-
     <div class="row gy-3">
       <div class="col-12">
         <div class="card p-3">
@@ -56,6 +47,16 @@
               <button type="button" class="btn-close" @click="dbMessage = ''"></button>
             </div>
           </form>
+        </div>
+
+        <div class="card p-3 mb-3">
+          <h5 class="card-title mb-1">UI kit</h5>
+          <p class="text-muted small mb-3">
+            Internal style guide for the app shell — tokens, components, and theme tuning. Not a trial or end-user page.
+          </p>
+          <router-link :to="{ name: 'adminStyleGuide' }" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-palette" aria-hidden="true"></i> Open UI kit
+          </router-link>
         </div>
 
         <div class="card p-3 mb-3">

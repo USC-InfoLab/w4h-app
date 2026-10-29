@@ -21,8 +21,8 @@ export const adminNextStepCards = [
     label: 'Open project',
   },
   {
-    title: '4. Contributions & datasets',
-    text: 'Link datasets on the project. Load tables by adapting a notebook or CLI from a Contributions example. Sample datasets on a demonstration project are read-only.',
+    title: '4. Load your data',
+    text: 'Open the project → Datasets, pick the target dataset and click Run import… for a runnable importer (Fitbit CSV, ICDE demo), or adapt a notebook or CLI from Contributions. A dataset is loaded once its tables show on the overview. Sample datasets on a demonstration project are read-only.',
     to: { name: 'contributions' },
     label: 'Open Contributions',
   },

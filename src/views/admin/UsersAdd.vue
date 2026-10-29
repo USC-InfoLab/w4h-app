@@ -4,19 +4,21 @@
     <nav aria-label="breadcrumb" class="mb-3">
       <ol class="breadcrumb">
         <li class="breadcrumb-item">
-          <router-link to="/admin/users">Users</router-link>
+          <router-link :to="{ name: platformInviteAdmin ? 'adminAccessRequests' : 'users' }">
+            {{ platformInviteAdmin ? 'Access' : 'Users' }}
+          </router-link>
         </li>
         <li class="breadcrumb-item active" aria-current="page">
-          Invite User
+          {{ platformInviteAdmin ? 'Invite Admin' : 'Invite User' }}
         </li>
       </ol>
     </nav>
 
     <p class="text-muted mb-3">
-      <template v-if="callerIsSuper">
-        Super admins can invite Admins and Users (and other Super admins).
-        Admin vs User is stored <strong>per team</strong> — choose the invite role and team below.
-        If the email already belongs to an account, they are added to that team instead of creating a duplicate.
+      <template v-if="platformInviteAdmin">
+        Invite someone you already know as a trial <strong>Admin</strong>. They receive the same invitation as an
+        approved access request: sign in and <strong>create their own team</strong> — you do not create projects or datasets for them.
+        If the email already has an account, they are granted permission to create a team.
       </template>
       <template v-else>
         Admins can invite Users to their own team.
@@ -48,7 +50,7 @@
             <div class="form-text">Optional — the invitee can set or change this when activating.</div>
           </div>
 
-          <div class="mb-3">
+          <div v-if="!platformInviteAdmin" class="mb-3">
             <label class="form-label">Role</label>
             <select v-model="form.role" class="form-select" :disabled="roleOptions.length <= 1">
               <option v-if="roleOptions.length !== 1" :value="null">Select role</option>
@@ -58,19 +60,22 @@
             </select>
           </div>
 
-          <div v-if="needsTeam" class="mb-3">
+          <div v-if="needsTeam && !platformInviteAdmin" class="mb-3">
             <label class="form-label">Team</label>
             <select
               v-model="form.team_id"
               class="form-select"
               :disabled="teamLocked"
             >
-              <option v-if="!teamLocked" :value="null">Select team</option>
+              <option v-if="!teamLocked" :value="null">{{ teamOptional ? 'No team (Admin creates their own)' : 'Select team' }}</option>
               <option v-for="option in teamOptions" :key="option.value" :value="option.value">
                 {{ option.text }}
               </option>
             </select>
-            <div v-if="!teamOptions.length" class="form-text text-warning">
+            <div v-if="teamOptional && !form.team_id" class="form-text">
+              The Admin will create their own team on first sign-in. Pick a team only to add them to an existing one.
+            </div>
+            <div v-else-if="!teamOptions.length" class="form-text text-warning">
               No teams available.
               <span v-if="callerIsSuper"> Teams are created by approved Admins.</span>
               <span v-else> Create a team from the account menu → New team.</span>
@@ -126,6 +131,10 @@ import { isSuperAdmin, isScopedTeamAdmin, USER_ROLES, roleLabel } from '@/utils/
 import { useUserStore } from '@/stores/user';
 
 const route = useRoute();
+const platformInviteAdmin = computed(
+  () => route.name === 'adminInviteAdmin' || route.meta.platformInviteAdmin === true
+);
+
 const userStore = useUserStore();
 const { user: currentUser } = storeToRefs(userStore);
 
@@ -147,14 +156,17 @@ const callerIsSuper = computed(() => isSuperAdmin(currentUser.value?.role));
 const callerIsTeam = computed(() => isScopedTeamAdmin(currentUser.value));
 
 const needsTeam = computed(() => form.value.role && form.value.role !== USER_ROLES.SUPER_ADMIN);
+// A Super admin may invite an Admin with no team; that Admin creates their own on first sign-in (ADR-028).
+const teamOptional = computed(() => callerIsSuper.value && form.value.role === USER_ROLES.TEAM_ADMIN);
 const teamLocked = computed(() => callerIsTeam.value && !callerIsSuper.value);
 
 const isValidEmail = computed(() => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.value.email));
 
 const canSubmit = computed(() => {
   if (!form.value.email || !isValidEmail.value) return false;
-  if (!form.value.role) return false;
-  if (needsTeam.value && !form.value.team_id) return false;
+  const role = platformInviteAdmin.value ? USER_ROLES.TEAM_ADMIN : form.value.role;
+  if (!role) return false;
+  if (!platformInviteAdmin.value && needsTeam.value && !teamOptional.value && !form.value.team_id) return false;
   return true;
 });
 
@@ -188,23 +200,27 @@ async function onSave() {
   submitMessage.value = '';
   inviteUrl.value = '';
   try {
+    const inviteRole = platformInviteAdmin.value ? USER_ROLES.TEAM_ADMIN : form.value.role;
     const payload = {
       email: form.value.email,
       name: form.value.name,
-      role: form.value.role,
-      teams: form.value.team_id
-        ? [{
+      role: inviteRole,
+      teams: platformInviteAdmin.value || !form.value.team_id
+        ? []
+        : [{
             team_id: form.value.team_id,
-            role: form.value.role === 'team_admin' ? 'team_admin' : 'member',
-          }]
-        : [],
+            role: inviteRole === 'team_admin' ? 'team_admin' : 'member',
+          }],
     };
 
     const response = await api.post('users/add', { user: payload }, authHeaders());
 
-    if (response.status === 201) {
+    if (response.status === 201 || response.status === 200) {
       inviteUrl.value = response.data?.inviteUrl || '';
-      if (response.data?.mailWarning) {
+      if (response.data?.status === 'existing') {
+        submitMessage.value = response.data?.message
+          || `${form.value.email} may now create a team on sign-in.`;
+      } else if (response.data?.mailWarning) {
         submitMessage.value = `Invitation created, but email may not have been sent: ${response.data.mailWarning}`;
       } else {
         submitMessage.value = `Invitation sent to ${form.value.email}. They will set their own password via the link.`;
@@ -250,7 +266,14 @@ async function onSave() {
 }
 
 onMounted(async () => {
-  document.title = `${APP_NAME} Invite User`;
+  document.title = platformInviteAdmin.value
+    ? `${APP_NAME} Invite Admin`
+    : `${APP_NAME} Invite User`;
+
+  if (platformInviteAdmin.value) {
+    form.value.role = USER_ROLES.TEAM_ADMIN;
+    return;
+  }
 
   try {
     const rolesRes = await api.get('users/roles', authHeaders());

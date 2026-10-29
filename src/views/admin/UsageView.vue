@@ -1,14 +1,5 @@
 <template>
   <main class="container-fluid">
-    <nav aria-label="breadcrumb" class="mb-3">
-      <ol class="breadcrumb">
-        <li class="breadcrumb-item">
-          <router-link to="/admin/home">Admin</router-link>
-        </li>
-        <li class="breadcrumb-item active" aria-current="page">Usage</li>
-      </ol>
-    </nav>
-
     <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
       <div>
         <h5 class="mb-0">Usage</h5>

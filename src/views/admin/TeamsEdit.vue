@@ -202,9 +202,7 @@ const router = useRouter();
 const userStore = useUserStore();
 const { user } = storeToRefs(userStore);
 const { isActiveProjectAdmin, activeProject } = useTeamContext();
-const canEditTeam = computed(
-  () => isSuperAdmin(user.value?.role) || isActiveProjectAdmin.value
-);
+const canEditTeam = computed(() => isActiveProjectAdmin.value);
 
 const team = ref(null);
 const allUsers = ref([]);

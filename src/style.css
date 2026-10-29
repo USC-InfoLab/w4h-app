@@ -95,6 +95,16 @@
   --bs-dropdown-link-active-color: #fff;
 }
 
+/* Navbar account menu must paint above page chrome (e.g. Help docs had Edit/Delete at z-index 9999). */
+.navbar.fixed-top {
+  z-index: 1035;
+}
+
+.navbar .dropdown-menu {
+  --bs-dropdown-zindex: 1060;
+  z-index: 1060;
+}
+
 .text-muted,
 .text-secondary {
   color: var(--w4h-muted) !important;

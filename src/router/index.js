@@ -53,6 +53,7 @@ const routes = [
   // Platform Admin UI — Super admin only
   { path: '/admin/home', name: 'adminHome', component: () => import('../views/admin/HomeView.vue'), meta: { requiresAuth: true, adminPage: true } },
   { path: '/admin/access-requests', name: 'adminAccessRequests', component: () => import('../views/admin/AccessRequestsView.vue'), meta: { requiresAuth: true, adminPage: true, superAdminOnly: true } },
+  { path: '/admin/invite-admin', name: 'adminInviteAdmin', component: () => import('../views/admin/UsersAdd.vue'), meta: { requiresAuth: true, adminPage: true, superAdminOnly: true, platformInviteAdmin: true } },
   { path: '/admin/contributions', name: 'adminContributions', component: () => import('../views/admin/ContributionsAdminView.vue'), meta: { requiresAuth: true, adminPage: true, superAdminOnly: true } },
   { path: '/admin/settings', name: 'adminSettings', component: () => import('../views/admin/SettingsView.vue'), meta: { requiresAuth: true, adminPage: true, superAdminOnly: true } },
   { path: '/admin/audit-log', name: 'adminAuditLog', component: () => import('../views/admin/AuditLogView.vue'), meta: { requiresAuth: true } },
@@ -167,12 +168,37 @@ router.beforeEach(async (to, from, next) => {
   }
 
   if (to.meta.teamAdminPage) {
+    if (isSuperAdmin(user?.role)) {
+      return next({ name: 'adminHome' });
+    }
     if (!canManageTeam(user?.role, user?.caps)) {
       return next({ path: '/home' });
     }
     if (to.meta.superAdminOnly && !isSuperAdmin(user?.role)) {
       return next({ path: '/admin/teams' });
     }
+  }
+
+  const trialOperatorRoutes = new Set([
+    'adminTeams',
+    'adminTeamsEdit',
+    'adminProjects',
+    'adminProjectsAdd',
+    'adminProjectsEdit',
+    'adminDatasets',
+    'adminDatasetsAdd',
+    'adminDatasetsEdit',
+    'adminDatasetsShares',
+    'users',
+    'usersEdit',
+    'projects',
+    'projectWorkspace',
+    'home',
+    'newTeam',
+    'teamSettings',
+  ]);
+  if (token && isSuperAdmin(user?.role) && trialOperatorRoutes.has(to.name)) {
+    return next({ name: 'adminHome' });
   }
 
   next();

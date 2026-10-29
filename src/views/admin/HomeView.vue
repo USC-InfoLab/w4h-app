@@ -162,7 +162,7 @@ const setupCards = [
     title: '2. Approve PIs',
     text: 'PIs ask for access from the login screen. You approve who may join; they create and define their own teams.',
     to: { name: 'adminAccessRequests' },
-    label: 'Review requests',
+    label: 'Open Access',
   },
   {
     title: '3. Checklist',
@@ -219,14 +219,14 @@ const attentionItems = computed(() => {
       value: a.access_requests_pending ?? 0,
       raise: (a.access_requests_pending ?? 0) > 0,
       to: { name: 'adminAccessRequests' },
-      linkLabel: 'Review requests',
+      linkLabel: 'Open Access',
     },
     {
       label: 'Invites pending',
       value: a.invites_pending ?? 0,
       raise: (a.invites_pending ?? 0) > 0,
-      to: { name: 'users' },
-      linkLabel: 'Review users',
+      to: { name: 'adminAccessRequests' },
+      linkLabel: 'Open Access',
     },
     {
       label: 'Datasets without team',

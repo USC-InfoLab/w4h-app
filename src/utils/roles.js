@@ -49,12 +49,13 @@ export function canAccessAdminUi(role, caps = null) {
   return isSuperAdmin(role);
 }
 
-/** Team-scoped management (users/projects/datasets for own team) — not the platform Admin shell. */
+/** Team-scoped management (users/projects/datasets for own team) — not Super admin, not Platform Admin. */
 export function canManageTeam(role, caps = null) {
+  if (isSuperAdmin(role)) return false;
   if (caps && typeof caps.team_admin === 'boolean') {
     return caps.team_admin;
   }
-  return isSuperAdmin(role);
+  return isTeamAdmin(role);
 }
 
 export function roleLabel(role) {

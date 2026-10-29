@@ -236,7 +236,13 @@ watch(isActiveProjectAdmin, (admin) => {
 onMounted(() => {
   nextTick(() => {
     const accountToggle = navEl.value?.querySelector('#menuDropdown');
-    if (accountToggle) Dropdown.getOrCreateInstance(accountToggle);
+    if (accountToggle) {
+      Dropdown.getOrCreateInstance(accountToggle, {
+        popperConfig(defaultBsPopperConfig) {
+          return { ...defaultBsPopperConfig, strategy: 'fixed' };
+        },
+      });
+    }
   });
 });
 

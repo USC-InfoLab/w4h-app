@@ -46,6 +46,16 @@
               Set a password for <strong>{{ invite.email }}</strong> to activate your account.
             </p>
 
+            <div v-if="isAdminInvite" class="small text-muted mb-3">
+              What happens next:
+              <ol class="mb-0 ps-3">
+                <li>Set your password and save your personal API key.</li>
+                <li>Name your team — your lab or study group.</li>
+                <li>Create a project and invite your collaborators.</li>
+                <li>Load your data from the project's Datasets tab (<em>Run import…</em>).</li>
+              </ol>
+            </div>
+
             <div class="mb-3">
               <label class="form-label" for="invite-name">Name</label>
               <input id="invite-name" v-model="name" type="text" class="form-control" autocomplete="name" />
@@ -134,6 +144,7 @@ const showApiKeyReveal = ref(false);
 const issuedApiKey = ref(null);
 const pendingNavigation = ref(null);
 
+const isAdminInvite = computed(() => !!invite.value.can_create_teams);
 const isSecurePassword = computed(() => validatePassword(password.value));
 const canSubmit = computed(() =>
   isSecurePassword.value &&

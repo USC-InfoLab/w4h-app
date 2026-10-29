@@ -172,14 +172,14 @@ function syncBrandTooltip() {
   }
 }
 
-const showTeams = computed(() => isSuperAdmin(user.value?.role));
 const showSettings = computed(() => isSuperAdmin(user.value?.role));
 
 const isAdminHomeActive = computed(() => route.name === 'adminHome');
 const isSettingsActive = computed(() =>
-  route.name === 'adminSettings' || route.name === 'adminDatabase'
+  route.name === 'adminSettings'
+  || route.name === 'adminDatabase'
+  || route.name === 'adminStyleGuide'
 );
-const isStyleGuideActive = computed(() => route.name === 'adminStyleGuide');
 const isAuditLogActive = computed(() => route.name === 'adminAuditLog');
 const isUsageActive = computed(() => route.name === 'adminUsage');
 const isTeamsActive = computed(() =>
@@ -223,36 +223,12 @@ onMounted(loadPendingRequests);
 const navItems = computed(() => [
   {
     key: 'requests',
-    label: 'Requests',
+    label: 'Access',
     icon: 'bi bi-person-plus',
     to: { name: 'adminAccessRequests' },
-    active: route.name === 'adminAccessRequests',
+    active: route.name === 'adminAccessRequests' || route.name === 'adminInviteAdmin',
     show: showSettings.value,
     badge: pendingRequests.value || '',
-  },
-  {
-    key: 'teams',
-    label: 'Teams',
-    icon: 'bi bi-people-fill',
-    to: { name: 'adminTeams' },
-    active: isTeamsActive.value,
-    show: showTeams.value,
-  },
-  {
-    key: 'users',
-    label: 'Users',
-    icon: 'bi bi-people',
-    to: { name: 'users' },
-    active: isUsersActive.value,
-    show: true,
-  },
-  {
-    key: 'datasets',
-    label: 'Datasets',
-    icon: 'bi bi-database',
-    to: { name: 'adminDatasets' },
-    active: isDatasetsActive.value,
-    show: true,
   },
   {
     key: 'contributions',
@@ -285,14 +261,6 @@ const navItems = computed(() => [
     to: { name: 'docs', params: { slug: 'home' } },
     active: isHelpActive.value,
     show: true,
-  },
-  {
-    key: 'styleGuide',
-    label: 'UI kit',
-    icon: 'bi bi-palette',
-    to: { name: 'adminStyleGuide' },
-    active: isStyleGuideActive.value,
-    show: showSettings.value,
   },
   {
     key: 'settings',
@@ -331,7 +299,13 @@ function safeDisposeTooltip(t) {
 onMounted(() => {
   nextTick(() => {
     const accountToggle = navEl.value?.querySelector('#adminMenuDropdown');
-    if (accountToggle) Dropdown.getOrCreateInstance(accountToggle);
+    if (accountToggle) {
+      Dropdown.getOrCreateInstance(accountToggle, {
+        popperConfig(defaultBsPopperConfig) {
+          return { ...defaultBsPopperConfig, strategy: 'fixed' };
+        },
+      });
+    }
     syncBrandTooltip();
   });
 });
@@ -454,6 +428,8 @@ watch(homeBrandTooltip, () => {
 
 .account-menu {
   min-width: 14rem;
+  background-color: var(--bs-dropdown-bg);
+  box-shadow: var(--bs-dropdown-box-shadow);
 }
 
 .user-account-link {

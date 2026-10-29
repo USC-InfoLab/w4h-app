@@ -1,13 +1,17 @@
 <template>
   <main role="main" class="container-fluid">
-    <div class="row align-items-center mb-3">
+    <div class="row align-items-start mb-3 g-2">
       <div class="col">
-        <h5 class="mb-0"><i class="bi bi-person-plus me-1"></i> Access requests</h5>
+        <h5 class="mb-0"><i class="bi bi-person-plus me-1"></i> Access</h5>
         <p class="small text-muted mb-0 mt-1">
-          USC researchers who confirmed their email. <strong>Approve</strong> sends them an Admin invitation —
-          that is all you do. They create and define their own teams after signing in. Decide on who they are,
-          not on the trial.
+          Review self-service requests, or invite a known Admin directly. In both cases they sign in and
+          <strong>create their own team</strong> — you do not set up projects or datasets for them.
         </p>
+      </div>
+      <div class="col-auto ms-md-auto">
+        <router-link :to="{ name: 'adminInviteAdmin' }" class="btn btn-sm btn-outline-primary">
+          <i class="bi bi-envelope-plus" aria-hidden="true"></i> Invite Admin…
+        </router-link>
       </div>
     </div>
 
