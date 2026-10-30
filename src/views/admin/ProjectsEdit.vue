@@ -1,6 +1,10 @@
 <template>
-  <main class="container-fluid" v-if="loaded">
-    <nav v-if="isSuperAdmin(userStore.user?.role)" aria-label="breadcrumb" class="mb-3">
+  <main class="container-fluid p-0 project-workspace" v-if="loaded">
+    <div
+      v-if="isSuperAdmin(userStore.user?.role) || message"
+      class="project-workspace-top px-3 pt-2 pb-0"
+    >
+    <nav v-if="isSuperAdmin(userStore.user?.role)" aria-label="breadcrumb" class="mb-2">
       <ol class="breadcrumb mb-0">
         <li class="breadcrumb-item">
           <router-link to="/admin/projects">Projects</router-link>
@@ -13,12 +17,13 @@
 
     <div
       v-if="message"
-      class="alert alert-dismissible fade show mb-3"
+      class="alert alert-dismissible fade show mb-2"
       :class="ok ? 'alert-success' : 'alert-danger'"
       role="alert"
     >
       {{ message }}
       <button type="button" class="btn-close" aria-label="Close" @click="clearMessage"></button>
+    </div>
     </div>
 
     <ProjectHub

@@ -160,13 +160,64 @@
             Platform key: Super admin chat, and labs that have not added their own key.
             Labs draw a shared monthly token quota (all members). A lab key (BYOK) bills that lab’s Anthropic account instead.
           </p>
+
+          <div class="row g-2 mb-3" role="group" aria-label="AI chat status">
+            <div class="col-6 col-xl-3">
+              <div class="ai-status-tile">
+                <div class="small text-muted text-uppercase">Chat</div>
+                <div class="fw-semibold">
+                  <span class="badge" :class="ai.enabled ? 'text-bg-success' : 'text-bg-secondary'">
+                    {{ ai.enabled ? 'Enabled' : 'Disabled' }}
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div class="col-6 col-xl-3">
+              <div class="ai-status-tile">
+                <div class="small text-muted text-uppercase">Model</div>
+                <div class="fw-semibold text-truncate" :title="ai.model || '—'">{{ ai.model || '—' }}</div>
+              </div>
+            </div>
+            <div class="col-6 col-xl-3">
+              <div class="ai-status-tile">
+                <div class="small text-muted text-uppercase">Platform key</div>
+                <div class="fw-semibold">
+                  <span class="badge" :class="aiKeyBadgeClass">{{ aiKeyStatusLabel }}</span>
+                </div>
+                <div v-if="ai.key_prefix" class="small font-monospace text-muted text-truncate">{{ ai.key_prefix }}</div>
+                <div v-if="ai.key_status_detail" class="small text-danger">{{ ai.key_status_detail }}</div>
+              </div>
+            </div>
+            <div class="col-6 col-xl-3">
+              <div class="ai-status-tile">
+                <div class="small text-muted text-uppercase">Credits this month</div>
+                <div class="fw-semibold">{{ formatTokens(platformCreditSummary.used) }} used</div>
+                <div class="small text-muted">
+                  {{ platformCreditSummary.labs }} lab{{ platformCreditSummary.labs === 1 ? '' : 's' }} on platform quota
+                  <span v-if="platformCreditSummary.remaining != null">
+                    · {{ formatTokens(platformCreditSummary.remaining) }} left
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div class="form-check form-switch mb-3">
             <input id="aiEnabled" v-model="ai.enabled" class="form-check-input" type="checkbox" />
             <label class="form-check-label" for="aiEnabled">Enable AI chat</label>
           </div>
           <div class="mb-3">
-            <label class="form-label">Default model</label>
-            <input v-model="ai.model" class="form-control" placeholder="claude-haiku-4-5-20251001" />
+            <label class="form-label" for="aiDefaultModel">Default model</label>
+            <select id="aiDefaultModel" v-model="ai.model" class="form-select">
+              <option v-for="m in modelOptions" :key="m.id" :value="m.id">
+                {{ m.name }}{{ m.name !== m.id ? ` (${m.id})` : '' }}
+              </option>
+            </select>
+            <div class="form-text">
+              {{ ai.key_status === 'live'
+                ? 'Models Anthropic returned for this key, most expensive family first (Fable → Opus → Sonnet → Haiku).'
+                : 'Built-in Claude catalog, most expensive family first (Opus → Sonnet → Haiku).' }}
+            </div>
           </div>
           <div class="mb-3">
             <label class="form-label">Default monthly platform-credit quota per lab</label>
@@ -181,14 +232,16 @@
           </div>
           <div class="mb-3">
             <AiSecretKeyField
-              :key="`platform-${ai.key_prefix}-${ai.has_key}`"
+              :key="`platform-${aiKeyFieldNonce}`"
               v-model="ai.anthropic_api_key"
               v-model:clear="ai.clear_key"
               :has-key="!!ai.has_key"
               :key-prefix="ai.key_prefix || ''"
               :key-source="ai.key_source || ''"
               label="Platform Anthropic API key"
-              empty-help="Paste a key from the Anthropic Console. It is stored encrypted and never shown in full. Labs without their own key share this quota."
+              empty-help="Paste a key from the Anthropic Console. It is stored encrypted in the database and never shown in full. Super admin chat and labs without their own key use this."
+              saved-help="This is the platform key (encrypted). Remove deletes it from the database unless ANTHROPIC_API_KEY is set in the API environment."
+              remove-warning="The platform Anthropic key will be deleted from the database when you save. Super admin chat and labs without a lab key will not have a stored platform key."
             />
           </div>
           <button class="btn btn-primary" :disabled="savingAi" type="button" @click="saveAiSettings">
@@ -299,8 +352,11 @@
           <div :class="['alert mb-2', dbConfigured ? 'alert-success' : 'alert-warning']">
             {{ dbConfigured ? 'Database is configured' : 'Database is not configured' }}
           </div>
-          <div :class="['alert mb-0', mailerConfigured ? 'alert-success' : 'alert-warning']">
+          <div :class="['alert mb-2', mailerConfigured ? 'alert-success' : 'alert-warning']">
             {{ mailerConfigured ? 'SMTP is configured' : 'SMTP is not configured' }}
+          </div>
+          <div :class="['alert mb-0', ai.enabled && ai.key_status === 'live' ? 'alert-success' : 'alert-warning']">
+            {{ aiStatusLine }}
           </div>
         </div>
       </div>
@@ -311,7 +367,7 @@
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { api, authHeaders } from '@/utils/api';
 import { APP_NAME } from '@/utils/defs';
 import DocsRefreshModal from '@/components/DocsRefreshModal.vue';
@@ -337,11 +393,15 @@ const ai = ref({
   has_key: false,
   key_prefix: null,
   key_source: null,
+  key_status: 'none',
+  key_status_detail: null,
+  models: [],
   anthropic_api_key: '',
   clear_key: false,
 });
 const aiTeams = ref([]);
 const labTeamId = ref('');
+const aiKeyFieldNonce = ref(0);
 const aiMessage = ref('');
 const aiMessageType = ref('success');
 
@@ -407,20 +467,118 @@ function formatTokens(n) {
   return (Number(n) || 0).toLocaleString();
 }
 
+const COST_TIER = { fable: 0, opus: 1, sonnet: 2, haiku: 3 };
+
+function modelCostTier(id) {
+  const s = String(id || '').toLowerCase();
+  if (s.includes('haiku')) return COST_TIER.haiku;
+  if (s.includes('sonnet')) return COST_TIER.sonnet;
+  if (s.includes('fable')) return COST_TIER.fable;
+  if (s.includes('opus')) return COST_TIER.opus;
+  return 4;
+}
+
+function sortModelsByCost(models) {
+  return [...models].sort((a, b) => {
+    const ta = modelCostTier(a.id);
+    const tb = modelCostTier(b.id);
+    if (ta !== tb) return ta - tb;
+    const va = String(a.id).match(/\d+/g)?.map(Number) || [];
+    const vb = String(b.id).match(/\d+/g)?.map(Number) || [];
+    const n = Math.max(va.length, vb.length);
+    for (let i = 0; i < n; i += 1) {
+      const da = va[i] ?? 0;
+      const db = vb[i] ?? 0;
+      if (da !== db) return db - da;
+    }
+    return String(a.id).localeCompare(String(b.id));
+  });
+}
+
+const FALLBACK_MODELS = sortModelsByCost([
+  { id: 'claude-haiku-4-5-20251001', name: 'Claude Haiku 4.5' },
+  { id: 'claude-sonnet-4-5-20250929', name: 'Claude Sonnet 4.5' },
+  { id: 'claude-sonnet-4-20250514', name: 'Claude Sonnet 4' },
+  { id: 'claude-opus-4-1-20250805', name: 'Claude Opus 4.1' },
+  { id: 'claude-opus-4-20250514', name: 'Claude Opus 4' },
+]);
+
+const aiKeyStatusLabel = computed(() => {
+  const env = ai.value.key_source === 'env' ? ' · environment' : '';
+  switch (ai.value.key_status) {
+    case 'live':
+      return `Live${env}`;
+    case 'invalid':
+      return `Rejected by Anthropic${env}`;
+    case 'unreachable':
+      return `Could not verify${env}`;
+    default:
+      return 'Not configured';
+  }
+});
+
+const aiKeyBadgeClass = computed(() => {
+  switch (ai.value.key_status) {
+    case 'live':
+      return 'text-bg-success';
+    case 'invalid':
+      return 'text-bg-danger';
+    case 'unreachable':
+      return 'text-bg-warning';
+    default:
+      return 'text-bg-secondary';
+  }
+});
+
+const modelOptions = computed(() => {
+  const rows = Array.isArray(ai.value.models) && ai.value.models.length
+    ? ai.value.models
+    : FALLBACK_MODELS;
+  const id = ai.value.model;
+  const withCurrent = id && !rows.some((m) => m.id === id)
+    ? [{ id, name: id }, ...rows]
+    : rows;
+  return sortModelsByCost(withCurrent);
+});
+
+const platformCreditSummary = computed(() => {
+  const rows = aiTeams.value.filter((t) => !t.has_byok);
+  const used = rows.reduce((sum, t) => sum + Number(t.used || 0), 0);
+  const remainingParts = rows.map((t) => t.remaining);
+  const remaining = remainingParts.every((v) => v != null)
+    ? remainingParts.reduce((sum, v) => sum + Number(v || 0), 0)
+    : null;
+  return { labs: rows.length, used, remaining };
+});
+
+const aiStatusLine = computed(() => {
+  const chat = ai.value.enabled ? 'Chat on' : 'Chat off';
+  const key = aiKeyStatusLabel.value;
+  const model = ai.value.model || 'no model';
+  return `${chat} · ${model} · key ${key}`;
+});
+
+function applyPlatformAiPayload(s) {
+  ai.value.enabled = s.enabled !== false;
+  ai.value.model = s.model || 'claude-haiku-4-5-20251001';
+  ai.value.default_monthly_token_quota = s.default_monthly_token_quota;
+  ai.value.ai_phi_filter = s.ai_phi_filter || 'strict';
+  ai.value.has_key = !!s.has_key;
+  ai.value.key_prefix = s.key_prefix || null;
+  ai.value.key_source = s.key_source || null;
+  ai.value.key_status = s.key_status || (s.has_key ? 'unreachable' : 'none');
+  ai.value.key_status_detail = s.key_status_detail || null;
+  ai.value.models = Array.isArray(s.models) ? s.models : [];
+  ai.value.anthropic_api_key = '';
+  ai.value.clear_key = false;
+  aiTeams.value = Array.isArray(s.teams) ? s.teams : aiTeams.value;
+}
+
 async function loadAiSettings() {
   try {
     const aiRes = await api.get('ai/settings/platform', authHeaders());
-    const s = aiRes.data || {};
-    ai.value.enabled = s.enabled !== false;
-    ai.value.model = s.model || 'claude-haiku-4-5-20251001';
-    ai.value.default_monthly_token_quota = s.default_monthly_token_quota;
-    ai.value.ai_phi_filter = s.ai_phi_filter || 'strict';
-    ai.value.has_key = !!s.has_key;
-    ai.value.key_prefix = s.key_prefix || null;
-    ai.value.key_source = s.key_source || null;
-    ai.value.anthropic_api_key = '';
-    ai.value.clear_key = false;
-    aiTeams.value = Array.isArray(s.teams) ? s.teams : [];
+    applyPlatformAiPayload(aiRes.data || {});
+    aiKeyFieldNonce.value += 1;
   } catch { /* ignore */ }
 }
 
@@ -586,15 +744,9 @@ async function saveAiSettings() {
     if (ai.value.clear_key) payload.clear_anthropic_api_key = true;
     else if (ai.value.anthropic_api_key.trim()) payload.anthropic_api_key = ai.value.anthropic_api_key.trim();
     const res = await api.patch('ai/settings/platform', payload, authHeaders());
-    const s = res.data || {};
-    ai.value.has_key = !!s.has_key;
-    ai.value.key_prefix = s.key_prefix || null;
-    ai.value.key_source = s.key_source || null;
-    ai.value.anthropic_api_key = '';
-    ai.value.clear_key = false;
-    aiTeams.value = Array.isArray(s.teams) ? s.teams : aiTeams.value;
+    applyPlatformAiPayload(res.data || {});
     setMessage(aiMessage, aiMessageType, 'AI settings saved.', 'success', 'ai');
-    await loadAiSettings();
+    aiKeyFieldNonce.value += 1;
   } catch (error) {
     setMessage(aiMessage, aiMessageType, error.response?.data?.error || error.message || 'Failed to save AI settings.', 'error', 'ai');
   } finally {
@@ -607,3 +759,13 @@ onMounted(async () => {
   await loadSettings();
 });
 </script>
+
+<style scoped>
+.ai-status-tile {
+  border: 1px solid var(--bs-border-color);
+  border-radius: 0.5rem;
+  padding: 0.65rem 0.75rem;
+  height: 100%;
+  text-align: left;
+}
+</style>

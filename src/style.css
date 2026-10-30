@@ -410,6 +410,60 @@ main.docs-view {
   }
 }
 
+/* Project workspace — VS Code–style rail + sidebar (ProjectHub) */
+main.project-workspace {
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  height: calc(100vh - var(--app-navbar-height, 52px));
+  max-height: calc(100vh - var(--app-navbar-height, 52px));
+  padding: 0 !important;
+  overflow: hidden;
+}
+
+.project-workspace .project-hub {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.project-hub-subnav {
+  --project-hub-subnav-height: 2.5rem;
+  flex: 0 0 auto;
+  height: var(--project-hub-subnav-height);
+  background: var(--bs-body-bg);
+}
+
+.project-hub-subnav-btn {
+  color: var(--bs-body-color);
+  text-decoration: none;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.project-hub-shell--subnav {
+  min-height: 0;
+}
+
+@media (max-width: 767.98px) {
+  main.project-workspace {
+    height: auto;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .project-workspace .project-hub {
+    overflow: visible;
+  }
+
+  .project-hub-shell--subnav {
+    padding-top: 0;
+  }
+}
+
 .tooltip-inner {
     max-width: 500px !important;
     white-space: normal !important;

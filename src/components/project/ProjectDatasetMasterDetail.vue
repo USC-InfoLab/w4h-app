@@ -387,12 +387,12 @@ watch(
     <p class="text-muted mb-0">No datasets are currently assigned to this project.</p>
   </div>
 
-  <div v-else class="card overflow-hidden">
+  <div v-else class="card overflow-hidden dataset-master-detail">
     <div class="row g-0">
-      <div class="col-12 col-lg-5 border-end">
-        <div class="p-3 border-bottom d-flex align-items-center justify-content-between gap-2">
+      <div class="col-12 col-xl-5 border-end dataset-master-detail__list">
+        <div class="p-3 border-bottom dataset-master-detail__list-header">
           <h5 class="mb-0">Datasets on this project</h5>
-          <div class="d-flex gap-2">
+          <div class="d-flex flex-wrap gap-2 dataset-master-detail__list-actions">
             <button type="button" class="btn btn-sm btn-outline-secondary flex-shrink-0"
               :class="{ active: showingAllDatasets }" @click="showCombinedSummary">
               Combined summary
@@ -434,7 +434,7 @@ watch(
         </div>
       </div>
 
-      <div class="col-12 col-lg-7">
+      <div class="col-12 col-xl-7 dataset-master-detail__detail">
         <div v-if="canManage && selectedId === ADD_ID" class="p-3 h-100">
           <div class="small text-muted text-uppercase mb-1">Add to this project</div>
           <h5 class="mb-2">Create or link a dataset</h5>
@@ -681,6 +681,24 @@ watch(
 </template>
 
 <style scoped>
+.dataset-master-detail__list-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.dataset-master-detail__list-actions {
+  margin-left: auto;
+}
+
+@media (min-width: 1200px) {
+  .dataset-master-detail__list {
+    max-width: 420px;
+  }
+}
+
 .dataset-row {
   border-left: 3px solid transparent;
 }

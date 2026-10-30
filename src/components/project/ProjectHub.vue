@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { Offcanvas } from 'bootstrap';
 import { projectMemberUiValue } from '@/utils/roles';
 import ProjectDocsCard from '@/components/project/ProjectDocsCard.vue';
 import ProjectDatasetMasterDetail from '@/components/project/ProjectDatasetMasterDetail.vue';
@@ -117,6 +118,17 @@ const navItems = computed(() => {
   return items;
 });
 
+const activeNavLabel = computed(
+  () => navItems.value.find((item) => item.id === section.value)?.label || 'Project'
+);
+
+function onMobileNavPick(id) {
+  setSection(id);
+  const el = document.getElementById('projectHubNavOffcanvas');
+  if (!el) return;
+  Offcanvas.getInstance(el)?.hide();
+}
+
 function memberDisplayName(row) {
   const name = String(row?.name || '').trim();
   const email = String(row?.email || '').trim();
@@ -150,31 +162,45 @@ const canInvite = computed(() => {
 
 <template>
   <div class="project-hub">
-    <div v-if="isDemonstration" class="alert alert-info py-2 small">
+    <div v-if="isDemonstration" class="alert alert-info py-2 small mx-3 mt-2 mb-0">
       <strong>Demonstration project.</strong>
       Sample datasets here are seeded by Super admin and are <strong>read-only</strong>.
       Do not re-ingest them. Use them to walk through analysis.
     </div>
 
-    <div class="row g-3">
-      <div class="col-12 col-lg-3 col-xl-2">
-        <nav class="list-group">
-          <button
-            v-for="item in navItems"
-            :key="item.id"
-            type="button"
-            class="list-group-item list-group-item-action d-flex align-items-center gap-2"
-            :class="{ active: section === item.id }"
-            @click="setSection(item.id)"
-          >
-            <i :class="item.icon" aria-hidden="true"></i>
-            {{ item.label }}
-          </button>
-        </nav>
+    <nav class="project-hub-subnav d-md-none border-bottom" aria-label="Project sections">
+      <div class="d-flex align-items-center justify-content-between gap-2 px-2">
+        <button
+          type="button"
+          class="btn btn-link project-hub-subnav-btn"
+          data-bs-toggle="offcanvas"
+          data-bs-target="#projectHubNavOffcanvas"
+        >
+          <i class="bi bi-list" aria-hidden="true"></i>
+          {{ activeNavLabel }}
+        </button>
       </div>
+    </nav>
 
-      <div class="col-12 col-lg-9 col-xl-10">
-        <div v-if="!isParticipant" class="alert alert-info small" role="status">
+    <div class="project-hub-shell" :class="{ 'project-hub-shell--subnav': true }">
+      <aside class="project-hub-rail d-none d-md-flex" aria-label="Project sections">
+        <button
+          v-for="item in navItems"
+          :key="item.id"
+          type="button"
+          class="project-hub-rail-btn"
+          :class="{ 'project-hub-rail-btn--active': section === item.id }"
+          :aria-label="item.label"
+          :aria-current="section === item.id ? 'page' : undefined"
+          v-tooltip.right="item.label"
+          @click="setSection(item.id)"
+        >
+          <i :class="item.icon" aria-hidden="true"></i>
+        </button>
+      </aside>
+
+      <div class="project-hub-main">
+        <div v-if="!isParticipant" class="alert alert-info small mx-3 mt-3 mb-0" role="status">
           You can see this project because you are on its team, but you are not a member of it.
           Ask a project Admin to add you to open its analytics, documentation and reports.
         </div>
@@ -458,5 +484,131 @@ const canInvite = computed(() => {
         </section>
       </div>
     </div>
+
+    <div
+      class="offcanvas offcanvas-start"
+      id="projectHubNavOffcanvas"
+      tabindex="-1"
+      aria-labelledby="projectHubNavOffcanvasLabel"
+    >
+      <div class="offcanvas-header border-bottom">
+        <h5 class="offcanvas-title" id="projectHubNavOffcanvasLabel">Project</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+      </div>
+      <div class="offcanvas-body p-0">
+        <nav class="project-hub-sidebar-nav">
+          <button
+            v-for="item in navItems"
+            :key="`mobile-${item.id}`"
+            type="button"
+            class="project-hub-sidebar-item"
+            :class="{ 'project-hub-sidebar-item--active': section === item.id }"
+            @click="onMobileNavPick(item.id)"
+          >
+            <i :class="item.icon" aria-hidden="true"></i>
+            <span>{{ item.label }}</span>
+          </button>
+        </nav>
+      </div>
+    </div>
   </div>
 </template>
+
+<style scoped>
+.project-hub-shell {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  overflow: hidden;
+}
+
+.project-hub-rail {
+  flex: 0 0 48px;
+  flex-direction: column;
+  align-items: stretch;
+  background: var(--bs-tertiary-bg);
+  border-right: 1px solid var(--bs-border-color);
+  padding: 0.35rem 0;
+}
+
+.project-hub-rail-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 44px;
+  border: 0;
+  background: transparent;
+  color: var(--bs-secondary-color);
+  position: relative;
+}
+
+.project-hub-rail-btn:hover {
+  color: var(--bs-emphasis-color);
+  background: var(--bs-secondary-bg);
+}
+
+.project-hub-rail-btn--active {
+  color: var(--w4h-active-fg, var(--bs-emphasis-color));
+}
+
+.project-hub-rail-btn--active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.35rem;
+  bottom: 0.35rem;
+  width: 2px;
+  background: var(--bs-primary);
+  border-radius: 0 2px 2px 0;
+}
+
+.project-hub-sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.project-hub-sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  width: 100%;
+  border: 0;
+  border-radius: 0.375rem;
+  background: transparent;
+  color: var(--bs-body-color);
+  text-align: left;
+  padding: 0.45rem 0.55rem;
+  font-size: 0.9rem;
+}
+
+.project-hub-sidebar-item:hover {
+  background: var(--bs-secondary-bg);
+}
+
+.project-hub-sidebar-item--active {
+  background: var(--bs-primary-bg-subtle);
+  color: var(--w4h-active-fg, var(--bs-emphasis-color));
+  font-weight: 600;
+}
+
+.project-hub-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: auto;
+  padding: 0.75rem 1rem 1.25rem;
+}
+
+@media (max-width: 767.98px) {
+  .project-hub-shell {
+    display: block;
+    overflow: visible;
+  }
+
+  .project-hub-main {
+    padding-top: 0.5rem;
+  }
+}
+</style>

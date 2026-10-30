@@ -76,6 +76,8 @@
             :clearable="canEdit"
             label="Lab Anthropic API key"
             empty-help="Paste a key from the Anthropic Console. All members of this lab share it for chat. It is stored encrypted and never shown in full."
+            saved-help="This lab key is encrypted. Remove deletes it so the lab uses platform credits."
+            remove-warning="The lab Anthropic key will be deleted when you save. Chat will fall back to platform credits."
           />
         </div>
 
