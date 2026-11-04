@@ -506,7 +506,7 @@ watch(
             <div class="d-flex flex-column align-items-end gap-2">
               <button v-if="canRunImportOnSelected" type="button" class="btn btn-sm btn-primary flex-shrink-0"
                 @click="openRunDialog">
-                <i class="bi bi-play-fill" aria-hidden="true"></i> Run import…
+                <i class="bi bi-upload" aria-hidden="true"></i> Import data…
               </button>
               <small v-if="selectedSummary.summary_updated_at" class="text-muted">
                 {{ relativeFreshness(selectedSummary.summary_updated_at) }}
@@ -598,7 +598,7 @@ watch(
             </p>
             <p v-else-if="!showingAllDatasets && selected.table_count === 0 && canRunImportOnSelected"
               class="small text-muted mb-3">
-              Not loaded yet. Use <strong>Run import…</strong> to populate from a catalog contribution,
+              Not loaded yet. Use <strong>Import data…</strong> to populate from a catalog contribution,
               or link an existing loaded catalog row under <strong>Add</strong>.
             </p>
             <div v-if="!showingAllDatasets && loadedLinkHint && selected.table_count === 0"
@@ -629,7 +629,7 @@ watch(
           <div v-else class="text-muted small mb-3 flex-grow-1">
             <p v-if="!showingAllDatasets && selected.description" class="mb-2">{{ selected.description }}</p>
             <p v-if="!showingAllDatasets && selected.table_count === 0 && canRunImportOnSelected" class="mb-2">
-              Not loaded yet. Use <strong>Run import…</strong> above to populate this dataset from a catalog
+              Not loaded yet. Use <strong>Import data…</strong> above to populate this dataset from a catalog
               contribution.
             </p>
             <p class="mb-0">
