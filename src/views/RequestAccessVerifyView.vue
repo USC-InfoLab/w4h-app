@@ -1,12 +1,8 @@
 <template>
-  <div class="d-flex flex-column align-items-center justify-content-center">
-    <div class="form-signin mx-auto" style="max-width: 420px;">
-      <img class="login-mark login-mark-hero mt-5 mx-auto d-block" src="/w4h-light.svg" :alt="`${APP_NAME} logo`" />
-      <div class="logotype mb-4 text-center">{{ APP_NAME }}</div>
-
-      <div class="card">
-        <div class="card-body text-center">
-          <h5 class="card-title mb-3">Confirm your request</h5>
+  <GuestAuthLayout>
+    <div class="card text-start">
+      <div class="card-body p-4 text-center">
+          <h2 class="h4 mb-3">Confirm your request</h2>
 
           <div v-if="loading" class="py-4">
             <div class="spinner-border text-primary" role="status"></div>
@@ -21,17 +17,16 @@
           <router-link v-if="!loading && error" :to="{ name: 'requestAccess' }" class="btn btn-link w-100">
             Submit a new request
           </router-link>
-        </div>
       </div>
     </div>
-  </div>
+  </GuestAuthLayout>
 </template>
 
 <script setup>
 import { onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { api } from '@/utils/api';
-import { APP_NAME } from '@/utils/defs';
+import GuestAuthLayout from '@/components/GuestAuthLayout.vue';
 
 const route = useRoute();
 const router = useRouter();

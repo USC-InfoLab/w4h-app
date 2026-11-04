@@ -3,7 +3,7 @@
 Structural map of `w4h-app` for agents and humans. **Index only** — not feature docs.
 
 - Regenerate: `npm run index:ui`
-- Generated: 2026-10-05
+- Generated: 2026-10-30
 - Do not hand-edit the lists below; change code, then re-run the script.
 
 ## Orientation
@@ -41,11 +41,13 @@ Shells: app (`NavBar`) vs Platform Admin (`AdminNavBar`). Project workspace: `Pr
 | `/userProfileEdit` | userProfileEdit | `views/UserProfileEdit.vue` | auth |
 | `/team/new` | newTeam | `views/NewTeamView.vue` | auth |
 | `/team/settings` | teamSettings | `views/TeamSettingsView.vue` | auth |
+| `/teams` | teams | `views/admin/TeamsView.vue` | auth, teamAdmin |
 | `/docs/new` | docNew | `views/docs/DocsView.vue` | auth |
 | `/docs` | — | `→ /docs/home` | — |
 | `/docs/:slug` | docs | `views/docs/DocsView.vue` | auth |
 | `/admin/home` | adminHome | `views/admin/HomeView.vue` | auth, adminPage |
 | `/admin/access-requests` | adminAccessRequests | `views/admin/AccessRequestsView.vue` | auth, adminPage, superAdmin |
+| `/admin/invite-admin` | adminInviteAdmin | `views/admin/UsersAdd.vue` | auth, adminPage, superAdmin |
 | `/admin/contributions` | adminContributions | `views/admin/ContributionsAdminView.vue` | auth, adminPage, superAdmin |
 | `/admin/settings` | adminSettings | `views/admin/SettingsView.vue` | auth, adminPage, superAdmin |
 | `/admin/audit-log` | adminAuditLog | `views/admin/AuditLogView.vue` | auth |
@@ -115,7 +117,7 @@ Shells: app (`NavBar`) vs Platform Admin (`AdminNavBar`). Project workspace: `Pr
 ### `src/views/docs/`
 - DocsView.vue
 
-## Components (42)
+## Components (44)
 
 ### `src/components/`
 - AboutModal.vue
@@ -133,6 +135,7 @@ Shells: app (`NavBar`) vs Platform Admin (`AdminNavBar`). Project workspace: `Pr
 - DocsSidebarNav.vue
 - FeatureCard.vue
 - GlobalChatPanel.vue
+- GuestAuthLayout.vue
 - MdDocEditable.vue
 - NavBar.vue
 - PhiSafeChat.vue
@@ -155,7 +158,7 @@ Shells: app (`NavBar`) vs Platform Admin (`AdminNavBar`). Project workspace: `Pr
 - CachedCohortSummary.vue
 - CohortAnalyticsPanel.vue
 - CohortLineChart.vue
-- CollaborationInvites.vue
+- OwningTeamPanel.vue
 - ProjectAdminPanel.vue
 - ProjectAnalyticsPanel.vue
 - ProjectDatasetMasterDetail.vue

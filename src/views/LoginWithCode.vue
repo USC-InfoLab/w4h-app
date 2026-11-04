@@ -1,13 +1,9 @@
 <template>
-  <div class="d-flex flex-column align-items-center justify-content-center">
-    <form class="form-signin mx-auto" autocomplete="on" method="post" action="/login"
+  <GuestAuthLayout>
+    <form class="card text-start" autocomplete="on" method="post" action="/login"
       @submit.prevent="emailSent ? login() : sendCode()">
-      <img class="login-mark login-mark-hero mt-5 mx-auto d-block" src="/w4h-light.svg" :alt="`${APP_NAME} logo`" />
-      <div class="logotype mb-4 text-center">{{ APP_NAME }}</div>
-
-      <div class="card login-code-card">
-        <div class="card-body login-code-body">
-          <h5 class="card-title text-center mb-3">Sign in with email code</h5>
+      <div class="card-body login-code-body">
+          <h2 class="h4 mb-1">Sign in with email code</h2>
 
           <div class="login-code-step">
             <template v-if="!emailSent">
@@ -39,23 +35,21 @@
             <span v-if="sending || verifying" class="spinner-border spinner-border-sm me-2"></span>
             {{ emailSent ? 'Sign in' : 'Send code' }}
           </button>
-        </div>
       </div>
-
-      <button type="button" class="btn btn-link mt-3 w-100 text-center" @click="goToPasswordLogin">
-        ← Back to password sign in
-      </button>
+      <div class="card-footer bg-transparent text-center py-3">
+        <button type="button" class="btn btn-link btn-sm" @click="goToPasswordLogin">
+          Back to password sign in
+        </button>
+      </div>
     </form>
-
-    <p id="footer" class="text-muted mt-4 mb-3 text-center">{{ copyright }}</p>
-  </div>
+  </GuestAuthLayout>
 </template>
 
 <script setup>
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { api } from '../utils/api';
-import { APP_NAME } from '@/utils/defs';
+import GuestAuthLayout from '@/components/GuestAuthLayout.vue';
 import { useUserStore } from '../stores/user';
 import { useUIStore } from '@/stores/ui';
 import { canAccessAdminUi } from '@/utils/roles';
@@ -64,8 +58,6 @@ import { readLastLoginEmail, rememberLoginEmail } from '@/utils/loginRemember';
 const router = useRouter();
 const userStore = useUserStore();
 const uiStore = useUIStore();
-
-const copyright = import.meta.env.VITE_COPYRIGHT;
 
 const email = ref(readLastLoginEmail());
 const code = ref('');
@@ -149,36 +141,6 @@ const login = async () => {
 </script>
 
 <style scoped>
-#footer {
-  position: static;
-}
-
-.form-signin {
-  width: 100%;
-  max-width: 330px;
-  padding: 0 15px;
-  margin: 50px auto 0;
-}
-
-.logotype {
-  margin: 20px 0;
-  font-size: 1.5em;
-  font-weight: bolder;
-}
-
-.login-mark {
-  width: 140px;
-  height: auto;
-}
-
-.login-mark-hero {
-  width: 180px;
-}
-
-.login-code-card {
-  text-align: left;
-}
-
 .login-code-body {
   min-height: 280px;
   display: flex;

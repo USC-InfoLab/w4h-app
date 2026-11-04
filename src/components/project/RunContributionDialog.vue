@@ -177,8 +177,42 @@ const fullReimportBlocked = computed(() => {
   return dependents.value.hasDependents && !confirmFullReimport.value;
 });
 
+const FILE_IMPORTER_BLURBS = {
+  'w4h-embraceplus-csv-file-importer':
+    'Empatica EmbracePlus Cloud export: per-minute biomarker CSVs such as pulse rate, EDA, and temperature.',
+  'w4h-fitbit-csv-file-importer':
+    'A Fitbit account CSV export you downloaded.',
+  'w4h-glucose-monitor-csv-file-importer':
+    'A Dexcom Clarity or FreeStyle LibreLink CSV export.',
+  'w4h-data-recorder-csv-file-importer':
+    'Empatica E4 recorder files: Connect exports or headered research CSVs.',
+};
+
+const SAMPLE_IMPORTER_BLURBS = {
+  'w4h-sample-fitbit-csv-importer':
+    'The bundled Fitbit sample: heart rate, calories, and weight.',
+  'w4h-sample-icde-demo-csv-importer':
+    'The bundled ICDE demo sample, including a GPS track.',
+};
+
+function isFileImporter(contribution) {
+  return String(contribution?.slug || '').includes('-file-importer');
+}
+
+const fileImporters = computed(() => props.contributions.filter(isFileImporter));
+const sampleImporters = computed(() => props.contributions.filter((c) => !isFileImporter(c)));
+
+const activeIsFileImporter = computed(() => isFileImporter(activeContribution.value));
+
+const importerBlurb = computed(() => {
+  const c = activeContribution.value;
+  if (!c) return '';
+  return FILE_IMPORTER_BLURBS[c.slug] || SAMPLE_IMPORTER_BLURBS[c.slug] || c.summary || '';
+});
+
 const modalTitle = computed(() => {
   if (isAnalysis.value) return 'Run analysis';
+  if (contextualRun.value && runTargetEmpty.value) return 'Select importer';
   return contextualRun.value ? 'Run import' : 'Run a contribution';
 });
 
@@ -191,7 +225,7 @@ const fixedDatasetLabel = computed(() => {
 const showContributionPicker = computed(() => {
   if (props.contributions.length <= 1) return false;
   if (!contextualRun.value) return true;
-  // First import: let the admin pick Fitbit vs ICDE (or another runnable importer).
+  // First load: the admin picks the importer (their files, or a sample package).
   if (runTargetEmpty.value) return true;
   return !contextualSlugPinned.value;
 });
@@ -202,10 +236,19 @@ const runButtonLabel = computed(() => {
   if (runInFlight.value) return 'Running…';
   if (runTargetEmpty.value && !isAnalysis.value) {
     const target = fixedDatasetLabel.value || 'this dataset';
-    return linkAlternative.value ? `Load a copy into ${target}` : `Load into ${target}`;
+    if (linkAlternative.value) return `Load a copy into ${target}`;
+    return activeIsFileImporter.value ? `Load example into ${target}` : `Load sample into ${target}`;
   }
   if (activeContribution.value?.title) return `Run ${activeContribution.value.title}`;
   return isAnalysis.value ? 'Run analysis' : 'Run import';
+});
+
+const firstLoadNote = computed(() => {
+  const target = fixedDatasetLabel.value || 'this dataset';
+  if (activeIsFileImporter.value) {
+    return `Load example fills ${target} with the small example bundled with this importer, so its tables show up here. Your own export is chosen in the notebook or on the command line. Other datasets stay as they are.`;
+  }
+  return `This copies that sample package into ${target}. Other datasets stay as they are.`;
 });
 
 const linkAlternative = computed(() => {
@@ -335,14 +378,21 @@ defineExpose({ open, close });
           </div>
 
           <div v-if="showContributionPicker" class="mb-3">
-            <label class="form-label small mb-0">Sample / importer</label>
+            <label class="form-label small mb-0">Importer</label>
             <select v-model="runSlug" class="form-select form-select-sm" :disabled="runInFlight">
-              <option v-for="c in contributions" :key="c.slug" :value="c.slug">
-                {{ c.title || c.slug }}
-              </option>
+              <optgroup v-if="fileImporters.length" label="Your files">
+                <option v-for="c in fileImporters" :key="c.slug" :value="c.slug">
+                  {{ c.title || c.slug }}
+                </option>
+              </optgroup>
+              <optgroup v-if="sampleImporters.length" label="Sample package">
+                <option v-for="c in sampleImporters" :key="c.slug" :value="c.slug">
+                  {{ c.title || c.slug }}
+                </option>
+              </optgroup>
             </select>
             <p v-if="runTargetEmpty" class="small text-muted mt-1 mb-0">
-              Pick the sample package and importer for a first load.
+              Choose the importer that matches the files for this dataset.
             </p>
           </div>
 
@@ -399,15 +449,8 @@ defineExpose({ open, close });
           </div>
 
           <div v-if="!isAnalysis && runTargetEmpty" class="mb-3">
-            <p class="small text-muted mb-0">
-              This loads the sample into <strong>{{ fixedDatasetLabel }}</strong>
-              (that catalog row’s own schema). It does
-              <strong>not</strong> truncate or update
-              <template v-if="linkAlternative">
-                <strong>{{ linkAlternative.name }}</strong> or any other dataset.
-              </template>
-              <template v-else>any other catalog row.</template>
-            </p>
+            <p v-if="importerBlurb" class="small mb-2">{{ importerBlurb }}</p>
+            <p class="small text-muted mb-0">{{ firstLoadNote }}</p>
           </div>
 
           <div v-else-if="!isAnalysis" class="mb-3">
@@ -537,11 +580,16 @@ defineExpose({ open, close });
           </div>
 
           <details v-if="activeContribution && !isAnalysis" class="small mt-3">
-            <summary class="text-muted" style="cursor: pointer">Prefer the command line?</summary>
+            <summary class="text-muted" style="cursor: pointer">{{ activeIsFileImporter ? 'Choose your own files on the command line' : 'Prefer the command line?' }}</summary>
             <p class="text-muted mb-1 mt-2">
-              Runnable importers ship <code>run.sh</code> — same API key and access checks.
+              <template v-if="activeIsFileImporter">
+                Point <code>--data-dir</code> at your export. Same API key and access checks.
+              </template>
+              <template v-else>
+                Runnable importers ship <code>run.sh</code> — same API key and access checks.
+              </template>
             </p>
-            <pre class="run-log mb-1 p-2 border rounded small">W4H_DATASET_ID={{ runDatasetId || '&lt;dataset-id&gt;' }} ./run.sh import --mode {{ runMode === 'full' ? 'replace' : 'append' }}</pre>
+            <pre class="run-log mb-1 p-2 border rounded small">W4H_DATASET_ID={{ runDatasetId || '&lt;dataset-id&gt;' }} ./run.sh import --mode {{ runMode === 'full' ? 'replace' : 'append' }}<template v-if="activeIsFileImporter"> --data-dir /path/to/your/export</template></pre>
             <router-link :to="{ name: 'contributionDetail', params: { slug: activeContribution.slug } }">
               View setup instructions →
             </router-link>

@@ -209,6 +209,7 @@ const isContributionsActive = computed(() =>
 const pendingRequests = ref(0);
 async function loadPendingRequests() {
   if (!isSuperAdmin(user.value?.role)) return;
+  if (!localStorage.getItem('w4h.user.token')) return;
   try {
     const res = await api.get('access-requests/count', authHeaders());
     pendingRequests.value = Number(res.data?.pending) || 0;

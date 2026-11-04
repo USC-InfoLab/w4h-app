@@ -34,8 +34,6 @@
       :created-by-label="createdByLabel"
       :created-at-label="createdAtLabel"
       :member-rows="memberRows"
-      :collaborating-teams="collaboratingTeams"
-      :invitable-teams="invitableTeams"
       :linked-dataset-rows="linkedDatasetRows"
       :addable-datasets="addableDatasets"
       :dataset-to-add="datasetToAdd"
@@ -53,11 +51,11 @@
       :invite-url="inviteUrl"
       :jupyter-url="jupyterUrl"
       @save-project="saveProject"
+      @archive-project="archiveProject"
+      @restore-project="restoreProject"
       @invite-member="inviteMember"
       @change-member-role="changeMemberRole"
       @delete-member="deleteMember"
-      @invite-team="inviteTeam"
-      @remove-team="removeTeam"
       @update:dataset-to-add="datasetToAdd = $event"
       @update:new-dataset-name="newDatasetName = $event"
       @update:invite-email="inviteEmail = $event"
@@ -68,6 +66,8 @@
       @unlink-dataset="unlinkDataset"
       @replace-linked-datasets="replaceLinkedDatasets"
       @dataset-run-complete="refreshDatasetsOnly"
+      @team-renamed="onTeamRenamed"
+      @team-reassigned="onTeamReassigned"
     />
   </main>
 </template>
@@ -84,7 +84,7 @@ import ProjectHub from '@/components/project/ProjectHub.vue';
 const route = useRoute();
 const router = useRouter();
 const userStore = useUserStore();
-const { activeProject, setActiveProject } = useTeamContext();
+const { activeProject, setActiveProject, setActiveTeam, loadProjects } = useTeamContext();
 
 const loaded = ref(false);
 const savingProject = ref(false);
@@ -95,6 +95,7 @@ const ok = ref(false);
 
 const form = reactive({
   id: '',
+  slug: '',
   team_id: '',
   name: '',
   description: '',
@@ -103,9 +104,7 @@ const form = reactive({
 
 const teams = ref([]);
 const memberRows = ref([]);
-const collaboratingTeams = ref([]);
 const isParticipant = ref(true);
-const invitableTeams = ref([]);
 const availableDatasets = ref([]);
 const linkedDatasetIds = ref([]);
 const linkedDatasetMeta = ref([]);
@@ -133,6 +132,25 @@ const teamLabel = computed(() => {
   }
   return form.team_id || '—';
 });
+
+function onTeamRenamed(name) {
+  if (name) teamName.value = name;
+}
+
+async function onTeamReassigned(teamId) {
+  if (teamId) {
+    form.team_id = teamId;
+    setActiveTeam(String(teamId));
+  }
+  try {
+    const refreshed = await api.get(`projects/${encodeURIComponent(form.id)}`, authHeaders());
+    mapOverviewToForm(refreshed.data);
+    await loadProjects();
+    if (form.id) setActiveProject(form.id);
+  } catch {
+    /* panel already reported the assign; overview refresh is best-effort */
+  }
+}
 
 function mapMemberRows(rows) {
   if (!Array.isArray(rows)) return [];
@@ -185,14 +203,14 @@ function clearMessage() {
   message.value = '';
 }
 
-function setMessage(success, text) {
+function setMessage(success, text, { sticky = false } = {}) {
   ok.value = success;
   message.value = text;
   if (messageTimer) {
     clearTimeout(messageTimer);
     messageTimer = null;
   }
-  if (text && success) {
+  if (text && success && !sticky) {
     messageTimer = setTimeout(() => {
       if (message.value === text) clearMessage();
     }, 4000);
@@ -354,6 +372,7 @@ async function persistLinkedDatasets(successMessage, { archiveId } = {}) {
 function mapOverviewToForm(data) {
   const p = data?.project || {};
   form.id = p.id || '';
+  form.slug = p.slug || '';
   form.team_id = p.team_id || '';
   form.name = p.name || '';
   form.description = p.description || '';
@@ -381,8 +400,6 @@ function mapOverviewToForm(data) {
   isParticipant.value = data?.capabilities?.is_participant !== false;
 
   memberRows.value = mapMemberRows(data?.members);
-  collaboratingTeams.value = Array.isArray(data?.collaborating_teams) ? data.collaborating_teams : [];
-  if (data?.capabilities?.can_manage) loadInvitableTeams();
 
   // Doc-11: anyone with access to this project can edit its docs, unless the server denies it.
   canEditPages.value = data?.capabilities?.can_edit_pages !== false;
@@ -449,9 +466,12 @@ watch(
   }
 );
 
+const suppressProjectFollow = ref(false);
+
 watch(
   () => activeProject.value?.id,
   (id) => {
+    if (suppressProjectFollow.value) return;
     if (isSuperAdmin(userStore.user?.role)) return;
     if (!id) return;
     const current = routeProjectRef();
@@ -474,7 +494,6 @@ async function saveProject() {
     const payload = {
       name: form.name,
       description: form.description || null,
-      status: form.status
     };
     if (canChangeTeam.value) {
       payload.team_id = form.team_id || null;
@@ -497,6 +516,54 @@ async function saveProject() {
     setMessage(true, 'Project updated.');
   } catch (error) {
     setMessage(false, error.response?.data?.error || error.message || 'Failed to save project.');
+  } finally {
+    savingProject.value = false;
+  }
+}
+
+async function archiveProject() {
+  if (!canManageThisProject.value || form.status === 'archived') return;
+  savingProject.value = true;
+  setMessage(false, '');
+  suppressProjectFollow.value = true;
+  try {
+    await api.patch(
+      `projects/${encodeURIComponent(form.id)}`,
+      { status: 'archived' },
+      authHeaders()
+    );
+    form.status = 'archived';
+    await loadProjects();
+    if (form.id) setActiveProject(String(form.id));
+    setMessage(
+      true,
+      'Archived. This project stays open and is hidden from the project menu. Restore puts it back.',
+      { sticky: true }
+    );
+  } catch (error) {
+    setMessage(false, error.response?.data?.error || error.message || 'Failed to archive project.');
+  } finally {
+    suppressProjectFollow.value = false;
+    savingProject.value = false;
+  }
+}
+
+async function restoreProject() {
+  if (!canManageThisProject.value || form.status !== 'archived') return;
+  savingProject.value = true;
+  setMessage(false, '');
+  try {
+    await api.patch(
+      `projects/${encodeURIComponent(form.id)}`,
+      { status: 'active' },
+      authHeaders()
+    );
+    form.status = 'active';
+    await loadProjects();
+    if (form.id) setActiveProject(String(form.id));
+    setMessage(true, 'Restored. This project is back in the project menu.', { sticky: true });
+  } catch (error) {
+    setMessage(false, error.response?.data?.error || error.message || 'Failed to restore project.');
   } finally {
     savingProject.value = false;
   }
@@ -554,59 +621,6 @@ async function changeMemberRole(row, nextRole) {
     setMessage(true, 'Member role updated.');
   } catch (error) {
     setMessage(false, error.response?.data?.error || error.message || 'Failed to update member role.');
-  } finally {
-    savingMembers.value = false;
-  }
-}
-
-async function loadInvitableTeams() {
-  try {
-    const res = await api.get(`projects/${encodeURIComponent(form.id)}/invitable-teams`, authHeaders());
-    invitableTeams.value = Array.isArray(res.data) ? res.data : [];
-  } catch {
-    invitableTeams.value = [];
-  }
-}
-
-async function inviteTeam(teamId) {
-  if (!canManageThisProject.value || !teamId) return;
-  savingMembers.value = true;
-  setMessage(false, '');
-  try {
-    const res = await api.post(
-      `projects/${encodeURIComponent(form.id)}/teams`,
-      { team_id: teamId },
-      authHeaders()
-    );
-    collaboratingTeams.value = Array.isArray(res.data?.teams) ? res.data.teams : collaboratingTeams.value;
-    await loadInvitableTeams();
-    setMessage(true, 'Team invited. Their Admin must accept before anyone can be added.');
-  } catch (error) {
-    setMessage(false, error.response?.data?.error || error.message || 'Failed to invite team.');
-  } finally {
-    savingMembers.value = false;
-  }
-}
-
-async function removeTeam(team) {
-  if (!canManageThisProject.value || !team?.team_id) return;
-  if (!window.confirm(
-    `Remove ${team.team_name || 'this team'} from the project? Their people and the datasets they contributed leave the project immediately.`
-  )) return;
-  savingMembers.value = true;
-  setMessage(false, '');
-  try {
-    const res = await api.delete(
-      `projects/${encodeURIComponent(form.id)}/teams/${encodeURIComponent(team.team_id)}`,
-      authHeaders()
-    );
-    collaboratingTeams.value = Array.isArray(res.data?.teams) ? res.data.teams : collaboratingTeams.value;
-    memberRows.value = Array.isArray(res.data?.members) ? mapMemberRows(res.data.members) : memberRows.value;
-    await loadInvitableTeams();
-    await refreshDatasetsOnly();
-    setMessage(true, 'Team removed.');
-  } catch (error) {
-    setMessage(false, error.response?.data?.error || error.message || 'Failed to remove team.');
   } finally {
     savingMembers.value = false;
   }

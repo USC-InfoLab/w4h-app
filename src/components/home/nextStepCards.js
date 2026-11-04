@@ -16,13 +16,13 @@ export const adminNextStepCards = [
   },
   {
     title: '3. Invite people',
-    text: 'Invite and manage collaborators from Project → People. To work with another organization, invite their team into the project.',
+    text: 'Invite and manage people from Project → People.',
     to: { name: 'adminProjects' },
     label: 'Open project',
   },
   {
     title: '4. Load your data',
-    text: 'Open the project → Datasets, pick the target dataset and click Run import… for a runnable importer (Fitbit CSV, ICDE demo), or adapt a notebook or CLI from Contributions. A dataset is loaded once its tables show on the overview. Sample datasets on a demonstration project are read-only.',
+    text: 'Open the project → Datasets, pick the empty dataset and click Select importer…. Your files (EmbracePlus, Fitbit export, glucose, data recorder) load a small example so the tables appear; your own export is chosen in the notebook or on the command line. A sample package (Fitbit, ICDE) copies that sample in. Once tables exist, Run import… updates them. Sample datasets on a demonstration project are read-only.',
     to: { name: 'contributions' },
     label: 'Open Contributions',
   },

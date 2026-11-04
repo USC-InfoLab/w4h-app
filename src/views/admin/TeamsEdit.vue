@@ -201,8 +201,15 @@ const route = useRoute();
 const router = useRouter();
 const userStore = useUserStore();
 const { user } = storeToRefs(userStore);
-const { isActiveProjectAdmin, activeProject } = useTeamContext();
-const canEditTeam = computed(() => isActiveProjectAdmin.value);
+const { activeProject } = useTeamContext();
+const canEditTeam = computed(() => {
+  if (isSuperAdmin(user.value?.role)) return true;
+  const tid = String(route.params.id || team.value?.id || '');
+  if (!tid) return false;
+  return (user.value?.team_memberships || []).some(
+    (m) => String(m.team_id) === tid && m.role === TEAM_MEMBER_ROLES.TEAM_ADMIN
+  );
+});
 
 const team = ref(null);
 const allUsers = ref([]);
@@ -252,16 +259,6 @@ onMounted(async () => {
   document.title = `${APP_NAME} Team`;
   await loadTeam();
 });
-
-watch(
-  () => activeProject.value?.teamId,
-  (teamId) => {
-    if (isSuperAdmin(user.value?.role)) return;
-    if (teamId && String(teamId) !== String(route.params.id)) {
-      router.replace({ name: 'adminTeamsEdit', params: { id: teamId } });
-    }
-  }
-);
 
 watch(
   () => route.params.id,

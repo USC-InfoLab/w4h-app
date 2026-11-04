@@ -58,11 +58,16 @@ async function onSubmit() {
   busy.value = true;
   error.value = '';
   try {
-    await api.post('teams', { name: name.value }, authHeaders());
+    const created = await api.post('teams', { name: name.value }, authHeaders());
     // Pick up the new membership and capabilities.
     const session = await api.get('users/me/session', authHeaders());
     await userStore.setUser({ ...user.value, ...session.data });
-    router.push({ name: 'home' });
+    const teamId = created.data?.id;
+    if (teamId) {
+      router.push({ name: 'adminTeamsEdit', params: { id: teamId } });
+    } else {
+      router.push({ name: 'home' });
+    }
   } catch (e) {
     error.value = e.response?.data?.error || 'Could not create the team.';
   } finally {

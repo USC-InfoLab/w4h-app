@@ -1,13 +1,14 @@
 <script setup>
-import { computed, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { Offcanvas } from 'bootstrap';
+import { Offcanvas, Modal } from 'bootstrap';
 import { projectMemberUiValue } from '@/utils/roles';
 import ProjectDocsCard from '@/components/project/ProjectDocsCard.vue';
 import ProjectDatasetMasterDetail from '@/components/project/ProjectDatasetMasterDetail.vue';
 import ProjectAnalyticsPanel from '@/components/project/ProjectAnalyticsPanel.vue';
 import ProjectReportsPanel from '@/components/project/ProjectReportsPanel.vue';
 import TeamAiSettings from '@/components/TeamAiSettings.vue';
+import OwningTeamPanel from '@/components/project/OwningTeamPanel.vue';
 
 const props = defineProps({
   canManage: { type: Boolean, default: false },
@@ -18,8 +19,6 @@ const props = defineProps({
   createdByLabel: { type: String, default: '' },
   createdAtLabel: { type: String, default: '' },
   memberRows: { type: Array, default: () => [] },
-  collaboratingTeams: { type: Array, default: () => [] },
-  invitableTeams: { type: Array, default: () => [] },
   linkedDatasetRows: { type: Array, default: () => [] },
   addableDatasets: { type: Array, default: () => [] },
   datasetToAdd: { type: String, default: '' },
@@ -40,11 +39,11 @@ const props = defineProps({
 
 const emit = defineEmits([
   'save-project',
+  'archive-project',
+  'restore-project',
   'invite-member',
   'change-member-role',
   'delete-member',
-  'invite-team',
-  'remove-team',
   'update:datasetToAdd',
   'update:newDatasetName',
   'update:inviteEmail',
@@ -55,12 +54,38 @@ const emit = defineEmits([
   'unlink-dataset',
   'replace-linked-datasets',
   'dataset-run-complete',
+  'team-renamed',
+  'team-reassigned',
 ]);
 
 const route = useRoute();
 const router = useRouter();
 const selectedDatasetId = ref('');
-const teamToInvite = ref('');
+const archiveModalEl = ref(null);
+let archiveModal = null;
+
+onMounted(() => {
+  if (archiveModalEl.value) archiveModal = new Modal(archiveModalEl.value);
+});
+
+onBeforeUnmount(() => {
+  try {
+    archiveModal?.hide();
+    archiveModal?.dispose();
+  } catch {
+    /* ignore */
+  }
+  archiveModal = null;
+});
+
+function openArchiveModal() {
+  archiveModal?.show();
+}
+
+function confirmArchive() {
+  archiveModal?.hide();
+  emit('archive-project');
+}
 
 const VALID_TABS = ['overview', 'docs', 'analytics', 'jupyter', 'people', 'settings'];
 
@@ -200,7 +225,12 @@ const canInvite = computed(() => {
       </aside>
 
       <div class="project-hub-main">
-        <div v-if="!isParticipant" class="alert alert-info small mx-3 mt-3 mb-0" role="status">
+        <div v-if="form.status === 'archived'" class="alert alert-secondary small" role="status">
+          <strong>Archived.</strong>
+          This project is hidden from the project menu. People, datasets, and pages are unchanged.
+          <span v-if="canManage">Use Restore in Settings to put it back in the menu.</span>
+        </div>
+        <div v-if="!isParticipant" class="alert alert-info small mb-3" role="status">
           You can see this project because you are on its team, but you are not a member of it.
           Ask a project Admin to add you to open its analytics, documentation and reports.
         </div>
@@ -275,14 +305,21 @@ const canInvite = computed(() => {
         </section>
 
         <section v-else-if="section === 'people'">
-          <div class="card p-3">
+          <OwningTeamPanel
+            v-if="canManage || form.team_id"
+            :team-id="form.team_id ? String(form.team_id) : ''"
+            :project-id="form.id"
+            :project-name="form.name"
+            :can-manage="canManage"
+            @renamed="emit('team-renamed', $event)"
+            @reassigned="emit('team-reassigned', $event)"
+          />
+          <div class="card p-3" :class="{ 'mt-3': canManage || form.team_id }">
             <h5 class="card-title mb-3">People</h5>
             <template v-if="canManage">
               <p class="small text-muted mb-3">
-                Invite anyone by email. If they are already on this project, nothing changes.
-                New accounts join this project’s team and receive an activation link.
-                To add someone from another organization, invite their team under
-                <strong>Collaborating teams</strong> below first.
+                After the team above is set, invite people in that lab by email.
+                They join this project and the owning team. If they are already on the project, nothing changes.
               </p>
               <div class="row g-2 align-items-end mb-3">
                 <div class="col-md-4">
@@ -380,58 +417,6 @@ const canInvite = computed(() => {
               </div>
             </div>
           </div>
-          <div v-if="collaboratingTeams.length || canManage" class="card p-3 mt-3">
-            <h5 class="card-title mb-2">Collaborating teams</h5>
-            <p class="small text-muted mb-3">
-              Teams from other organizations can contribute people and their own datasets to this
-              project. They see only this project. Each team keeps control of the datasets it
-              contributes, and removing a team removes its people and datasets immediately.
-            </p>
-            <div v-if="collaboratingTeams.length === 0" class="small text-muted mb-2">
-              No collaborating teams.
-            </div>
-            <div
-              v-for="t in collaboratingTeams"
-              :key="t.team_id"
-              class="d-flex align-items-center justify-content-between mb-2"
-            >
-              <div>
-                <span class="fw-semibold">{{ t.team_name }}</span>
-                <span
-                  class="badge ms-2"
-                  :class="t.status === 'active' ? 'text-bg-success' : 'text-bg-warning'"
-                >{{ t.status === 'active' ? 'Active' : 'Waiting for their Admin' }}</span>
-              </div>
-              <button
-                v-if="canManage"
-                type="button"
-                class="btn btn-sm btn-outline-danger"
-                :disabled="savingMembers"
-                @click="emit('remove-team', t)"
-              >
-                Remove
-              </button>
-            </div>
-            <div v-if="canManage" class="row g-2 align-items-end border-top pt-3 mt-2">
-              <div class="col-9">
-                <label class="form-label small mb-0">Invite a team</label>
-                <select v-model="teamToInvite" class="form-select form-select-sm">
-                  <option value="">Select team…</option>
-                  <option v-for="t in invitableTeams" :key="t.id" :value="t.id">{{ t.name }}</option>
-                </select>
-              </div>
-              <div class="col-3">
-                <button
-                  type="button"
-                  class="btn btn-sm btn-primary w-100"
-                  :disabled="savingMembers || !teamToInvite"
-                  @click="emit('invite-team', teamToInvite); teamToInvite = ''"
-                >
-                  Invite
-                </button>
-              </div>
-            </div>
-          </div>
           <TeamAiSettings
             v-if="canManage && form.team_id"
             class="mt-3"
@@ -453,24 +438,65 @@ const canInvite = computed(() => {
               <label class="form-label">Description</label>
               <textarea v-model.trim="form.description" class="form-control" rows="3" />
             </div>
-            <div class="mb-3">
-              <label class="form-label">Status</label>
-              <select v-model="form.status" class="form-select" style="max-width: 16rem;">
-                <option value="active">active</option>
-                <option value="archived">archived</option>
-              </select>
-            </div>
             <div class="small text-muted mb-3">
-              Team: {{ teamLabel }}
-              <span v-if="createdByLabel"> · Created by {{ createdByLabel }}</span>
-              <span v-if="createdAtLabel"> · {{ createdAtLabel }}</span>
+              <div class="mb-2">
+                <div>Project ID</div>
+                <div class="font-monospace text-break user-select-all">{{ form.id || '—' }}</div>
+              </div>
+              <div v-if="form.slug" class="mb-2">
+                <div>Slug</div>
+                <div class="font-monospace text-break user-select-all">{{ form.slug }}</div>
+              </div>
+              <div>
+                Team: {{ teamLabel }}
+                <span v-if="form.team_id"> · Rename and manage members on <strong>People</strong></span>
+                <span v-if="createdByLabel"> · Created by {{ createdByLabel }}</span>
+                <span v-if="createdAtLabel"> · {{ createdAtLabel }}</span>
+              </div>
             </div>
+            <div class="d-flex justify-content-end">
+              <button
+                type="button"
+                class="btn btn-primary"
+                :disabled="savingProject || !form.name"
+                @click="emit('save-project')"
+              >
+                <span v-if="savingProject" class="spinner-border spinner-border-sm me-2" />
+                Save changes
+              </button>
+            </div>
+          </div>
+
+          <div class="card p-3 mt-3">
+            <h5 class="card-title mb-2">
+              {{ form.status === 'archived' ? 'Restore' : 'Archive' }}
+            </h5>
+            <p v-if="form.status !== 'archived'" class="small text-muted mb-3">
+              Archiving keeps this page open and hides the project from the project menu.
+              It is not deleted. People, datasets, and pages stay as they are.
+              Restore on this page puts the name back in the menu.
+            </p>
+            <p v-else class="small text-muted mb-3">
+              This project is hidden from the project menu. Restore puts the name back in that menu.
+              Nothing was deleted.
+            </p>
             <button
-              class="btn btn-primary"
-              :disabled="savingProject || !form.name"
-              @click="emit('save-project')"
+              v-if="form.status !== 'archived'"
+              type="button"
+              class="btn btn-outline-secondary align-self-start"
+              :disabled="savingProject"
+              @click="openArchiveModal"
             >
-              Save project
+              Archive project
+            </button>
+            <button
+              v-else
+              type="button"
+              class="btn btn-outline-primary align-self-start"
+              :disabled="savingProject"
+              @click="emit('restore-project')"
+            >
+              Restore project
             </button>
           </div>
           <TeamAiSettings
@@ -509,6 +535,38 @@ const canInvite = computed(() => {
             <span>{{ item.label }}</span>
           </button>
         </nav>
+      </div>
+    </div>
+
+    <div
+      class="modal fade"
+      tabindex="-1"
+      ref="archiveModalEl"
+      aria-labelledby="archiveProjectTitle"
+      aria-hidden="true"
+    >
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="archiveProjectTitle">Archive {{ form.name || 'this project' }}?</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+          <p>
+            It stays on this page, marked archived, and drops out of the project menu.
+            People, datasets, and pages stay as they are.
+          </p>
+          <p class="mb-0">
+            Restore on this page puts it back in the menu.
+          </p>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-primary" :disabled="savingProject" @click="confirmArchive">
+              Archive project
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   </div>

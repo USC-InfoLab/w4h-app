@@ -39,8 +39,9 @@ export function useTeamContext() {
     Array.isArray(user.value?.team_memberships) ? user.value.team_memberships : []
   );
 
-  const projectChoices = computed(() =>
-    (Array.isArray(projects.value) ? projects.value : [])
+  const catalog = computed(() => {
+    const rows = Array.isArray(projects.value) ? projects.value : [];
+    return rows
       .map((p) => {
         const teamId = p.team_id != null ? String(p.team_id) : '';
         const admin = isSuperAdmin(user.value?.role) || isAdminOnProject(p, memberships.value);
@@ -53,19 +54,27 @@ export function useTeamContext() {
           myRole: p.my_role || null,
           isAdmin: admin,
           roleLabel: projectAccessRoleLabel(admin),
+          status: p.status === 'archived' ? 'archived' : 'active',
         };
       })
       .sort((a, b) => {
         const byTeam = (a.teamName || '').localeCompare(b.teamName || '');
         return byTeam !== 0 ? byTeam : a.name.localeCompare(b.name);
-      })
-  );
-
-  const activeProject = computed(() => {
-    const id = activeProjectId.value ? String(activeProjectId.value) : '';
-    if (!id) return null;
-    return projectChoices.value.find((p) => p.id === id || p.slug === id) || null;
+      });
   });
+
+  /** Active projects only — the project menu. Archived rows stay in `catalog`. */
+  const projectChoices = computed(() => catalog.value.filter((p) => p.status !== 'archived'));
+
+  const hasAnyProject = computed(() => catalog.value.length > 0);
+
+  function findCatalogProject(id) {
+    const key = id ? String(id) : '';
+    if (!key) return null;
+    return catalog.value.find((p) => p.id === key || p.slug === key) || null;
+  }
+
+  const activeProject = computed(() => findCatalogProject(activeProjectId.value));
 
   const activeProjectName = computed(() => activeProject.value?.name || '');
   const isActiveProjectAdmin = computed(() => {
@@ -141,20 +150,17 @@ export function useTeamContext() {
   );
 
   function pickDefaultProjectId() {
+    const stored = findCatalogProject(activeProjectId.value);
+    if (stored) return stored.id;
     const list = projectChoices.value;
     if (!list.length) return '';
-    const stored = activeProjectId.value ? String(activeProjectId.value) : '';
-    if (stored && list.some((p) => p.id === stored || p.slug === stored)) {
-      const match = list.find((p) => p.id === stored || p.slug === stored);
-      return match?.id || '';
-    }
     const adminFirst = list.find((p) => p.isAdmin);
     return (adminFirst || list[0]).id;
   }
 
   function applyProject(projectId) {
     const id = projectId ? String(projectId) : '';
-    const row = projectChoices.value.find((p) => p.id === id || p.slug === id) || null;
+    const row = findCatalogProject(id);
     uiStore.setActiveProjectId(row?.id || id);
     uiStore.setActiveTeamId(row?.teamId || '');
   }
@@ -167,7 +173,7 @@ export function useTeamContext() {
       uiStore.setActiveProjectId('');
       uiStore.setActiveTeamId('');
     } else if (next) {
-      const row = projectChoices.value.find((p) => p.id === next);
+      const row = findCatalogProject(next);
       if (row?.teamId && row.teamId !== String(activeTeamId.value || '')) {
         uiStore.setActiveTeamId(row.teamId);
       }
@@ -180,7 +186,7 @@ export function useTeamContext() {
     loadError.value = '';
     loadPromise = (async () => {
       try {
-        const res = await api.get('projects', authHeaders());
+        const res = await api.get('projects', { ...authHeaders(), params: { status: 'all' } });
         projects.value = Array.isArray(res.data) ? res.data : [];
       } catch (e) {
         loadError.value = e.response?.data?.error || e.message || 'Failed to load projects';
@@ -221,6 +227,7 @@ export function useTeamContext() {
     memberships,
     teams,
     projectChoices,
+    hasAnyProject,
     teamTree,
     activeTeamId,
     activeTeamName,

@@ -1,23 +1,17 @@
 <template>
-  <div class="d-flex flex-column align-items-center justify-content-center">
-    <form class="form-signin mx-auto" style="max-width: 460px;" @submit.prevent="onSubmit">
-      <img class="login-mark login-mark-hero mt-5 mx-auto d-block" src="/w4h-light.svg" :alt="`${APP_NAME} logo`" />
-      <div class="logotype mb-4 text-center">{{ APP_NAME }}</div>
-
-      <div class="card">
-        <div class="card-body">
-          <h5 class="card-title text-center mb-3">Request access</h5>
+  <GuestAuthLayout>
+    <form class="card text-start" @submit.prevent="onSubmit">
+      <div class="card-body p-4">
+          <h2 class="h4 mb-1">Request access</h2>
 
           <template v-if="submitted">
-            <div class="alert alert-success mb-3" role="status">{{ confirmation }}</div>
-            <button type="button" class="btn btn-link w-100" @click="goLogin">Back to sign in</button>
+            <div class="alert alert-success mb-0" role="status">{{ confirmation }}</div>
           </template>
 
           <template v-else>
             <p class="text-muted small">
-              {{ APP_NAME }} is open to <strong>USC researchers</strong> for now. Use your USC email
-              address — we will send a link to confirm it. A person reviews each request and, if approved,
-              sends you an invitation to set up your team.
+              Open to <strong>USC researchers</strong> for now. We email a confirmation link to your USC
+              address. After a person approves the request you get an invitation and create your own team.
             </p>
 
             <div class="mb-3">
@@ -53,19 +47,20 @@
             <button class="w-100 btn btn-lg btn-primary" type="submit" :disabled="busy">
               {{ busy ? 'Sending…' : 'Send request' }}
             </button>
-            <button type="button" class="btn btn-link mt-2 w-100" @click="goLogin">Back to sign in</button>
           </template>
-        </div>
+      </div>
+      <div class="card-footer bg-transparent text-center py-3">
+        <button type="button" class="btn btn-link btn-sm" @click="goLogin">Back to sign in</button>
       </div>
     </form>
-  </div>
+  </GuestAuthLayout>
 </template>
 
 <script setup>
 import { reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { api } from '@/utils/api';
-import { APP_NAME } from '@/utils/defs';
+import GuestAuthLayout from '@/components/GuestAuthLayout.vue';
 
 const router = useRouter();
 const form = reactive({ name: '', email: '', affiliation: '', purpose: '', website: '' });

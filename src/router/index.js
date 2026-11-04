@@ -29,6 +29,7 @@ const routes = [
   { path: '/userProfileEdit', name: 'userProfileEdit', component: () => import('../views/UserProfileEdit.vue'), meta: { requiresAuth: true } },
   { path: '/team/new', name: 'newTeam', component: () => import('../views/NewTeamView.vue'), meta: { requiresAuth: true } },
   { path: '/team/settings', name: 'teamSettings', component: () => import('../views/TeamSettingsView.vue'), meta: { requiresAuth: true } },
+  { path: '/teams', name: 'teams', component: () => import('../views/admin/TeamsView.vue'), meta: { requiresAuth: true, teamAdminPage: true } },
 
   // Docs routes
   {
@@ -120,11 +121,13 @@ router.beforeEach(async (to, from, next) => {
 
       if (res.data.tokenExpired) {
         localStorage.removeItem('w4h.user.token');
+        useUserStore().clearUser();
         return next({ path: '/' });
       }
     } catch (error) {
       console.log('Token validation error:', error);
       localStorage.removeItem('w4h.user.token');
+      useUserStore().clearUser();
       return next({ path: '/' });
     }
   }
@@ -195,6 +198,7 @@ router.beforeEach(async (to, from, next) => {
     'projectWorkspace',
     'home',
     'newTeam',
+    'teams',
     'teamSettings',
   ]);
   if (token && isSuperAdmin(user?.role) && trialOperatorRoutes.has(to.name)) {

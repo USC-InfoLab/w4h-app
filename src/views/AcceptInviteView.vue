@@ -1,12 +1,8 @@
 <template>
-  <div class="d-flex flex-column align-items-center justify-content-center">
-    <form class="form-signin mx-auto" style="max-width: 420px;" @submit.prevent="onSubmit">
-      <img class="login-mark login-mark-hero mt-5 mx-auto d-block" src="/w4h-light.svg" :alt="`${APP_NAME} logo`" />
-      <div class="logotype mb-4 text-center">{{ APP_NAME }}</div>
-
-      <div class="card">
-        <div class="card-body">
-          <h5 class="card-title text-center mb-3">Activate your account</h5>
+  <GuestAuthLayout>
+    <form class="card text-start" @submit.prevent="onSubmit">
+      <div class="card-body p-4">
+          <h2 class="h4 mb-3">Activate your account</h2>
 
           <div v-if="loading" class="text-center py-4">
             <div class="spinner-border text-primary" role="status"></div>
@@ -52,7 +48,7 @@
                 <li>Set your password and save your personal API key.</li>
                 <li>Name your team — your lab or study group.</li>
                 <li>Create a project and invite your collaborators.</li>
-                <li>Load your data from the project's Datasets tab (<em>Run import…</em>).</li>
+                <li>Load your data from the project's Datasets tab (<em>Select importer…</em> on an empty dataset).</li>
               </ol>
             </div>
 
@@ -104,10 +100,9 @@
               Activate account
             </button>
           </template>
-        </div>
       </div>
     </form>
-  </div>
+  </GuestAuthLayout>
 </template>
 
 <script setup>
@@ -120,6 +115,7 @@ import { useUserStore } from '@/stores/user';
 import { useUIStore } from '@/stores/ui';
 import { canAccessAdminUi } from '@/utils/roles';
 import CopyBox from '@/components/CopyBox.vue';
+import GuestAuthLayout from '@/components/GuestAuthLayout.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -223,19 +219,3 @@ onMounted(async () => {
 });
 </script>
 
-<style scoped>
-.logotype {
-  margin: 20px 0;
-  font-size: 1.5em;
-  font-weight: bolder;
-}
-
-.login-mark {
-  width: 140px;
-  height: auto;
-}
-
-.login-mark-hero {
-  width: 180px;
-}
-</style>

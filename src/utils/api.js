@@ -6,5 +6,9 @@ const api = axios.create({
 
 const authHeaders = () => ({ headers: { authorization: localStorage.getItem('w4h.user.token') } });
 
-export { api, authHeaders };
+function authToken() {
+  return (typeof localStorage !== 'undefined' && localStorage.getItem('w4h.user.token')) || '';
+}
+
+export { api, authHeaders, authToken };
 export default api;

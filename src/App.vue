@@ -4,7 +4,7 @@
       <AdminNavBar v-if="isAdminUI" />
       <NavBar v-else />
       <GlobalChatPanel />
-      <WhatsNewModal v-if="user" />
+      <WhatsNewModal />
     </template>
     <router-view />
   </div>

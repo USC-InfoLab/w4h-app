@@ -128,6 +128,7 @@ export const useChatStore = defineStore('chat', () => {
   async function hydrateForUser() {
     const userId = userStore.user?.id || userStore.user?.email;
     if (!userId || hydrating.value) return;
+    if (!localStorage.getItem('w4h.user.token')) return;
     if (hydratedUserId.value === userId && conversations.value.length) return;
     hydrating.value = true;
     try {

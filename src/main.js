@@ -63,17 +63,21 @@ self.MonacoEnvironment = {
   },
 }
 
-createApp(App)
-  .use(router)
-  .use(pinia)
-  .use(hljsVuePlugin)
-  // .use(Vueform, vueformConfig)
-  .use(FloatingVue, {
-    themes: {
-      'my-theme': {
-        $extend: 'tooltip',
-        $resetCss: true,
-      },
+const app = createApp(App)
+app.use(pinia)
+app.use(router)
+app.use(hljsVuePlugin)
+// .use(Vueform, vueformConfig)
+app.use(FloatingVue, {
+  themes: {
+    'my-theme': {
+      $extend: 'tooltip',
+      $resetCss: true,
     },
-  })
-  .mount('#app');
+  },
+})
+// Wait for the first navigation (including token-valid) so guest routes do not
+// mount AdminNavBar / chat / What's New and fire 401s with a stale session.
+router.isReady().then(() => {
+  app.mount('#app')
+})

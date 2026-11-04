@@ -1,24 +1,16 @@
 <template>
-  <main role="main" class="container-fluid">
-    <div class="row align-items-center mb-3">
-      <div class="col">
-        <h5 class="mb-0">
-          <i class="bi bi-beaker me-1"></i>
-          Projects
-          <span v-if="activeProjectName" class="text-muted fw-normal fs-6">· {{ activeProjectName }}</span>
-        </h5>
-        <p class="small text-muted mb-0 mt-1">
-          <template v-if="isActiveProjectAdmin">
-            Your projects. New project can copy members from an existing one (one-time, not a live link).
-          </template>
-          <template v-else>
-            Projects you belong to. Open one to work in the workspace.
-          </template>
-        </p>
-      </div>
-      <div v-if="isActiveProjectAdmin" class="col-auto">
+  <main role="main" class="container-fluid text-start">
+    <div class="d-flex align-items-center justify-content-between gap-3 mb-2">
+      <h5 class="mb-0">
+        <i class="bi bi-beaker me-1"></i>
+        Projects
+      </h5>
+      <div class="d-flex align-items-center gap-2 flex-shrink-0">
+        <label class="visually-hidden" for="project-status-filter">Show</label>
         <select
+          id="project-status-filter"
           class="form-select form-select-sm"
+          style="width: auto;"
           :value="statusFilter"
           @change="onStatusFilterChange($event.target.value)"
         >
@@ -26,15 +18,26 @@
           <option value="archived">Archived</option>
           <option value="all">All</option>
         </select>
-      </div>
-      <div v-if="canCreateProject" class="col-auto">
-        <button class="btn btn-sm btn-primary my-2" @click="$router.push({ name: 'adminProjectsAdd' })">
-          <i class="bi bi-plus"></i> Add Project
+        <button
+          v-if="canCreateProject"
+          class="btn btn-sm btn-primary text-nowrap"
+          @click="$router.push({ name: 'adminProjectsAdd' })"
+        >
+          <i class="bi bi-plus"></i> Add project
         </button>
       </div>
     </div>
-
-    <CollaborationInvites v-if="canCreateProject" />
+    <p class="small text-muted mb-3">
+      <template v-if="statusFilter === 'archived'">
+        Hidden from the project menu. Nothing is deleted. Open one and choose Restore to put it back.
+      </template>
+      <template v-else-if="isActiveProjectAdmin">
+        Your projects. A new project can copy members from an existing one, once, not as a live link.
+      </template>
+      <template v-else>
+        Projects you belong to. Open one to work in it.
+      </template>
+    </p>
 
     <div v-if="errorMessage" class="alert alert-danger">
       {{ errorMessage }}
@@ -80,24 +83,24 @@
     </ul>
 
     <div v-else class="text-center my-5">
-      <p class="text-muted">No projects found.</p>
+      <p v-if="statusFilter === 'archived'" class="text-muted mb-0">No archived projects.</p>
+      <p v-else class="text-muted mb-0">No projects found.</p>
     </div>
   </main>
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue';
-import { useRouter } from 'vue-router';
+import { ref, onMounted, computed, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { api, authHeaders } from '@/utils/api';
 import { useUserStore } from '@/stores/user';
 import { canManageTeam } from '@/utils/roles';
 import { useTeamContext } from '@/composables/useTeamContext';
-import CollaborationInvites from '@/components/project/CollaborationInvites.vue';
 
+const route = useRoute();
 const router = useRouter();
 const userStore = useUserStore();
 const {
-  activeProjectName,
   isActiveProjectAdmin,
   setActiveProject,
 } = useTeamContext();
@@ -105,7 +108,12 @@ const {
 const projects = ref([]);
 const loading = ref(true);
 const errorMessage = ref('');
-const statusFilter = ref('active');
+
+function statusFromQuery(value) {
+  return ['active', 'archived', 'all'].includes(String(value || '')) ? String(value) : 'active';
+}
+
+const statusFilter = ref(statusFromQuery(route.query.status));
 const canCreateProject = computed(() =>
   canManageTeam(userStore.user?.role, userStore.user?.caps)
 );
@@ -114,7 +122,7 @@ const visibleProjects = computed(() =>
   Array.isArray(projects.value) ? projects.value : []
 );
 
-async function loadProjects() {
+async function loadProjectList() {
   loading.value = true;
   try {
     const res = await api.get('projects', { ...authHeaders(), params: { status: statusFilter.value } });
@@ -128,18 +136,38 @@ async function loadProjects() {
 }
 
 function onStatusFilterChange(value) {
-  statusFilter.value = value;
-  loadProjects();
+  statusFilter.value = statusFromQuery(value);
+  const query = { ...route.query };
+  delete query.notice;
+  delete query.project;
+  if (statusFilter.value === 'active') delete query.status;
+  else query.status = statusFilter.value;
+  router.replace({ query });
+  loadProjectList();
 }
+
+watch(
+  () => route.query.status,
+  (value) => {
+    const next = statusFromQuery(value);
+    if (next === statusFilter.value) return;
+    statusFilter.value = next;
+    loadProjectList();
+  }
+);
 
 onMounted(() => {
   document.title = 'Projects';
-  loadProjects();
+  loadProjectList();
 });
 
 function goEdit(projectRef) {
   setActiveProject(projectRef);
-  router.push({ name: 'adminProjectsEdit', params: { id: projectRef } });
+  const project = visibleProjects.value.find(
+    (p) => String(p.slug || p.id) === String(projectRef) || String(p.id) === String(projectRef)
+  );
+  const query = project?.status === 'archived' ? { tab: 'settings' } : undefined;
+  router.push({ name: 'adminProjectsEdit', params: { id: projectRef }, query });
 }
 
 function openWorkspace(project) {

@@ -1,6 +1,6 @@
 <template>
-  <div class="d-flex flex-column align-items-center justify-content-center">
-    <div v-if="showDbConfig" class="card w-100 mx-auto" style="max-width: 450px;">
+  <GuestAuthLayout :panel="setupPanel">
+    <div v-if="showDbConfig" class="card guest-card text-start">
       <div class="card-body">
         <img class="login-mark mx-auto d-block mt-2" src="/w4h-light.svg" :alt="`${APP_NAME} logo`" />
         <h2 class="text-center mt-3">{{ APP_NAME }} Setup</h2>
@@ -77,7 +77,7 @@
       </div>
     </div>
 
-    <div v-else-if="showAdminSetup" class="card w-100 mx-auto" style="max-width: 450px;">
+    <div v-else-if="showAdminSetup" class="card guest-card text-start">
       <form class="card-body" @submit.prevent="setupInitialAdmin">
         <img class="login-mark mx-auto d-block mt-2" src="/w4h-light.svg" :alt="`${APP_NAME} logo`" />
         <h2 class="text-center mt-3">{{ APP_NAME }} Admin Setup</h2>
@@ -138,7 +138,7 @@
       </form>
     </div>
 
-    <div v-else-if="showApiKeyReveal" class="card w-100 mx-auto" style="max-width: 450px;">
+    <div v-else-if="showApiKeyReveal" class="card guest-card text-start">
       <div class="card-body">
         <img class="login-mark mx-auto d-block mt-2" src="/w4h-light.svg" :alt="`${APP_NAME} logo`" />
         <h2 class="text-center mt-3">Your Personal API Key</h2>
@@ -162,7 +162,7 @@
       </div>
     </div>
 
-    <div v-else-if="backendError" class="card w-100 mx-auto" style="max-width: 450px;">
+    <div v-else-if="backendError" class="card guest-card">
       <div class="card-body text-center">
         <img class="login-mark mx-auto d-block mt-2" src="/w4h-light.svg" :alt="`${APP_NAME} logo`" />
         <h2 class="text-center mt-3">Backend Unavailable</h2>
@@ -176,56 +176,61 @@
       </div>
     </div>
 
-    <form v-else class="form-signin mx-auto" autocomplete="on" method="post" action="/login" @submit.prevent="login()">
-      <img class="login-mark login-mark-hero mt-5 mx-auto d-block" src="/w4h-light.svg" :alt="`${APP_NAME} logo`" />
-      <div class="logotype mb-4 text-center">{{ APP_NAME }}</div>
+    <form v-else class="card guest-card text-start" autocomplete="on" method="post" action="/login"
+      @submit.prevent="login()">
+      <div class="card-body p-4">
+        <h2 class="h4 mb-1">Sign in</h2>
+        <p class="text-muted small mb-4">Use the email from your invitation.</p>
 
-      <label for="inputEmail" class="form-label text-start w-100 mb-1">Email</label>
-      <input id="inputEmail" name="username" type="email" class="form-control" placeholder="you@example.com" required
-        autofocus v-model="email" autocomplete="username" @input="resetMessage" @change="syncLoginFromDom"
-        @animationstart="onLoginAutofill" />
+        <label for="inputEmail" class="form-label">Email</label>
+        <input id="inputEmail" name="username" type="email" class="form-control mb-3" placeholder="you@usc.edu" required
+          autofocus v-model="email" autocomplete="username" @input="resetMessage" @change="syncLoginFromDom"
+          @animationstart="onLoginAutofill" />
 
-      <label for="inputPassword" class="form-label text-start w-100 mb-1 mt-2">Password</label>
-      <div class="position-relative mb-3">
-        <input id="inputPassword" name="password" :type="showLoginPassword ? 'text' : 'password'" class="form-control"
-          placeholder="Password" required v-model="password" autocomplete="current-password" @input="onPasswordInput"
-          @change="syncLoginFromDom" @animationstart="onLoginAutofill" />
-        <button type="button" class="btn-eye-toggle" @click="showLoginPassword = !showLoginPassword" tabindex="-1">
-          <i :class="showLoginPassword ? 'bi bi-eye-slash' : 'bi bi-eye'"></i>
+        <label for="inputPassword" class="form-label">Password</label>
+        <div class="position-relative mb-3">
+          <input id="inputPassword" name="password" :type="showLoginPassword ? 'text' : 'password'"
+            class="form-control pe-5" placeholder="Password" required v-model="password"
+            autocomplete="current-password" @input="onPasswordInput" @change="syncLoginFromDom"
+            @animationstart="onLoginAutofill" />
+          <button type="button" class="btn-eye-toggle" @click="showLoginPassword = !showLoginPassword" tabindex="-1"
+            :aria-label="showLoginPassword ? 'Hide password' : 'Show password'">
+            <i :class="showLoginPassword ? 'bi bi-eye-slash' : 'bi bi-eye'"></i>
+          </button>
+        </div>
+
+        <p v-if="message" class="text-danger small mb-3" role="alert">{{ message }}</p>
+
+        <button class="w-100 btn btn-lg btn-primary" type="submit">Sign in</button>
+
+        <button type="button" class="btn btn-link w-100 mt-2" @click="router.push({ name: 'loginCode' })">
+          Sign in with email code
         </button>
       </div>
-
-      <button class="w-100 btn btn-lg btn-primary" type="submit">Sign in</button>
-
-      <div class="btn btn-link mt-3 w-100 text-center" @click="router.push({ name: 'loginCode' })">
-        Login with email code
+      <div class="card-footer bg-transparent text-center py-3">
+        <span class="text-muted small">New PI?</span>
+        <button type="button" class="btn btn-link btn-sm py-0" @click="router.push({ name: 'requestAccess' })">
+          Request access
+        </button>
       </div>
-      <div class="btn btn-link w-100 text-center" @click="router.push({ name: 'requestAccess' })">
-        Request access (USC researchers)
-      </div>
-
-      <p class="mt-2 fw-bold text-danger text-center">{{ message }}</p>
     </form>
-
-    <p id="footer" class="text-muted mt-4 mb-3 text-center">{{ copyright }}</p>
-  </div>
+  </GuestAuthLayout>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, nextTick } from 'vue';
+import { ref, reactive, computed, onMounted, nextTick } from 'vue';
 import { api } from '../utils/api';
 import { validatePassword, PASSWORD_REQUIREMENTS } from '@/utils/password-validator';
 import { APP_NAME } from '@/utils/defs';
 import { readLastLoginEmail, rememberLoginEmail } from '@/utils/loginRemember';
 import { getLoginCredential, storeLoginCredential } from '@/utils/browserCredentials';
 import CopyBox from '@/components/CopyBox.vue';
+import GuestAuthLayout from '@/components/GuestAuthLayout.vue';
 import { useRouter } from 'vue-router';
 const router = useRouter();
 
 import { useUserStore } from '../stores/user';
 const userStore = useUserStore();
-
-const copyright = import.meta.env.VITE_COPYRIGHT;
 
 import { useUIStore } from '@/stores/ui';
 import { canAccessAdminUi } from '@/utils/roles';
@@ -245,6 +250,9 @@ const showLoginPassword = ref(false);
 const showDbPassword = ref(false);
 const showAdminPassword = ref(false);
 const showAdminConfirmPassword = ref(false);
+const setupPanel = computed(() =>
+  (showDbConfig.value || showAdminSetup.value || showApiKeyReveal.value) ? 'setup' : 'welcome'
+);
 
 const db = reactive({
   host: '',
@@ -301,7 +309,6 @@ const checkDbStatus = async () => {
       return;
     }
 
-    console.log(res);
     dbConfigured.value = !!res.data.configured;
     showDbConfig.value = !dbConfigured.value;
     showAdminSetup.value = dbConfigured.value && !!res.data.requiresAdminSetup;
@@ -541,65 +548,14 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-/* REMOVED: body { min-height: 50vh; } */
-
-#footer {
-  position: static;
-}
-
-.form-signin {
+.guest-card {
   width: 100%;
-  max-width: 360px;
-  padding: 0px 15px;
-  margin: 50px auto 0;
-}
-
-/* ... rest of existing styles ... */
-.form-signin .checkbox {
-  font-weight: 400;
-}
-
-.form-signin .form-control {
-  position: relative;
-  box-sizing: border-box;
-  height: auto;
-  padding: 10px;
-  font-size: 16px;
-}
-
-.form-signin h1 {
-  font-size: 6em;
-}
-
-.form-signin .form-control:focus {
-  z-index: 2;
-}
-
-.form-signin input[type='email'] {
-  margin-bottom: -1px;
-  border-bottom-right-radius: 0;
-  border-bottom-left-radius: 0;
-}
-
-.form-signin #inputPassword {
-  margin-bottom: 0;
-  border-top-left-radius: 0;
-  border-top-right-radius: 0;
-}
-
-.logotype {
-  margin: 20px 0;
-  font-size: 1.5em;
-  font-weight: bolder;
+  text-align: left;
 }
 
 .login-mark {
-  width: 140px;
+  width: 88px;
   height: auto;
-}
-
-.login-mark-hero {
-  width: 180px;
 }
 
 .btn-eye-toggle {
@@ -611,7 +567,7 @@ onMounted(async () => {
   align-items: center;
   background: none;
   border: none;
-  color: #888;
+  color: var(--w4h-muted, #888);
   cursor: pointer;
   padding: 0;
   font-size: 16px;
@@ -621,22 +577,17 @@ onMounted(async () => {
 .btn-eye-toggle:hover {
   color: inherit;
 }
-
-#inputEmail {
-  border-bottom-left-radius: 0px !important;
-  border-bottom-right-radius: 0px !important;
-}
 </style>
 
 <style>
-.form-signin #inputEmail:-webkit-autofill,
-.form-signin #inputPassword:-webkit-autofill {
+#inputEmail:-webkit-autofill,
+#inputPassword:-webkit-autofill {
   animation-name: w4h-onAutoFillStart;
   animation-duration: 0.001s;
 }
 
-.form-signin #inputEmail:not(:-webkit-autofill),
-.form-signin #inputPassword:not(:-webkit-autofill) {
+#inputEmail:not(:-webkit-autofill),
+#inputPassword:not(:-webkit-autofill) {
   animation-name: w4h-onAutoFillCancel;
   animation-duration: 0.001s;
 }

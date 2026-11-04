@@ -68,6 +68,7 @@ const renderedHtml = computed(() => {
 });
 
 onMounted(async () => {
+  if (!localStorage.getItem('w4h.user.token')) return;
   try {
     const res = await api.get('/docs/whats-new', authHeaders());
     const d = res.data;

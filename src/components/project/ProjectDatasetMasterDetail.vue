@@ -55,6 +55,9 @@ onMounted(async () => {
 
 const detailsModalEl = ref(null);
 let detailsModal = null;
+const unlinkModalEl = ref(null);
+let unlinkModal = null;
+const pendingUnlink = ref(null);
 // Tracks actual shown/hidden state (via Bootstrap's own events) so the embedded
 // DatasetsEdit only mounts — and fetches — while the modal is really visible.
 const detailsDialogOpen = ref(false);
@@ -67,21 +70,42 @@ function closeDetailsDialog() {
   detailsModal?.hide();
 }
 
+function openUnlinkModal() {
+  if (!selected.value?.id) return;
+  pendingUnlink.value = {
+    id: selected.value.id,
+    name: selected.value.name || 'this dataset',
+    empty: selected.value.table_count === 0,
+  };
+  unlinkModal?.show();
+}
+
+function confirmUnlink() {
+  const id = pendingUnlink.value?.id;
+  unlinkModal?.hide();
+  if (id) emit('unlink-dataset', id);
+}
+
 const runDialogRef = ref(null);
 
 onMounted(() => {
-  if (!detailsModalEl.value) return;
-  detailsModal = new Modal(detailsModalEl.value);
-  detailsModalEl.value.addEventListener('show.bs.modal', () => {
-    detailsDialogOpen.value = true;
-  });
-  detailsModalEl.value.addEventListener('hidden.bs.modal', () => {
-    detailsDialogOpen.value = false;
-  });
+  if (detailsModalEl.value) {
+    detailsModal = new Modal(detailsModalEl.value);
+    detailsModalEl.value.addEventListener('show.bs.modal', () => {
+      detailsDialogOpen.value = true;
+    });
+    detailsModalEl.value.addEventListener('hidden.bs.modal', () => {
+      detailsDialogOpen.value = false;
+    });
+  }
+  if (unlinkModalEl.value) {
+    unlinkModal = new Modal(unlinkModalEl.value);
+  }
 });
 
 onBeforeUnmount(() => {
   detailsModal?.dispose();
+  unlinkModal?.dispose();
 });
 
 function openRunDialog() {
@@ -313,6 +337,10 @@ const coverage = computed(() => {
   return Array.isArray(list) && list.length ? list : [];
 });
 
+const importActionLabel = computed(() =>
+  selected.value && Number(selected.value.table_count) === 0 ? 'Select importer…' : 'Run import…'
+);
+
 const canRunImportOnSelected = computed(
   () =>
     props.canManage &&
@@ -384,29 +412,26 @@ watch(
 <template>
   <div v-if="orderedDatasets.length === 0 && !canManage" class="card p-3">
     <h5 class="card-title mb-2">Datasets on this project</h5>
-    <p class="text-muted mb-0">No datasets are currently assigned to this project.</p>
+    <p class="text-muted mb-0">None yet. A project Admin adds them.</p>
   </div>
 
-  <div v-else class="card overflow-hidden dataset-master-detail">
+  <div v-else class="card" :class="{ 'overflow-hidden dataset-master-detail': orderedDatasets.length }">
     <div class="row g-0">
-      <div class="col-12 col-xl-5 border-end dataset-master-detail__list">
+      <div v-if="orderedDatasets.length" class="col-12 col-xl-5 border-end dataset-master-detail__list">
         <div class="p-3 border-bottom dataset-master-detail__list-header">
           <h5 class="mb-0">Datasets on this project</h5>
           <div class="d-flex flex-wrap gap-2 dataset-master-detail__list-actions">
             <button type="button" class="btn btn-sm btn-outline-secondary flex-shrink-0"
               :class="{ active: showingAllDatasets }" @click="showCombinedSummary">
-              Combined summary
+              All datasets
             </button>
             <button v-if="canManage" type="button" class="btn btn-sm btn-outline-primary flex-shrink-0"
               :class="{ active: selectedId === ADD_ID }" @click="selectedId = ADD_ID">
-              <i class="bi bi-plus-lg" aria-hidden="true"></i> Link
+              <i class="bi bi-plus-lg" aria-hidden="true"></i> Add dataset
             </button>
           </div>
         </div>
-        <div v-if="orderedDatasets.length === 0" class="p-3 small text-muted">
-          No datasets are currently assigned to this project.
-        </div>
-        <div v-else class="list-group list-group-flush dataset-selector">
+        <div class="list-group list-group-flush dataset-selector">
           <button v-for="row in orderedDatasets" :key="row.id" type="button"
             class="list-group-item list-group-item-action dataset-row text-start"
             :class="{ 'dataset-row--selected': row.id === selectedId }" @click="selectedId = row.id">
@@ -429,30 +454,40 @@ watch(
         </div>
         <div v-if="canManage" class="p-3 border-top">
           <router-link :to="{ name: 'adminDatasets' }" class="small text-decoration-none">
-            Manage full team catalog →
+            Team catalog →
           </router-link>
+          <span class="small text-muted"> Rename a dataset, or share it with another team.</span>
         </div>
       </div>
 
-      <div class="col-12 col-xl-7 dataset-master-detail__detail">
-        <div v-if="canManage && selectedId === ADD_ID" class="p-3 h-100">
-          <div class="small text-muted text-uppercase mb-1">Add to this project</div>
-          <h5 class="mb-2">Create or link a dataset</h5>
-          <p class="small text-muted mb-3">
-            Linking a catalog row does not load tables. Load data by adapting a notebook or
-            deploying a CLI from a Contributions example against <em>your</em> team, with your
-            personal API key. Sample / demonstration datasets are read-only.
-          </p>
+      <div class="dataset-master-detail__detail" :class="orderedDatasets.length ? 'col-12 col-xl-7' : 'col-12'">
+        <div v-if="!orderedDatasets.length || (canManage && selectedId === ADD_ID)" class="p-3 h-100">
+          <template v-if="!orderedDatasets.length">
+            <h5 class="mb-2">Datasets on this project</h5>
+            <p class="text-muted mb-3">
+              None yet. Choose a dataset your team already has, or create a new empty one.
+              That attaches it to this project. Tables are loaded afterward: select an importer,
+              or use a Contribution.
+            </p>
+          </template>
+          <template v-else>
+            <div class="small text-muted text-uppercase mb-1">Add to this project</div>
+            <h5 class="mb-2">Add a dataset</h5>
+            <p class="small text-muted mb-3">
+              Choosing one attaches it to this project. Tables are loaded afterward.
+              Sample datasets are read-only.
+            </p>
+          </template>
           <div v-if="!hasTeam" class="alert alert-warning small mb-0">
             Set an owning team before assigning datasets.
           </div>
           <template v-else>
             <div class="row g-2 align-items-end">
               <div class="col">
-                <label class="form-label small mb-0">Add existing</label>
+                <label class="form-label small mb-0">Dataset</label>
                 <select class="form-select form-select-sm" :value="datasetToAdd" :disabled="savingDatasets"
                   @change="onDatasetSelect">
-                  <option value="">Select…</option>
+                  <option value="">Choose a dataset…</option>
                   <optgroup v-if="linkedDropdownDatasets.length" label="Already on this project">
                     <option v-for="d in linkedDropdownDatasets" :key="`linked-${d.id}`" disabled>
                       {{ d.name || d.id
@@ -471,7 +506,7 @@ watch(
                         : ' · empty'
                     }}{{ d.read_only ? ' (read-only sample)' : '' }}
                   </option>
-                  <option value="__new__">Create new catalog dataset…</option>
+                  <option value="__new__">Create a new dataset…</option>
                 </select>
               </div>
             </div>
@@ -488,6 +523,10 @@ watch(
                 </button>
               </div>
             </div>
+            <p v-if="!orderedDatasets.length" class="small text-muted mt-3 mb-0">
+              <router-link :to="{ name: 'adminDatasets' }">Team catalog</router-link>
+              is where you rename a dataset or share it with another team.
+            </p>
           </template>
         </div>
         <div v-else-if="showingAllDatasets || selected" class="p-3 h-100 d-flex flex-column">
@@ -500,13 +539,14 @@ watch(
                 {{ selected.source_label || selected.origin || 'W4H Samples' }}
               </div>
               <div v-else-if="showingAllDatasets" class="small text-muted mt-1">
-                Combined summary across all datasets linked to this project.
+                Counts across every dataset on this project.
               </div>
             </div>
             <div class="d-flex flex-column align-items-end gap-2">
               <button v-if="canRunImportOnSelected" type="button" class="btn btn-sm btn-primary flex-shrink-0"
                 @click="openRunDialog">
-                <i class="bi bi-play-fill" aria-hidden="true"></i> Run import…
+                <i class="bi" :class="selected.table_count === 0 ? 'bi-ui-checks' : 'bi-play-fill'" aria-hidden="true"></i>
+                {{ importActionLabel }}
               </button>
               <small v-if="selectedSummary.summary_updated_at" class="text-muted">
                 {{ relativeFreshness(selectedSummary.summary_updated_at) }}
@@ -596,24 +636,24 @@ watch(
             <p v-if="!showingAllDatasets && selected.read_only" class="small mb-3">
               Super admin seeded this sample. It is read-only — do not re-ingest.
             </p>
-            <p v-else-if="!showingAllDatasets && selected.table_count === 0 && canRunImportOnSelected"
-              class="small text-muted mb-3">
-              Not loaded yet. Use <strong>Run import…</strong> to populate from a catalog contribution,
-              or link an existing loaded catalog row under <strong>Add</strong>.
-            </p>
-            <div v-if="!showingAllDatasets && loadedLinkHint && selected.table_count === 0"
-              class="alert alert-info py-2 small mb-3">
-              <strong>{{ loadedLinkHint.name }}</strong> already has this sample loaded
-              {{ loadedLinkHint.alreadyLinked ? 'on this project' : 'in your team catalog' }}.
-              <button type="button" class="btn btn-link btn-sm p-0 align-baseline" @click="linkLoadedAlternative">
-                Link it instead
-              </button>
-              — that uses the existing tables. This empty row will be unlinked and archived.
-            </div>
-            <p v-else-if="!showingAllDatasets && selected.table_count === 0" class="small text-muted mb-3">
-              Not loaded yet. Adapt a notebook or deploy a CLI from a Contributions example
-              into your team catalog. Tables and stats appear here after that.
-            </p>
+            <template v-else-if="!showingAllDatasets && selected.table_count === 0">
+              <p v-if="canRunImportOnSelected" class="small text-muted mb-3">
+                Not loaded yet. <strong>Select importer…</strong> to choose what fills this dataset:
+                your own files, or a sample package.
+              </p>
+              <div v-if="loadedLinkHint" class="alert alert-info py-2 small mb-3">
+                <strong>{{ loadedLinkHint.name }}</strong> already has this sample loaded
+                {{ loadedLinkHint.alreadyLinked ? 'on this project' : 'in your team catalog' }}.
+                <button type="button" class="btn btn-link btn-sm p-0 align-baseline" @click="linkLoadedAlternative">
+                  Link it instead
+                </button>
+                — that uses the existing tables. This empty row will be unlinked and archived.
+              </div>
+              <p v-else-if="!canRunImportOnSelected" class="small text-muted mb-3">
+                Not loaded yet. Adapt a notebook or deploy a CLI from a Contributions example
+                into your team catalog. Tables and stats appear here after that.
+              </p>
+            </template>
             <p v-else-if="!showingAllDatasets && selected.physical_table_count === 0" class="small text-muted mb-3">
               Catalog exists but no tables are in the database yet.
             </p>
@@ -629,8 +669,8 @@ watch(
           <div v-else class="text-muted small mb-3 flex-grow-1">
             <p v-if="!showingAllDatasets && selected.description" class="mb-2">{{ selected.description }}</p>
             <p v-if="!showingAllDatasets && selected.table_count === 0 && canRunImportOnSelected" class="mb-2">
-              Not loaded yet. Use <strong>Run import…</strong> above to populate this dataset from a catalog
-              contribution.
+              Not loaded yet. <strong>Select importer…</strong> above to choose what fills this dataset:
+              your own files, or a sample package.
             </p>
             <p class="mb-0">
               Summary statistics are not available yet for {{ showingAllDatasets ? 'these datasets' : 'this dataset' }}.
@@ -647,8 +687,7 @@ watch(
             </button>
             <button v-if="canManage && !showingAllDatasets && selected.id" type="button"
               class="btn btn-sm btn-outline-danger"
-              title="Removes this dataset from the project. A loaded catalog row stays in the team and appears under Add existing. An empty catalog row is archived so it does not stay in that list."
-              @click="emit('unlink-dataset', selected.id)">
+              @click="openUnlinkModal">
               Unlink from project
             </button>
           </div>
@@ -661,6 +700,29 @@ watch(
     :local-run-targets="localRunTargets" :catalog-run-targets="catalogRunTargets" :can-manage="canManage"
     :project-id="projectId" @run-complete="onRunComplete" @dataset-pick="emit('dataset-pick', $event)"
     @link-existing="onLinkExisting" />
+
+  <div class="modal fade" tabindex="-1" ref="unlinkModalEl" aria-labelledby="unlinkDatasetTitle" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="unlinkDatasetTitle">Unlink {{ pendingUnlink?.name || 'this dataset' }}?</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p v-if="pendingUnlink?.empty" class="mb-0">
+            It leaves this project. This dataset has no tables, so it is archived and drops out of the add list.
+          </p>
+          <p v-else class="mb-0">
+            It leaves this project. The dataset and its tables stay in the team catalog, and Add dataset can put it back.
+          </p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-danger" @click="confirmUnlink">Unlink</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <div class="modal fade" tabindex="-1" ref="detailsModalEl" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-scrollable">

@@ -78,7 +78,7 @@
             <div v-else-if="!teamOptions.length" class="form-text text-warning">
               No teams available.
               <span v-if="callerIsSuper"> Teams are created by approved Admins.</span>
-              <span v-else> Create a team from the account menu → New team.</span>
+              <span v-else> Create a team from the Team dropdown → New team.</span>
             </div>
             <div v-else-if="teamLocked" class="form-text">Team is fixed to your membership.</div>
           </div>

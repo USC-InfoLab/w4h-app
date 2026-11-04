@@ -85,9 +85,6 @@
               </RouterLink>
             </li>
             <li><hr class="dropdown-divider" /></li>
-            <li v-if="user.caps?.can_create_teams">
-              <RouterLink class="dropdown-item" :to="{ name: 'newTeam' }">New team</RouterLink>
-            </li>
             <li>
               <button type="button" class="dropdown-item" @click="showAbout = true">
                 About
@@ -139,7 +136,6 @@ const { user } = storeToRefs(userStore);
 const uiStore = useUIStore();
 const {
   isActiveProjectAdmin,
-  activeProject,
 } = useTeamContext();
 
 const navEl = ref(null);
@@ -158,33 +154,11 @@ const displayName = computed(() => {
   return name;
 });
 
-const isProjectActive = computed(() =>
-  route.name === 'projects' ||
-  route.name === 'projectWorkspace' ||
-  route.name === 'adminProjects' ||
-  route.name === 'adminProjectsAdd' ||
-  route.name === 'adminProjectsEdit' ||
-  route.name === 'adminTeamsEdit'
-);
 const isHelpActive = computed(() => route.name === 'docs' || route.name === 'docNew');
 const isContributionsActive = computed(() => route.name === 'contributions' || route.name === 'contributionDetail');
 const isAuditActive = computed(() => route.name === 'adminAuditLog');
 
-const projectTo = computed(() => {
-  const p = activeProject.value;
-  if (!p) return { name: 'adminProjects' };
-  return { name: 'adminProjectsEdit', params: { id: p.slug || p.id } };
-});
-
 const navItems = computed(() => [
-  {
-    key: 'project',
-    label: 'Project',
-    icon: 'bi bi-beaker',
-    to: projectTo.value,
-    active: isProjectActive.value,
-    show: true,
-  },
   {
     key: 'audit',
     label: 'Audit',

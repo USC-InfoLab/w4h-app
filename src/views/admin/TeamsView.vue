@@ -7,6 +7,9 @@
           Teams
         </h5>
       </div>
+      <div v-if="!isSuperAdmin(user.role) && user.caps?.can_create_teams" class="col-auto">
+        <router-link class="btn btn-sm btn-primary" :to="{ name: 'newTeam' }">New team</router-link>
+      </div>
     </div>
 
     <p class="small text-muted mb-3">
@@ -15,8 +18,7 @@
         Day-to-day trial setup (projects, datasets) is done by the Team admin in the app shell — not here.
       </template>
       <template v-else>
-        Create a team for a new trial, then add datasets, projects, and members.
-        You are Team admin on teams you create.
+        A team is your lab or study group. Open one to rename it, invite Admins and Users, and manage membership. Add a project from the project menu after the team exists.
       </template>
     </p>
 
@@ -27,10 +29,17 @@
 
     <div v-else-if="!rows.length" class="text-center my-5">
       <p class="text-muted mb-3">No teams yet.</p>
-      <p class="small text-muted mb-0">
+      <p v-if="isSuperAdmin(user.role)" class="small text-muted mb-0">
         Teams appear here once an approved Admin creates one. Approve access requests under
         <router-link :to="{ name: 'adminAccessRequests' }">Requests</router-link>.
       </p>
+      <router-link
+        v-else-if="user.caps?.can_create_teams"
+        class="btn btn-primary"
+        :to="{ name: 'newTeam' }"
+      >
+        New team
+      </router-link>
     </div>
 
     <div v-else class="row g-3">
