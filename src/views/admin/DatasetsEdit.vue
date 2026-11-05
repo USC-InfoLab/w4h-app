@@ -101,8 +101,8 @@
               </li>
             </ul>
             <div class="form-text">
-              Datasets are linked to projects from the project’s
-              <strong>Linked datasets</strong> panel — not from this page.
+              Link from the project’s Datasets tab. Unlink from that project’s
+              <strong>Settings</strong>.
             </div>
           </div>
         </div>

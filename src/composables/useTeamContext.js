@@ -18,6 +18,8 @@ const projects = ref([]);
 const loading = ref(false);
 const loadError = ref('');
 let loadPromise = null;
+// Last project id this tab saved to the account (skip repeat PATCHes only).
+let lastSavedProjectKey = '';
 
 function isAdminOnProject(project, memberships) {
   if (!project) return false;
@@ -200,8 +202,23 @@ export function useTeamContext() {
     return loadPromise;
   }
 
+  /** Remember an explicit choice on the account so sign-in reopens it anywhere. */
+  function saveLastProject(projectId) {
+    const id = projectId ? String(projectId) : '';
+    if (!id || !user.value?.id) return;
+    // Not the cached preference: another device may have changed it since.
+    const key = `${user.value.id}:${id}`;
+    if (key === lastSavedProjectKey) return;
+    lastSavedProjectKey = key;
+    userStore.setPreferences({ last_project_id: id });
+    api.patch('users/me/preferences', { last_project_id: id }, authHeaders()).catch(() => {
+      /* best-effort; the browser copy still works */
+    });
+  }
+
   function setActiveProject(projectId) {
     applyProject(projectId);
+    saveLastProject(activeProjectId.value);
   }
 
   function setActiveTeam(teamId) {

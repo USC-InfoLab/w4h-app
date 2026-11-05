@@ -15,7 +15,8 @@ The shared W4H architecture overview (all repos, concepts, flows) is at the end 
   - `/contributions` and `/contributions/:slug` browse the catalog (`w4h.contributions`); `src/utils/contributionKinds.js` labels kinds.
   - `/docs/*` renders Help imported from `w4h-docs`.
   - Profile → API keys issues the `w4h_sk_` keys that notebooks, CLIs and `run.sh` use.
-- **Known UI gaps:** `src/components/project/ProjectUserPanel.vue` (personal API credential Generate/Rotate/Reveal, calling `users/me/api-key*`) is not rendered by any view, so users only see their key on the one-time screens in `LoginView.vue` (initial admin) and `AcceptInviteView.vue`. Help text still says "Profile → API keys". There is also no upload UI yet for the API's staged-upload path (`POST /contributions/:slug/uploads`, used by `w4h-fitbit-csv-file-importer`).
+- **Known UI gaps:** `src/components/project/ProjectUserPanel.vue` (personal API credential Generate/Rotate/Reveal, calling `users/me/api-key*`) is not rendered by any view, so users only see their key on the one-time screens in `LoginView.vue` (initial admin) and `AcceptInviteView.vue`. Help text still says "Profile → API keys".
+- **Select importer…** stages CSVs through `POST /contributions/:slug/uploads` for file importers, and still offers the command line.
 - **Packaging:** `w4h-docker` builds this app with `VITE_API_URL=/api/` behind nginx on `127.0.0.1:5180`, plus an optional `VITE_JUPYTER_URL` link to the convenience Jupyter.
 
 When app behavior depends on another repository, inspect the relevant sibling repo rather than guessing its behavior or contract.

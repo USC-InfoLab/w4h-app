@@ -1,38 +1,24 @@
 <template>
   <main role="main" class="container-fluid text-start">
-    <div class="d-flex align-items-center justify-content-between gap-3 mb-2">
+    <div v-if="showCatalog" class="d-flex align-items-center justify-content-between gap-3 mb-2">
       <h5 class="mb-0">
         <i class="bi bi-beaker me-1"></i>
-        Projects
+        {{ listingArchived ? 'Archived projects' : 'Projects' }}
       </h5>
-      <div class="d-flex align-items-center gap-2 flex-shrink-0">
-        <label class="visually-hidden" for="project-status-filter">Show</label>
-        <select
-          id="project-status-filter"
-          class="form-select form-select-sm"
-          style="width: auto;"
-          :value="statusFilter"
-          @change="onStatusFilterChange($event.target.value)"
-        >
-          <option value="active">Active</option>
-          <option value="archived">Archived</option>
-          <option value="all">All</option>
-        </select>
-        <button
-          v-if="canCreateProject"
-          class="btn btn-sm btn-primary text-nowrap"
-          @click="$router.push({ name: 'adminProjectsAdd' })"
-        >
-          <i class="bi bi-plus"></i> Add project
-        </button>
-      </div>
+      <button
+        v-if="canCreateProject && !listingArchived"
+        class="btn btn-sm btn-primary text-nowrap"
+        @click="$router.push({ name: 'adminProjectsAdd' })"
+      >
+        <i class="bi bi-plus"></i> Add project
+      </button>
     </div>
-    <p class="small text-muted mb-3">
-      <template v-if="statusFilter === 'archived'">
-        Hidden from the project menu. Nothing is deleted. Open one and choose Restore to put it back.
+    <p v-if="showCatalog" class="small text-muted mb-3">
+      <template v-if="listingArchived">
+        Hidden from the project menu. Nothing is deleted. Open one, then Restore in Settings to put it back.
       </template>
       <template v-else-if="isActiveProjectAdmin">
-        Your projects. A new project can copy members from an existing one, once, not as a live link.
+        Your projects.
       </template>
       <template v-else>
         Projects you belong to. Open one to work in it.
@@ -43,7 +29,7 @@
       {{ errorMessage }}
     </div>
 
-    <div v-if="loading" class="text-center mt-5">
+    <div v-if="loading || !showCatalog" class="text-center mt-5">
       <div class="spinner-border text-primary" role="status"></div>
       <p>Loading projects...</p>
     </div>
@@ -57,7 +43,6 @@
         <div class="min-w-0 flex-grow-1">
           <div class="fw-semibold">
             {{ project.name || project.id }}
-            <span v-if="project.status === 'archived'" class="badge text-bg-secondary ms-1">Archived</span>
           </div>
           <small class="text-muted">
             {{ project.slug || project.id }}
@@ -70,7 +55,7 @@
           class="btn btn-sm btn-outline-primary flex-shrink-0"
           @click="goEdit(project.slug || project.id)"
         >
-          Edit
+          Open
         </button>
         <button
           v-else
@@ -83,7 +68,7 @@
     </ul>
 
     <div v-else class="text-center my-5">
-      <p v-if="statusFilter === 'archived'" class="text-muted mb-0">No archived projects.</p>
+      <p v-if="listingArchived" class="text-muted mb-0">No archived projects.</p>
       <p v-else class="text-muted mb-0">No projects found.</p>
     </div>
   </main>
@@ -94,7 +79,7 @@ import { ref, onMounted, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { api, authHeaders } from '@/utils/api';
 import { useUserStore } from '@/stores/user';
-import { canManageTeam } from '@/utils/roles';
+import { canManageTeam, isSuperAdmin } from '@/utils/roles';
 import { useTeamContext } from '@/composables/useTeamContext';
 
 const route = useRoute();
@@ -103,17 +88,23 @@ const userStore = useUserStore();
 const {
   isActiveProjectAdmin,
   setActiveProject,
+  activeProject,
+  activeProjectId,
+  loadProjects,
 } = useTeamContext();
+const callerIsSuper = isSuperAdmin(userStore.user?.role);
 
 const projects = ref([]);
 const loading = ref(true);
 const errorMessage = ref('');
 
 function statusFromQuery(value) {
-  return ['active', 'archived', 'all'].includes(String(value || '')) ? String(value) : 'active';
+  return String(value || '') === 'archived' ? 'archived' : 'active';
 }
 
 const statusFilter = ref(statusFromQuery(route.query.status));
+const listingArchived = computed(() => statusFilter.value === 'archived');
+const showCatalog = computed(() => listingArchived.value || callerIsSuper);
 const canCreateProject = computed(() =>
   canManageTeam(userStore.user?.role, userStore.user?.caps)
 );
@@ -135,15 +126,27 @@ async function loadProjectList() {
   }
 }
 
-function onStatusFilterChange(value) {
-  statusFilter.value = statusFromQuery(value);
-  const query = { ...route.query };
-  delete query.notice;
-  delete query.project;
-  if (statusFilter.value === 'active') delete query.status;
-  else query.status = statusFilter.value;
-  router.replace({ query });
-  loadProjectList();
+function workspaceTarget() {
+  const row = activeProject.value;
+  return row?.slug || row?.id || activeProjectId.value || '';
+}
+
+async function enterListOrRedirect() {
+  if (showCatalog.value) {
+    document.title = listingArchived.value ? 'Archived projects' : 'Projects';
+    await loadProjectList();
+    return;
+  }
+  let id = workspaceTarget();
+  if (!id) {
+    await loadProjects();
+    id = workspaceTarget();
+  }
+  if (id) {
+    router.replace({ name: 'adminProjectsEdit', params: { id } });
+    return;
+  }
+  router.replace({ name: 'adminProjectsAdd' });
 }
 
 watch(
@@ -152,13 +155,12 @@ watch(
     const next = statusFromQuery(value);
     if (next === statusFilter.value) return;
     statusFilter.value = next;
-    loadProjectList();
+    enterListOrRedirect();
   }
 );
 
 onMounted(() => {
-  document.title = 'Projects';
-  loadProjectList();
+  enterListOrRedirect();
 });
 
 function goEdit(projectRef) {

@@ -40,6 +40,15 @@ let pollTimer = null;
 const runLogEl = ref(null);
 const contextualRun = ref(false);
 const contextualSlugPinned = ref(false);
+const pickedFiles = ref([]);
+const skippedNote = ref('');
+const dropBlocked = ref(false);
+const fileError = ref('');
+const uploading = ref('');
+const runUsesFiles = ref(false);
+const dragDepth = ref(0);
+const fileInputEl = ref(null);
+const folderInputEl = ref(null);
 
 const isAnalysis = computed(() => props.variant === 'analysis');
 
@@ -90,6 +99,8 @@ function pollRun(runId) {
 const runInFlight = computed(
   () => run.value && (run.value.status === 'queued' || run.value.status === 'running')
 );
+const busy = computed(() => runInFlight.value || Boolean(uploading.value));
+const dragOver = computed(() => dragDepth.value > 0);
 
 const runProgressPct = computed(() => {
   const p = run.value?.progress;
@@ -145,6 +156,13 @@ async function refreshSignals() {
   }
 }
 
+watch(runSlug, () => {
+  if (!pickedFiles.value.length) {
+    dropBlocked.value = false;
+    skippedNote.value = '';
+  }
+});
+
 watch([runMode, runDatasetId, runSlug], () => {
   confirmFullReimport.value = false;
   refreshDependents();
@@ -177,26 +195,18 @@ const fullReimportBlocked = computed(() => {
   return dependents.value.hasDependents && !confirmFullReimport.value;
 });
 
-const FILE_IMPORTER_BLURBS = {
-  'w4h-embraceplus-csv-file-importer':
-    'Empatica EmbracePlus Cloud export: per-minute biomarker CSVs such as pulse rate, EDA, and temperature.',
-  'w4h-fitbit-csv-file-importer':
-    'A Fitbit account CSV export you downloaded.',
-  'w4h-glucose-monitor-csv-file-importer':
-    'A Dexcom Clarity or FreeStyle LibreLink CSV export.',
-  'w4h-data-recorder-csv-file-importer':
-    'Empatica E4 recorder files: Connect exports or headered research CSVs.',
-};
+const MAX_PICKED_FILES = 10000;
 
-const SAMPLE_IMPORTER_BLURBS = {
-  'w4h-sample-fitbit-csv-importer':
-    'The bundled Fitbit sample: heart rate, calories, and weight.',
-  'w4h-sample-icde-demo-csv-importer':
-    'The bundled ICDE demo sample, including a GPS track.',
-};
+function acceptedExtensions(fileInput) {
+  const raw = fileInput?.accept;
+  const list = Array.isArray(raw) && raw.length ? raw : ['csv'];
+  return list
+    .map((item) => String(item || '').toLowerCase().replace(/^\./, ''))
+    .filter((item) => item === 'csv' || item === 'zip');
+}
 
 function isFileImporter(contribution) {
-  return String(contribution?.slug || '').includes('-file-importer');
+  return Boolean(contribution?.file_input);
 }
 
 const fileImporters = computed(() => props.contributions.filter(isFileImporter));
@@ -204,10 +214,39 @@ const sampleImporters = computed(() => props.contributions.filter((c) => !isFile
 
 const activeIsFileImporter = computed(() => isFileImporter(activeContribution.value));
 
+const filePrompt = computed(() => activeContribution.value?.file_input || null);
+
+const fileAccept = computed(() => {
+  const parts = [];
+  const exts = acceptedExtensions(filePrompt.value);
+  if (exts.includes('csv')) parts.push('.csv', 'text/csv');
+  if (exts.includes('zip')) parts.push('.zip', 'application/zip');
+  return parts.join(',');
+});
+
+const filesButtonLabel = computed(() => {
+  if (filePrompt.value?.files_button) return filePrompt.value.files_button;
+  return acceptedExtensions(filePrompt.value).includes('zip') ? 'Choose zip files' : 'Choose files';
+});
+
+const folderButtonLabel = computed(() => filePrompt.value?.folder_button || 'Choose folder');
+
 const importerBlurb = computed(() => {
   const c = activeContribution.value;
   if (!c) return '';
-  return FILE_IMPORTER_BLURBS[c.slug] || SAMPLE_IMPORTER_BLURBS[c.slug] || c.summary || '';
+  return filePrompt.value?.summary || c.summary || '';
+});
+
+// Loaded dataset + an importer other than the one that loaded it.
+const importerMismatch = computed(() => {
+  if (isAnalysis.value || runTargetEmpty.value || !runSlug.value) return '';
+  const row = [...props.localRunTargets, ...props.catalogRunTargets].find(
+    (d) => d.id === runDatasetId.value
+  );
+  const last = row?.last_importer_slug;
+  if (!last || last === runSlug.value) return '';
+  const c = props.contributions.find((x) => x.slug === last);
+  return c?.title || row?.last_importer_title || last;
 });
 
 const modalTitle = computed(() => {
@@ -243,10 +282,17 @@ const runButtonLabel = computed(() => {
   return isAnalysis.value ? 'Run analysis' : 'Run import';
 });
 
+function withDatasetName(text) {
+  const target = fixedDatasetLabel.value || 'this dataset';
+  return String(text || '').replaceAll('{dataset}', target);
+}
+
 const firstLoadNote = computed(() => {
   const target = fixedDatasetLabel.value || 'this dataset';
   if (activeIsFileImporter.value) {
-    return `Load example fills ${target} with the small example bundled with this importer, so its tables show up here. Your own export is chosen in the notebook or on the command line. Other datasets stay as they are.`;
+    return filePrompt.value?.note
+      ? withDatasetName(filePrompt.value.note)
+      : `Drop your CSV export below to load it into ${target}. The command line is optional. Other datasets stay as they are.`;
   }
   return `This copies that sample package into ${target}. Other datasets stay as they are.`;
 });
@@ -298,6 +344,7 @@ function open(options = {}) {
       !datasetEmpty &&
       importerSlugForDataset(datasetRow, props.contributions))
   );
+  clearPickedFiles();
   runSlug.value = resolveRunSlug({
     slug: datasetEmpty ? undefined : options.slug,
     datasetId: runDatasetId.value,
@@ -314,15 +361,224 @@ function close() {
   modal?.hide();
 }
 
-async function startRun() {
-  if (!runSlug.value || !runDatasetId.value || runInFlight.value || fullReimportBlocked.value) return;
+function clearPickedFiles() {
+  pickedFiles.value = [];
+  skippedNote.value = '';
+  dropBlocked.value = false;
+  fileError.value = '';
+  dragDepth.value = 0;
+}
+
+function entryPath(entry) {
+  const file = entry?.file || entry;
+  return String(entry?.relativePath || file?.webkitRelativePath || file?.name || '').replace(/\\/g, '/').replace(/^\/+/, '');
+}
+
+function pathMatches(rel, hints) {
+  const lower = String(rel || '').toLowerCase();
+  return (hints || []).some((hint) => hint && lower.includes(String(hint).toLowerCase()));
+}
+
+function addPickedFiles(fileList) {
+  const entries = [...(fileList || [])];
+  const paths = entries.map(entryPath);
+  const detected = props.contributions.find((c) => paths.some((rel) => pathMatches(rel, c.file_input?.detect)));
+  const hasZip = paths.some((rel) => rel.toLowerCase().endsWith('.zip'));
+  let target = detected;
+  if (!target && hasZip) {
+    const current = props.contributions.find((c) => c.slug === runSlug.value);
+    if (!acceptedExtensions(current?.file_input).includes('zip')) {
+      const zipImporters = props.contributions.filter((c) => acceptedExtensions(c.file_input).includes('zip'));
+      if (zipImporters.length === 1) target = zipImporters[0];
+    }
+  }
+  let switchedTitle = '';
+  if (target && target.slug !== runSlug.value) {
+    runSlug.value = target.slug;
+    switchedTitle = target.title || target.slug;
+  }
+  const prompt = props.contributions.find((c) => c.slug === runSlug.value)?.file_input || {};
+  const include = prompt.include || [];
+  const keepIncluded = include.length > 0 && paths.some((rel) => pathMatches(rel, include));
+  const next = [...pickedFiles.value];
+  let skippedZip = 0;
+  let skippedOther = 0;
+  let sizeError = '';
+  for (const entry of entries) {
+    const file = entry?.file || entry;
+    const rel = entryPath(entry);
+    const parts = rel.split('/').filter(Boolean);
+    const name = (parts[parts.length - 1] || '').toLowerCase();
+    if (!file || parts.some((part) => part === '.' || part === '..' || part.startsWith('.'))) {
+      skippedOther += 1;
+      continue;
+    }
+    const ext = name.includes('.') ? name.slice(name.lastIndexOf('.') + 1) : '';
+    const allowed = acceptedExtensions(prompt);
+    if (!allowed.includes(ext)) {
+      if (ext === 'zip') skippedZip += 1;
+      else skippedOther += 1;
+      continue;
+    }
+    if (ext === 'csv' && keepIncluded && !pathMatches(rel, include)) {
+      skippedOther += 1;
+      continue;
+    }
+    if (file.size > 200 * 1024 * 1024) {
+      sizeError = `"${parts[parts.length - 1]}" exceeds the 200MB per-file limit.`;
+      continue;
+    }
+    const item = { file, relativePath: parts.join('/') };
+    const existing = next.findIndex((row) => row.relativePath === item.relativePath);
+    if (existing >= 0) next.splice(existing, 1, item);
+    else next.push(item);
+  }
+  if (next.length > MAX_PICKED_FILES) {
+    pickedFiles.value = [];
+    dropBlocked.value = true;
+    fileError.value = '';
+    skippedNote.value = `This folder has ${next.length} files, over the limit of ${MAX_PICKED_FILES}.`;
+    return;
+  }
+  pickedFiles.value = next;
+  fileError.value = sizeError;
+  const rejected = skippedZip + skippedOther;
+  dropBlocked.value = next.length === 0 && rejected > 0;
+  const lead = switchedTitle ? `Switched to ${switchedTitle}. ` : '';
+  if (!rejected) {
+    skippedNote.value = lead;
+    return;
+  }
+  const bits = [];
+  if (skippedZip) bits.push(`${skippedZip} zip ${skippedZip === 1 ? 'file' : 'files'}`);
+  if (skippedOther) bits.push(`${skippedOther} ${skippedOther === 1 ? 'file that is' : 'files that are'} not CSV`);
+  const why = `Skipped ${bits.join(' and ')}.`;
+  if (next.length === 0) {
+    const extra = prompt.empty ? ` ${prompt.empty}` : (skippedZip ? ' Unzip the export and drop the folder of CSVs.' : '');
+    skippedNote.value = `${lead}${why}${extra}`.trim();
+    return;
+  }
+  skippedNote.value = prompt.ignored && skippedOther
+    ? `${lead}Ignoring ${skippedOther} ${skippedOther === 1 ? 'file' : 'files'}. ${prompt.ignored}`
+    : `${lead}${why}`;
+}
+
+function readAllEntries(dirEntry) {
+  return new Promise((resolve, reject) => {
+    const reader = dirEntry.createReader();
+    const all = [];
+    const read = () => {
+      reader.readEntries((batch) => {
+        if (!batch.length) {
+          resolve(all);
+          return;
+        }
+        all.push(...batch);
+        read();
+      }, reject);
+    };
+    read();
+  });
+}
+
+async function filesFromEntry(entry, prefix) {
+  if (entry.isFile) {
+    const file = await new Promise((resolve, reject) => entry.file(resolve, reject));
+    return [{ file, relativePath: prefix ? `${prefix}/${file.name}` : file.name }];
+  }
+  if (!entry.isDirectory) return [];
+  const relDir = prefix ? `${prefix}/${entry.name}` : entry.name;
+  const children = await readAllEntries(entry);
+  const out = [];
+  for (const child of children) {
+    out.push(...await filesFromEntry(child, relDir));
+  }
+  return out;
+}
+
+async function onDrop(event) {
+  dragDepth.value = 0;
+  const items = [...(event.dataTransfer?.items || [])];
+  const entries = items.map((item) => item.webkitGetAsEntry?.()).filter(Boolean);
+  if (entries.length) {
+    const collected = [];
+    for (const entry of entries) {
+      const nested = await filesFromEntry(entry, '');
+      collected.push(...nested);
+    }
+    if (collected.length) {
+      addPickedFiles(collected);
+      return;
+    }
+  }
+  addPickedFiles(event.dataTransfer?.files);
+}
+
+function onFilePick(event) {
+  addPickedFiles(event.target.files);
+  event.target.value = '';
+}
+
+function removePickedFile(index) {
+  pickedFiles.value = pickedFiles.value.filter((_, i) => i !== index);
+}
+
+async function stagePickedFiles() {
+  const created = await api.post(
+    `/contributions/${encodeURIComponent(runSlug.value)}/uploads`,
+    { dataset_id: runDatasetId.value },
+    authHeaders()
+  );
+  const uploadId = created.data?.upload_id;
+  if (!uploadId) throw new Error('Could not start the upload.');
+  const total = pickedFiles.value.length;
+  try {
+    for (let i = 0; i < total; i += 1) {
+      const item = pickedFiles.value[i];
+      uploading.value = `Uploading ${i + 1} of ${total}…`;
+      await api.put(
+        `/contributions/uploads/${encodeURIComponent(uploadId)}/body`,
+        item.file,
+        {
+          ...authHeaders(),
+          headers: {
+            ...authHeaders().headers,
+            'Content-Type': 'application/octet-stream',
+          },
+          params: { name: item.relativePath },
+          transformRequest: [(data) => data],
+          maxBodyLength: Infinity,
+          maxContentLength: Infinity,
+        }
+      );
+    }
+  } catch (e) {
+    try {
+      await api.delete(`/contributions/uploads/${encodeURIComponent(uploadId)}`, authHeaders());
+    } catch {
+      /* the staged folder expires on its own */
+    }
+    throw e;
+  }
+  return uploadId;
+}
+
+async function startRun(useFiles = false) {
+  if (!runSlug.value || !runDatasetId.value || busy.value || fullReimportBlocked.value) return;
+  if (useFiles && !pickedFiles.value.length) return;
+  runUsesFiles.value = Boolean(useFiles);
   runError.value = '';
+  fileError.value = '';
   run.value = null;
   const isLocal = props.localRunTargets.some((d) => d.id === runDatasetId.value);
   if (!isLocal) emit('dataset-pick', runDatasetId.value);
+  let uploadId = null;
   try {
+    if (useFiles) uploadId = await stagePickedFiles();
+    uploading.value = '';
     const body = { dataset_id: runDatasetId.value };
     if (!isAnalysis.value) body.mode = runMode.value;
+    if (uploadId) body.upload_id = uploadId;
     const res = await api.post(
       `/contributions/${runSlug.value}/run`,
       body,
@@ -337,6 +593,7 @@ async function startRun() {
       pollRun(res.data.id);
     }
   } catch (e) {
+    uploading.value = '';
     runError.value =
       e.response?.data?.error ||
       e.message ||
@@ -374,6 +631,15 @@ defineExpose({ open, close });
               class="small text-muted mt-1"
             >
               {{ activeContribution.title || activeContribution.slug }}
+              <button
+                v-if="contributions.length > 1"
+                type="button"
+                class="btn btn-link btn-sm p-0 ms-2 align-baseline"
+                :disabled="runInFlight"
+                @click="contextualSlugPinned = false"
+              >
+                Change importer
+              </button>
             </div>
           </div>
 
@@ -394,6 +660,11 @@ defineExpose({ open, close });
             <p v-if="runTargetEmpty" class="small text-muted mt-1 mb-0">
               Choose the importer that matches the files for this dataset.
             </p>
+            <div v-else-if="importerMismatch" class="alert alert-warning py-2 small mt-2 mb-0">
+              This dataset was loaded with <strong>{{ importerMismatch }}</strong>.
+              A different importer adds its own tables next to the existing ones and leaves those in place.
+              If those tables are wrong, load into a new dataset and unlink this one in project Settings.
+            </div>
           </div>
 
           <div
@@ -453,7 +724,11 @@ defineExpose({ open, close });
             <p class="small text-muted mb-0">{{ firstLoadNote }}</p>
           </div>
 
-          <div v-else-if="!isAnalysis" class="mb-3">
+          <p v-if="!isAnalysis && !runTargetEmpty && activeIsFileImporter && importerBlurb" class="small mb-3">
+            {{ importerBlurb }}
+          </p>
+
+          <div v-if="!isAnalysis && !runTargetEmpty" class="mb-3">
             <label class="form-label small mb-0 d-block">Import mode</label>
             <div class="form-check form-check-inline">
               <input
@@ -479,8 +754,8 @@ defineExpose({ open, close });
             </div>
             <p class="small text-muted mb-0">
               <span v-if="runMode === 'full'">
-                Truncates and reloads every table <strong>in this dataset</strong> from source —
-                use to fix a partial or failed import. Other catalog rows are not changed.
+                Empties and reloads the tables <strong>this importer writes</strong> in this dataset —
+                use to fix a partial or failed import. Other tables and catalog rows are not changed.
               </span>
               <span v-else>Adds missing rows/tables without touching data already there. Safe to re-run.</span>
             </p>
@@ -525,19 +800,98 @@ defineExpose({ open, close });
             The API binds roles from this dataset’s mapping and materializes a derived table per the contribution manifest.
           </p>
 
-          <button
-            type="button"
-            class="btn btn-sm"
-            :class="linkAlternative && !isAnalysis ? 'btn-outline-secondary' : 'btn-primary'"
-            :disabled="!runSlug || !runDatasetId || runInFlight || fullReimportBlocked || !canManage"
-            @click="startRun"
-          >
-            <span v-if="runInFlight">
-              <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
-              Running…
-            </span>
-            <span v-else>{{ runButtonLabel }}</span>
-          </button>
+          <div v-if="activeIsFileImporter" class="mb-3">
+            <div
+              class="file-drop"
+              :class="{ 'file-drop--over': dragOver, 'file-drop--disabled': busy }"
+              @dragenter.prevent="dragDepth += 1"
+              @dragover.prevent="dragDepth = Math.max(dragDepth, 1)"
+              @dragleave.prevent="dragDepth = Math.max(0, dragDepth - 1)"
+              @drop.prevent="onDrop"
+            >
+              <input
+                ref="fileInputEl"
+                type="file"
+                class="visually-hidden"
+                multiple
+                :accept="fileAccept"
+                :disabled="busy"
+                @change="onFilePick"
+              />
+              <input
+                ref="folderInputEl"
+                type="file"
+                class="visually-hidden"
+                multiple
+                webkitdirectory
+                :disabled="busy"
+                @change="onFilePick"
+              />
+              <p class="mb-2">{{ filePrompt?.drop_label || 'Drop files or a folder here' }}</p>
+              <div class="d-flex flex-wrap justify-content-center gap-2">
+                <button type="button" class="btn btn-sm btn-outline-secondary" :disabled="busy" @click="fileInputEl?.click()">
+                  {{ filesButtonLabel }}
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" :disabled="busy" @click="folderInputEl?.click()">
+                  {{ folderButtonLabel }}
+                </button>
+              </div>
+              <p v-if="pickedFiles.length > 8" class="small text-start mb-0 mt-2">
+                {{ pickedFiles.length }} files ready.
+                <button type="button" class="btn btn-link btn-sm p-0 align-baseline" :disabled="busy" @click="clearPickedFiles">Clear</button>
+              </p>
+              <ul v-else-if="pickedFiles.length" class="file-drop-list list-unstyled mb-0 mt-2 text-start small">
+                <li v-for="(item, index) in pickedFiles" :key="item.relativePath" class="d-flex align-items-center gap-2">
+                  <span class="text-truncate">{{ item.relativePath }}</span>
+                  <button
+                    type="button"
+                    class="btn btn-link btn-sm p-0 ms-auto flex-shrink-0"
+                    :disabled="busy"
+                    @click="removePickedFile(index)"
+                  >
+                    Remove
+                  </button>
+                </li>
+              </ul>
+            </div>
+            <div v-if="dropBlocked" class="alert alert-warning small mt-2 mb-0" role="status">
+              <strong>No files to load.</strong>
+              {{ skippedNote }}
+            </div>
+            <p v-else-if="skippedNote" class="small text-muted mt-1 mb-0">{{ skippedNote }}</p>
+            <p v-if="fileError" class="small text-danger mt-1 mb-0">{{ fileError }}</p>
+          </div>
+
+          <div class="d-flex flex-wrap gap-2">
+            <button
+              v-if="activeIsFileImporter && pickedFiles.length"
+              type="button"
+              class="btn btn-sm btn-primary"
+              :disabled="!runSlug || !runDatasetId || busy || fullReimportBlocked || !canManage"
+              @click="startRun(true)"
+            >
+              <span v-if="uploading">{{ uploading }}</span>
+              <span v-else-if="runInFlight && runUsesFiles">
+                <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                Running…
+              </span>
+              <span v-else>Load {{ pickedFiles.length }} {{ pickedFiles.length === 1 ? 'file' : 'files' }} into {{ fixedDatasetLabel || 'this dataset' }}</span>
+            </button>
+            <button
+              v-if="!dropBlocked && !pickedFiles.length"
+              type="button"
+              class="btn btn-sm"
+              :class="activeIsFileImporter && pickedFiles.length ? 'btn-outline-secondary' : (linkAlternative && !isAnalysis ? 'btn-outline-secondary' : 'btn-primary')"
+              :disabled="!runSlug || !runDatasetId || busy || fullReimportBlocked || !canManage"
+              @click="startRun(false)"
+            >
+              <span v-if="runInFlight && !runUsesFiles">
+                <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                Running…
+              </span>
+              <span v-else>{{ runButtonLabel }}</span>
+            </button>
+          </div>
 
           <div v-if="runError" class="alert alert-danger small mt-2 mb-0">{{ runError }}</div>
           <div v-if="run" class="small mt-2">
@@ -580,7 +934,7 @@ defineExpose({ open, close });
           </div>
 
           <details v-if="activeContribution && !isAnalysis" class="small mt-3">
-            <summary class="text-muted" style="cursor: pointer">{{ activeIsFileImporter ? 'Choose your own files on the command line' : 'Prefer the command line?' }}</summary>
+            <summary class="text-muted" style="cursor: pointer">Prefer the command line?</summary>
             <p class="text-muted mb-1 mt-2">
               <template v-if="activeIsFileImporter">
                 Point <code>--data-dir</code> at your export. Same API key and access checks.
@@ -622,5 +976,27 @@ defineExpose({ open, close });
   white-space: pre-wrap;
   font-family: var(--bs-font-monospace);
   background: var(--bs-tertiary-bg, #f8f9fa);
+}
+
+.file-drop {
+  border: 1px dashed var(--bs-border-color);
+  border-radius: 0.375rem;
+  padding: 0.9rem 0.75rem;
+  text-align: center;
+  background: var(--bs-tertiary-bg);
+}
+
+.file-drop--over {
+  border-color: var(--w4h-gold, var(--bs-primary));
+}
+
+.file-drop--disabled {
+  opacity: 0.65;
+  pointer-events: none;
+}
+
+.file-drop-list {
+  max-height: 8rem;
+  overflow: auto;
 }
 </style>

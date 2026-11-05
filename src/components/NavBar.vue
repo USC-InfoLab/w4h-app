@@ -156,9 +156,23 @@ const displayName = computed(() => {
 
 const isHelpActive = computed(() => route.name === 'docs' || route.name === 'docNew');
 const isContributionsActive = computed(() => route.name === 'contributions' || route.name === 'contributionDetail');
+const isDatasetsActive = computed(() =>
+  route.name === 'adminDatasets' ||
+  route.name === 'adminDatasetsAdd' ||
+  route.name === 'adminDatasetsEdit' ||
+  route.name === 'adminDatasetsShares'
+);
 const isAuditActive = computed(() => route.name === 'adminAuditLog');
 
 const navItems = computed(() => [
+  {
+    key: 'datasets',
+    label: 'Datasets',
+    icon: 'bi bi-database',
+    to: { name: 'adminDatasets' },
+    active: isDatasetsActive.value,
+    show: true,
+  },
   {
     key: 'audit',
     label: 'Audit',
@@ -259,6 +273,7 @@ function onSignOutClick() {
 
 .navbar-context {
   min-width: 0;
+  flex: 0 0 auto;
 }
 
 .nav-context-divider {

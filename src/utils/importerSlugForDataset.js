@@ -1,9 +1,12 @@
 /**
- * Guess a runnable importer slug from dataset naming (ADR-016 pairs).
- * Used by Run import… to preselect Fitbit vs ICDE when both are runnable.
+ * Pick the importer Run import… preselects for a dataset: the one that last
+ * loaded it (API `last_importer_slug`), else a guess from the dataset name
+ * (ADR-016 Fitbit / ICDE pairs).
  */
 export function importerSlugForDataset(dataset, contributions) {
   if (!dataset || !contributions?.length) return null;
+  const last = dataset.last_importer_slug;
+  if (last && contributions.some((c) => c.slug === last)) return last;
   const haystack = [dataset.name, dataset.id, dataset.description]
     .filter(Boolean)
     .join(' ')

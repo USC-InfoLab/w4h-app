@@ -1,32 +1,18 @@
 <template>
   <main class="container-fluid p-0 project-workspace" v-if="loaded">
-    <div
-      v-if="isSuperAdmin(userStore.user?.role) || message"
-      class="project-workspace-top px-3 pt-2 pb-0"
-    >
-    <nav v-if="isSuperAdmin(userStore.user?.role)" aria-label="breadcrumb" class="mb-2">
-      <ol class="breadcrumb mb-0">
-        <li class="breadcrumb-item">
-          <router-link to="/admin/projects">Projects</router-link>
-        </li>
-        <li class="breadcrumb-item active" aria-current="page">
-          {{ form.name || 'Project' }}
-        </li>
-      </ol>
-    </nav>
-
-    <div
-      v-if="message"
-      class="alert alert-dismissible fade show mb-2"
-      :class="ok ? 'alert-success' : 'alert-danger'"
-      role="alert"
-    >
-      {{ message }}
-      <button type="button" class="btn-close" aria-label="Close" @click="clearMessage"></button>
-    </div>
+    <div v-if="message" class="project-workspace-top px-3 pt-2 pb-0">
+      <div
+        class="alert alert-dismissible fade show mb-2"
+        :class="ok ? 'alert-success' : 'alert-danger'"
+        role="alert"
+      >
+        {{ message }}
+        <button type="button" class="btn-close" aria-label="Close" @click="clearMessage"></button>
+      </div>
     </div>
 
     <ProjectHub
+      :list-crumb="listCrumb"
       :can-manage="canManageThisProject"
       :is-participant="isParticipant"
       :form="form"
@@ -126,6 +112,19 @@ const jupyterUrl = String(import.meta.env.VITE_JUPYTER_URL || '').trim();
 
 const canChangeTeam = computed(() => isSuperAdmin(userStore.user?.role));
 
+const listCrumb = computed(() => {
+  if (form.status === 'archived') {
+    return {
+      to: { name: 'adminProjects', query: { status: 'archived' } },
+      label: 'Archived projects',
+    };
+  }
+  if (isSuperAdmin(userStore.user?.role)) {
+    return { to: { name: 'adminProjects' }, label: 'Projects' };
+  }
+  return null;
+});
+
 const teamLabel = computed(() => {
   if (teamName.value) {
     return teamSlug.value ? `${teamName.value} (${teamSlug.value})` : teamName.value;
@@ -184,6 +183,9 @@ const linkedDatasetRows = computed(() => {
       read_only: Boolean(meta?.read_only),
       origin: meta?.origin || '',
       source_label: meta?.source_label || '',
+      last_importer_slug: meta?.last_importer_slug || null,
+      last_importer_title: meta?.last_importer_title || null,
+      signals: Array.isArray(meta?.signals) ? meta.signals : [],
     };
   });
 });

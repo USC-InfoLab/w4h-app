@@ -1,5 +1,5 @@
 <template>
-  <div class="p-3 mt-4">
+  <div class="px-3 pt-2 pb-3">
     <div class="input-group mb-4">
       <span class="input-group-text"><i class="bi bi-search"></i></span>
       <input type="text" class="form-control" placeholder="Search by title or content..." v-model="searchTerm" />
@@ -51,6 +51,9 @@
 <script setup>
 import { ref, onMounted, watch } from 'vue';
 import { api, authHeaders } from '../utils/api';
+import { useDocsAudience } from '@/composables/useDocsAudience';
+
+const { showDeveloperDocs, isDeveloperDoc } = useDocsAudience();
 
 // --- Debounce Helper Function ---
 // This function takes a function and a delay, and returns a new function
@@ -112,10 +115,12 @@ async function performSearch(q) {
   isSearching.value = true;
   try {
     const res = await api.get(
-      `/docs/search?term=${encodeURIComponent(q)}`,
+      `/docs/search?term=${encodeURIComponent(q)}${showDeveloperDocs.value ? '&include_dev=1' : ''}`,
       authHeaders()
     );
-    filteredDocs.value = res.data;
+    // Filter here too, so an API that ignores include_dev still hides dev docs.
+    const rows = Array.isArray(res.data) ? res.data : [];
+    filteredDocs.value = showDeveloperDocs.value ? rows : rows.filter((d) => !isDeveloperDoc(d));
   } catch (err) {
     console.error('Search failed:', err);
   } finally {
@@ -164,6 +169,11 @@ watch(searchTerm, (val) => {
   } else {
     debouncedSearch(q);
   }
+});
+
+watch(showDeveloperDocs, () => {
+  const q = searchTerm.value.trim();
+  if (q) performSearch(q);
 });
 
 // 🎯 CHANGE 2: Don't show all docs on initial load

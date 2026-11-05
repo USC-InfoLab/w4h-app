@@ -11,10 +11,10 @@
       :aria-label="triggerAria"
     >
       <span class="team-context-label">
-        <span class="team-context-prefix">Project</span>
-        {{ activeProjectName || 'Select project' }}
+        <span v-if="showProjectPrefix" class="team-context-prefix">Project</span>
+        {{ triggerLabel }}
       </span>
-      <span v-if="activeProjectIsArchived" class="team-context-archived">Archived</span>
+      <span v-if="showArchivedBadge" class="team-context-archived">Archived</span>
     </button>
 
     <ul class="dropdown-menu team-context-menu" aria-labelledby="projectContextDropdown">
@@ -90,7 +90,6 @@ const {
   hasAnyProject,
   loading,
   loadError,
-  activeTeamId,
   activeProjectId,
   activeProject,
   activeProjectName,
@@ -99,7 +98,32 @@ const {
   setActiveProject,
 } = useTeamContext();
 
+const creatingProject = computed(() => route.name === 'adminProjectsAdd');
+const listingArchived = computed(
+  () => route.name === 'adminProjects' && String(route.query.status || '') === 'archived'
+);
+const onProjectWorkspace = computed(
+  () => route.name === 'adminProjectsEdit' || route.name === 'projectWorkspace'
+);
+// Catalog pages (Datasets, Contributions, Help, Audit, Home, …) are not a project.
+// Keep the last project in storage so returning still works — do not show it as
+// the current place.
+const detachedContext = computed(
+  () => creatingProject.value || listingArchived.value || !onProjectWorkspace.value
+);
 const activeProjectIsArchived = computed(() => activeProject.value?.status === 'archived');
+const showProjectPrefix = computed(
+  () => !detachedContext.value && !activeProjectIsArchived.value
+);
+const showArchivedBadge = computed(
+  () => activeProjectIsArchived.value && !detachedContext.value
+);
+const triggerLabel = computed(() => {
+  if (creatingProject.value) return 'Add project';
+  if (listingArchived.value) return 'Archived projects';
+  if (!onProjectWorkspace.value) return 'Select a project…';
+  return activeProjectName.value || 'Select a project…';
+});
 
 const projectGroups = computed(() => {
   const byTeam = new Map();
@@ -119,13 +143,16 @@ const showSwitcher = computed(
 );
 
 const triggerAria = computed(() => {
-  if (!activeProjectName.value) return 'Select project';
+  if (creatingProject.value) return 'Add project';
+  if (listingArchived.value) return 'Archived projects';
+  if (!onProjectWorkspace.value || !activeProjectName.value) return 'Select a project…';
   const archived = activeProjectIsArchived.value ? ', archived' : '';
   const role = activeProjectRoleLabel.value ? ` (${activeProjectRoleLabel.value})` : '';
   return `Active project: ${activeProjectName.value}${archived}${role}`;
 });
 
 function isCurrent(project) {
+  if (detachedContext.value) return false;
   const id = String(activeProjectId.value || '');
   return !!id && (id === project.id || id === project.slug);
 }
@@ -158,8 +185,7 @@ function onSelectProject(project) {
 
 function onAddProject() {
   hideMenu();
-  const query = activeTeamId.value ? { team_id: String(activeTeamId.value) } : {};
-  router.push({ name: 'adminProjectsAdd', query });
+  router.push({ name: 'adminProjectsAdd' });
 }
 
 function onArchivedProjects() {
@@ -197,13 +223,17 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .team-context-switcher {
-  max-width: 18rem;
+  flex: 0 0 16rem;
+  width: 16rem;
+  max-width: 16rem;
 }
 
 .team-context-trigger {
   display: inline-flex;
   align-items: center;
-  max-width: 16rem;
+  justify-content: flex-start;
+  width: 100%;
+  max-width: none;
   margin: 0;
   padding: 0.35rem 0.6rem;
   border: 0;
@@ -213,6 +243,7 @@ onBeforeUnmount(() => {
   font-weight: 500;
   font-size: 1rem;
   line-height: 1.25;
+  text-align: left;
   white-space: nowrap;
   box-shadow: none;
   cursor: pointer;
@@ -234,8 +265,11 @@ onBeforeUnmount(() => {
 }
 
 .team-context-label {
-  max-width: 14rem;
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: none;
   overflow: hidden;
+  text-align: left;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -260,6 +294,13 @@ onBeforeUnmount(() => {
 
 .team-context-menu {
   min-width: 16rem;
+  text-align: left;
+}
+
+.team-context-menu .dropdown-item,
+.team-context-menu .dropdown-header,
+.team-context-menu .dropdown-item-text {
+  text-align: left;
 }
 
 .team-context-item {

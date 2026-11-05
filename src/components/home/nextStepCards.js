@@ -22,7 +22,7 @@ export const adminNextStepCards = [
   },
   {
     title: '4. Load your data',
-    text: 'Open the project → Datasets, pick the empty dataset and click Select importer…. Your files (EmbracePlus, Fitbit export, glucose, data recorder) load a small example so the tables appear; your own export is chosen in the notebook or on the command line. A sample package (Fitbit, ICDE) copies that sample in. Once tables exist, Run import… updates them. Sample datasets on a demonstration project are read-only.',
+    text: 'Open the project → Datasets, pick the empty dataset and click Select importer…. Drop your CSV export in the dialog, or load the small bundled example. The command line is optional. A sample package (Fitbit, ICDE) copies that sample in. Once tables exist, Run import… updates them. Sample datasets on a demonstration project are read-only.',
     to: { name: 'contributions' },
     label: 'Open Contributions',
   },

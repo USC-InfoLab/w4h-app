@@ -2,17 +2,8 @@
   <main class="container-fluid text-start">
     <div class="row justify-content-center">
       <div class="col-12 col-md-8 col-lg-6">
-        <nav aria-label="breadcrumb" class="mb-3">
-          <ol class="breadcrumb mb-0">
-            <li class="breadcrumb-item">
-              <router-link to="/admin/projects">Projects</router-link>
-            </li>
-            <li class="breadcrumb-item active" aria-current="page">Add project</li>
-          </ol>
-        </nav>
-
         <div class="card p-3">
-          <h5 class="card-title mb-3">New Project</h5>
+          <h5 class="card-title mb-3">Add project</h5>
 
           <div class="mb-3">
             <label class="form-label">Name</label>
@@ -22,13 +13,14 @@
               placeholder="e.g. My project"
               @input="onNameInput"
             />
-          </div>
-
-          <div class="mb-3">
-            <div class="form-label mb-1">Project slug</div>
-            <div class="font-monospace text-break user-select-all">{{ form.slug || '—' }}</div>
-            <div class="form-text">
-              Taken from the name. An existing project, including an archived one, keeps its slug, so this one becomes <code>-1</code>, <code>-2</code>, and so on.
+            <div v-if="form.slug" class="form-text">
+              Slug <span class="font-monospace user-select-all">{{ form.slug }}</span>
+              <span class="text-muted">
+                — if that name is already used, including on an archived project, this becomes <code>-1</code>, <code>-2</code>, and so on.
+              </span>
+            </div>
+            <div v-else class="form-text">
+              The slug is taken from the name. If that name is already used, including on an archived project, this becomes <code>-1</code>, <code>-2</code>, and so on.
             </div>
           </div>
 
@@ -48,23 +40,6 @@
               Links every <strong>read-only sample</strong> dataset Super admin has marked.
               People query those tables; they do not re-ingest them.
               Mark sample catalogs on the dataset edit screen first.
-            </div>
-          </div>
-
-          <div class="mb-3">
-            <label class="form-label">Copy members from (optional)</label>
-            <select
-              v-model="form.seed_from_project_id"
-              class="form-select"
-              :disabled="needsNewTeam"
-            >
-              <option value="">Start with me only</option>
-              <option v-for="p in seedProjectOptions" :key="p.id" :value="p.id">
-                {{ p.name }}{{ p.team_name ? ` · ${p.team_name}` : '' }}
-              </option>
-            </select>
-            <div class="form-text">
-              One-time copy of that project's roster onto this project. Later joins are per-project — they are not kept in sync.
             </div>
           </div>
 
@@ -112,7 +87,7 @@
               @click="onSave"
             >
               <span v-if="saving" class="spinner-border spinner-border-sm me-2" />
-              Create Project
+              Create project
             </button>
           </div>
         </div>
@@ -122,20 +97,17 @@
 </template>
 
 <script setup>
-import { onMounted, reactive, ref, computed, watch } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { onMounted, reactive, ref, computed } from 'vue';
+import { useRouter } from 'vue-router';
 import { api, authHeaders } from '@/utils/api';
 import { useUserStore } from '@/stores/user';
-import { useUIStore } from '@/stores/ui';
 import { isSuperAdmin } from '@/utils/roles';
 import { useTeamContext } from '@/composables/useTeamContext';
 
 const NEW_TEAM = '__new__';
 
 const router = useRouter();
-const route = useRoute();
 const userStore = useUserStore();
-const uiStore = useUIStore();
 const { loadProjects, setActiveTeam, setActiveProject } = useTeamContext();
 
 const form = reactive({
@@ -143,19 +115,11 @@ const form = reactive({
   slug: '',
   name: '',
   description: '',
-  seed_from_project_id: '',
   is_demonstration: false
 });
 
 const teams = ref([]);
-const seedProjects = ref([]);
 const takenSlugs = ref(new Set());
-const seedProjectOptions = computed(() => {
-  const tid = form.team_id;
-  const rows = seedProjects.value;
-  if (!tid || tid === NEW_TEAM) return [];
-  return rows.filter((p) => String(p.team_id) === String(tid));
-});
 const loadingTeams = ref(true);
 const saving = ref(false);
 const message = ref('');
@@ -170,17 +134,6 @@ const canSubmit = computed(() => {
   if (needsNewTeam.value) return canCreateTeam.value;
   return !!form.team_id;
 });
-
-watch(
-  () => form.team_id,
-  () => {
-    if (!form.seed_from_project_id) return;
-    const stillValid = seedProjectOptions.value.some(
-      (p) => String(p.id) === String(form.seed_from_project_id)
-    );
-    if (!stillValid) form.seed_from_project_id = '';
-  }
-);
 
 function slugify(input) {
   return String(input || '')
@@ -209,7 +162,7 @@ function onNameInput() {
 }
 
 onMounted(async () => {
-  document.title = 'Add Project';
+  document.title = 'Add project';
   try {
     const [teamsRes, projectsRes] = await Promise.all([
       api.get('teams', authHeaders()),
@@ -217,22 +170,11 @@ onMounted(async () => {
     ]);
     teams.value = Array.isArray(teamsRes.data) ? teamsRes.data : [];
     const projects = Array.isArray(projectsRes.data) ? projectsRes.data : [];
-    seedProjects.value = projects.filter((p) => p.status !== 'archived');
     takenSlugs.value = new Set(
       projects.map((p) => String(p.slug || '').trim()).filter(Boolean)
     );
     applyAutoSlug();
-    const fromQuery = route.query.team_id ? String(route.query.team_id) : '';
-    const preferred = uiStore.activeTeamId ? String(uiStore.activeTeamId) : '';
-    if (fromQuery && teams.value.some((t) => String(t.id) === fromQuery)) {
-      form.team_id = fromQuery;
-    } else if (preferred && teams.value.some((t) => String(t.id) === preferred)) {
-      form.team_id = preferred;
-    } else if (teams.value.length) {
-      form.team_id = teams.value[0].id;
-    } else if (canCreateTeam.value) {
-      form.team_id = NEW_TEAM;
-    }
+    form.team_id = '';
   } catch (error) {
     message.value = error.response?.data?.error || error.message || 'Failed to load teams.';
   } finally {
@@ -265,7 +207,6 @@ async function onSave() {
         slug: form.slug || undefined,
         name: form.name,
         description: form.description || null,
-        seed_from_project_id: form.seed_from_project_id || undefined,
         is_demonstration: callerIsSuper ? !!form.is_demonstration : undefined
       },
       authHeaders()

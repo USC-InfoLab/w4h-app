@@ -5,7 +5,6 @@
         <h5 class="mb-0">
           <i class="bi bi-database me-1"></i>
           Datasets
-          <span v-if="activeProjectName" class="text-muted fw-normal fs-6">· {{ activeProjectName }}</span>
         </h5>
       </div>
       <div v-if="isActiveProjectAdmin" class="col-auto ms-auto">
@@ -67,14 +66,13 @@
       </div>
     </div>
     <p class="small text-muted mb-3">
-      Ingested catalogs for research (and the shared Samples sandbox).
-      Creating a catalog entry or linking a dataset on a project does not load data — it is loaded when tables exist.
-      Git sample repos and importers are under
-      <router-link :to="{ name: 'contributions' }">Contributions</router-link>, not here.
-      <template v-if="filter === 'all'"> Owned, discoverable from other teams, and inbound shares.</template>
-      <template v-else-if="filter === 'mine'">Datasets your team owns.</template>
+      Catalog of datasets you may discover or already use.
+      <strong>Others</strong> is name, description, and owning team only — a share is still required to link or query.
+      Linking happens on a project, not here.
+      <template v-if="filter === 'all'"> Yours, inbound shares, and discoverable datasets from other teams.</template>
+      <template v-else-if="filter === 'mine'">Datasets your team owns. Set Discoverable or share from Edit.</template>
       <template v-else-if="filter === 'others'">
-        Discoverable datasets from other teams (name and description only — ask them to share to use).
+        Discoverable datasets from other teams. Contact the owner to request a share.
       </template>
       <template v-else>
         Datasets explicitly shared with your team (linkable from a project).
@@ -167,7 +165,7 @@ import { api, authHeaders } from '@/utils/api';
 import { useTeamContext } from '@/composables/useTeamContext';
 
 const router = useRouter();
-const { activeProjectName, isActiveProjectAdmin } = useTeamContext();
+const { isActiveProjectAdmin } = useTeamContext();
 const datasets = ref([]);
 const loading = ref(true);
 const errorMessage = ref('');

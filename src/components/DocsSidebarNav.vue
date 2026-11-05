@@ -1,5 +1,7 @@
 <template>
   <div class="docs-sidebar-nav">
+    <!-- Pinned: stays at the top while the doc list scrolls -->
+    <div class="docs-sidebar-pinned">
     <div v-if="isAdminUI" class="d-flex flex-column gap-1">
       <button class="btn btn-primary btn-sm" @click="$emit('new-doc')" :disabled="editMode">
         <i class="bi bi-plus-lg"></i> New Doc
@@ -27,6 +29,7 @@
     </RouterLink>
 
     <div class="py-1 px-2 border-bottom my-0"></div>
+    </div>
 
     <ul class="list-unstyled mb-3">
       <li v-for="(docs, type) in groupedDocs" :key="type" class="mb-2">
@@ -75,6 +78,11 @@
         </ul>
       </li>
     </ul>
+
+    <div class="form-check form-switch small border-top pt-2">
+      <input id="docsShowDeveloperDocs" v-model="showDeveloperDocs" class="form-check-input" type="checkbox" />
+      <label class="form-check-label text-muted" for="docsShowDeveloperDocs">Show developer docs</label>
+    </div>
   </div>
 </template>
 
@@ -83,6 +91,9 @@ import { useRouter } from 'vue-router';
 import { stripHTML } from '@/utils/toc';
 import { docsHeadingHashId } from '@/utils/docsHeadingId';
 import { useDocTypes } from '@/composables/useDocTypes';
+import { useDocsAudience } from '@/composables/useDocsAudience';
+
+const { showDeveloperDocs } = useDocsAudience();
 
 const { formatDocTypeLabel } = useDocTypes();
 const router = useRouter();
@@ -119,6 +130,17 @@ function onDocClick(doc) {
 </script>
 
 <style scoped>
+.docs-sidebar-pinned {
+  position: sticky;
+  /* Cover the sidebar's 0.5rem top padding so the list can't scroll through it */
+  top: -0.5rem;
+  margin-top: -0.5rem;
+  padding-top: 0.5rem;
+  z-index: 2;
+  background: var(--bs-body-bg);
+  margin-bottom: 0.5rem;
+}
+
 .sidebar-link,
 .list-unstyled a {
   color: var(--bs-link-color);

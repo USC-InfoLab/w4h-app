@@ -118,10 +118,12 @@ import DocsSearch from '@/components/DocsSearch.vue';
 import DocsSidebarNav from '@/components/DocsSidebarNav.vue';
 import DocsPageToc from '@/components/DocsPageToc.vue';
 import { useDocTypes } from '@/composables/useDocTypes';
+import { useDocsAudience } from '@/composables/useDocsAudience';
 import { stripHTML } from '@/utils/toc';
 import { docsHeadingHashId } from '@/utils/docsHeadingId';
 
 const { fetchDocTypes } = useDocTypes();
+const { showDeveloperDocs, isDeveloperDoc } = useDocsAudience();
 
 const showDeleteModal = ref(false);
 const docToDelete = ref(null);
@@ -284,6 +286,8 @@ const groupedDocs = computed(() => {
     // Agent / generated-index files are not Help pages (API also skips these on import).
     const metaSlug = String(doc.slug || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
     if (metaSlug === 'agents' || metaSlug === 'claude' || metaSlug === 'docs_index') continue;
+    // Developer docs (dev/) are opt-in; keep the group when one is open via a direct link.
+    if (isDeveloperDoc(doc) && !showDeveloperDocs.value && !isDeveloperDoc(selecteddoc.value)) continue;
 
     const type = doc.doc_type || '';
     if (!type) {

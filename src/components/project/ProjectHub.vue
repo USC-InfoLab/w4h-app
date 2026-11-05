@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { Offcanvas, Modal } from 'bootstrap';
 import { projectMemberUiValue } from '@/utils/roles';
 import ProjectDocsCard from '@/components/project/ProjectDocsCard.vue';
+import ProjectHomePanel from '@/components/project/ProjectHomePanel.vue';
 import ProjectDatasetMasterDetail from '@/components/project/ProjectDatasetMasterDetail.vue';
 import ProjectAnalyticsPanel from '@/components/project/ProjectAnalyticsPanel.vue';
 import ProjectReportsPanel from '@/components/project/ProjectReportsPanel.vue';
@@ -35,6 +36,7 @@ const props = defineProps({
   inviteRole: { type: String, default: 'editor' },
   inviteUrl: { type: String, default: '' },
   jupyterUrl: { type: String, default: '' },
+  listCrumb: { type: Object, default: null },
 });
 
 const emit = defineEmits([
@@ -63,19 +65,26 @@ const router = useRouter();
 const selectedDatasetId = ref('');
 const archiveModalEl = ref(null);
 let archiveModal = null;
+const unlinkModalEl = ref(null);
+let unlinkModal = null;
+const pendingUnlink = ref(null);
 
 onMounted(() => {
   if (archiveModalEl.value) archiveModal = new Modal(archiveModalEl.value);
+  if (unlinkModalEl.value) unlinkModal = new Modal(unlinkModalEl.value);
 });
 
 onBeforeUnmount(() => {
   try {
     archiveModal?.hide();
     archiveModal?.dispose();
+    unlinkModal?.hide();
+    unlinkModal?.dispose();
   } catch {
     /* ignore */
   }
   archiveModal = null;
+  unlinkModal = null;
 });
 
 function openArchiveModal() {
@@ -87,22 +96,38 @@ function confirmArchive() {
   emit('archive-project');
 }
 
-const VALID_TABS = ['overview', 'docs', 'analytics', 'jupyter', 'people', 'settings'];
+function openUnlinkModal(row) {
+  if (!row?.id) return;
+  pendingUnlink.value = {
+    id: row.id,
+    name: row.name || 'this dataset',
+    empty: Number(row.table_count ?? row.physical_table_count ?? 0) === 0,
+  };
+  unlinkModal?.show();
+}
+
+function confirmUnlink() {
+  const id = pendingUnlink.value?.id;
+  unlinkModal?.hide();
+  if (id) emit('unlink-dataset', id);
+}
+
+const VALID_TABS = ['home', 'overview', 'docs', 'analytics', 'jupyter', 'people', 'settings'];
 
 function tabFromQuery() {
-  const t = String(route.query.tab || '');
-  if (t === 'settings' && !props.canManage) return 'overview';
-  if (!props.isParticipant && !['overview', 'people'].includes(t)) return 'overview';
+  const raw = String(route.query.tab || '');
+  const t = raw === 'datasets' ? 'overview' : raw;
+  if (t === 'settings' && !props.canManage) return 'home';
+  if (!props.isParticipant && !['home', 'overview', 'people'].includes(t)) return 'home';
   if (VALID_TABS.includes(t)) return t;
-  return 'overview';
+  return 'home';
 }
 
 const section = ref(tabFromQuery());
 
 watch(
   () => route.query.tab,
-  (tab) => {
-    if (!tab) return;
+  () => {
     const next = tabFromQuery();
     if (next !== section.value) section.value = next;
   }
@@ -111,7 +136,7 @@ watch(
 function setSection(id) {
   section.value = id;
   const current = String(route.query.tab || '');
-  const nextTab = id === 'overview' ? '' : id;
+  const nextTab = id === 'home' ? '' : id;
   if (current === nextTab) return;
   const query = { ...route.query };
   if (nextTab) query.tab = nextTab;
@@ -126,14 +151,16 @@ function goDatasetsTab() {
 const navItems = computed(() => {
   const items = props.isParticipant
     ? [
+        { id: 'home', label: 'Home', icon: 'bi bi-house' },
         { id: 'overview', label: 'Datasets', icon: 'bi bi-database' },
         { id: 'docs', label: 'Documentation', icon: 'bi bi-file-earmark-text' },
         { id: 'analytics', label: 'Analytics', icon: 'bi bi-graph-up' },
         { id: 'jupyter', label: 'Jupyter', icon: 'bi bi-journal-code' },
         { id: 'people', label: 'People', icon: 'bi bi-people' },
       ]
-    // Not on the project: the overview and the roster only; data, pages and reports stay closed.
+    // Not on the project: home, linked datasets, and the roster only.
     : [
+        { id: 'home', label: 'Home', icon: 'bi bi-house' },
         { id: 'overview', label: 'Datasets', icon: 'bi bi-database' },
         { id: 'people', label: 'People', icon: 'bi bi-people' },
       ];
@@ -225,16 +252,42 @@ const canInvite = computed(() => {
       </aside>
 
       <div class="project-hub-main">
+        <nav v-if="listCrumb?.to" aria-label="breadcrumb" class="mb-2">
+          <ol class="breadcrumb mb-0">
+            <li class="breadcrumb-item">
+              <router-link :to="listCrumb.to">{{ listCrumb.label }}</router-link>
+            </li>
+            <li class="breadcrumb-item active" aria-current="page">
+              {{ form.name || 'Project' }}
+            </li>
+          </ol>
+        </nav>
         <div v-if="form.status === 'archived'" class="alert alert-secondary small" role="status">
           <strong>Archived.</strong>
-          This project is hidden from the project menu. People, datasets, and pages are unchanged.
-          <span v-if="canManage">Use Restore in Settings to put it back in the menu.</span>
+          Hidden from the project menu. People, datasets, and pages are unchanged.
+          <template v-if="canManage && section !== 'settings'">
+            Restore in Settings puts it back in the menu.
+          </template>
         </div>
         <div v-if="!isParticipant" class="alert alert-info small mb-3" role="status">
           You can see this project because you are on its team, but you are not a member of it.
           Ask a project Admin to add you to open its analytics, documentation and reports.
         </div>
-        <section v-if="section === 'overview'">
+        <section v-if="section === 'home'">
+          <ProjectHomePanel
+            :form="form"
+            :team-label="teamLabel"
+            :created-by-label="createdByLabel"
+            :created-at-label="createdAtLabel"
+            :member-rows="memberRows"
+            :datasets="linkedDatasetRows"
+            :can-manage="canManage"
+            :is-participant="isParticipant"
+            @go-section="setSection"
+          />
+        </section>
+
+        <section v-else-if="section === 'overview'">
           <ProjectDatasetMasterDetail
             :datasets="linkedDatasetRows"
             :can-manage="canManage"
@@ -244,7 +297,6 @@ const canInvite = computed(() => {
             :saving-datasets="savingDatasets"
             :has-team="!!form.team_id"
             :project-id="form.id ? String(form.id) : ''"
-            @unlink-dataset="emit('unlink-dataset', $event)"
             @replace-linked-datasets="emit('replace-linked-datasets', $event)"
             @update:dataset-to-add="emit('update:datasetToAdd', $event)"
             @update:new-dataset-name="emit('update:newDatasetName', $event)"
@@ -468,6 +520,48 @@ const canInvite = computed(() => {
           </div>
 
           <div class="card p-3 mt-3">
+            <h5 class="card-title mb-2">Linked datasets</h5>
+            <p class="small text-muted mb-3">
+              Unlink a dataset from this project here. Rename, share, and Discoverable are on
+              that dataset’s settings. Linking and ingest stay on this project’s Datasets tab.
+            </p>
+            <div v-if="!linkedDatasetRows.length" class="small text-muted mb-0">
+              None linked yet.
+            </div>
+            <ul v-else class="list-group">
+              <li
+                v-for="row in linkedDatasetRows"
+                :key="row.id"
+                class="list-group-item d-flex align-items-center justify-content-between gap-2"
+              >
+                <div class="min-w-0">
+                  <div class="fw-semibold text-truncate">{{ row.name }}</div>
+                  <div class="small text-muted">
+                    {{ Number(row.table_count ?? 0) }}
+                    {{ Number(row.table_count ?? 0) === 1 ? 'table' : 'tables' }}
+                  </div>
+                </div>
+                <div class="d-flex flex-shrink-0 gap-2">
+                  <router-link
+                    class="btn btn-sm btn-outline-secondary"
+                    :to="{ name: 'adminDatasetsEdit', params: { id: row.id } }"
+                  >
+                    Catalog settings
+                  </router-link>
+                  <button
+                    type="button"
+                    class="btn btn-sm btn-outline-danger"
+                    :disabled="savingDatasets"
+                    @click="openUnlinkModal(row)"
+                  >
+                    Unlink
+                  </button>
+                </div>
+              </li>
+            </ul>
+          </div>
+
+          <div class="card p-3 mt-3">
             <h5 class="card-title mb-2">
               {{ form.status === 'archived' ? 'Restore' : 'Archive' }}
             </h5>
@@ -564,6 +658,39 @@ const canInvite = computed(() => {
             <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
             <button type="button" class="btn btn-primary" :disabled="savingProject" @click="confirmArchive">
               Archive project
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div
+      class="modal fade"
+      tabindex="-1"
+      ref="unlinkModalEl"
+      aria-labelledby="unlinkDatasetTitle"
+      aria-hidden="true"
+    >
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="unlinkDatasetTitle">
+              Unlink {{ pendingUnlink?.name || 'this dataset' }}?
+            </h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <p v-if="pendingUnlink?.empty" class="mb-0">
+              It leaves this project. This dataset has no tables, so it is archived and drops out of the add list.
+            </p>
+            <p v-else class="mb-0">
+              It leaves this project. The dataset and its tables stay with the owning team, and Add a dataset can put it back.
+            </p>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-danger" :disabled="savingDatasets" @click="confirmUnlink">
+              Unlink
             </button>
           </div>
         </div>
