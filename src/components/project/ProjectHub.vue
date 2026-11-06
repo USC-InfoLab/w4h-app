@@ -262,6 +262,8 @@ const canInvite = computed(() => {
             </li>
           </ol>
         </nav>
+        <!-- Page-level messages (save, archive, errors) sit in the content column, not above the rail. -->
+        <slot name="notice" />
         <div v-if="form.status === 'archived'" class="alert alert-secondary small" role="status">
           <strong>Archived.</strong>
           Hidden from the project menu. People, datasets, and pages are unchanged.

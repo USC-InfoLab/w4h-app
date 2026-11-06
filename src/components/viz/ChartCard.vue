@@ -3,7 +3,7 @@
 // "view as table" for accessibility, and theme tokens for dark mode.
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { VChart } from '@/components/viz/echarts';
-import { toCsv } from '@/components/viz/vizOptions';
+import { readTheme, toCsv } from '@/components/viz/vizOptions';
 
 const props = defineProps({
   title: { type: String, default: '' },
@@ -16,6 +16,8 @@ const props = defineProps({
   height: { type: Number, default: 320 },
   filename: { type: String, default: 'chart' },
   ariaLabel: { type: String, default: '' },
+  // Formats table cells for display only; CSV export keeps the raw values.
+  formatCell: { type: Function, default: null },
 });
 
 const chartRef = ref(null);
@@ -33,7 +35,7 @@ function download(href, name) {
 }
 
 function exportPng() {
-  const url = chartRef.value?.getDataURL?.({ type: 'png', pixelRatio: 2, backgroundColor: '#ffffff' });
+  const url = chartRef.value?.getDataURL?.({ type: 'png', pixelRatio: 2, backgroundColor: readTheme().bg });
   if (url) download(url, `${props.filename}.png`);
 }
 
@@ -49,7 +51,8 @@ const emit = defineEmits(['theme-changed']);
 let observer = null;
 onMounted(() => {
   observer = new MutationObserver(() => emit('theme-changed'));
-  observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-bs-theme', 'class'] });
+  // The app sets data-bs-theme on <body> (see App.vue).
+  observer.observe(document.body, { attributes: true, attributeFilter: ['data-bs-theme'] });
 });
 onBeforeUnmount(() => observer?.disconnect());
 </script>
@@ -88,7 +91,7 @@ onBeforeUnmount(() => observer?.disconnect());
           <thead class="sticky-top"><tr><th v-for="c in table.columns" :key="c">{{ c }}</th></tr></thead>
           <tbody>
             <tr v-for="(row, i) in table.rows.slice(0, TABLE_CAP)" :key="i">
-              <td v-for="(cell, j) in row" :key="j">{{ cell }}</td>
+              <td v-for="(cell, j) in row" :key="j">{{ formatCell ? formatCell(cell) : cell }}</td>
             </tr>
           </tbody>
         </table>

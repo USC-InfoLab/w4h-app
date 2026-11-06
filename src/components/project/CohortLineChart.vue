@@ -14,10 +14,11 @@ const props = defineProps({
 const themeTick = ref(0);
 
 const lines = computed(() => {
+  themeTick.value; // control line colour comes from the theme
   const out = [];
   const control = (props.series?.control || []).filter((p) => p?.t && p.avg != null);
   if (control.length) {
-    out.push({ key: 'Control mean', points: control.map((p) => [p.t, p.avg]), color: '#009E73', emphasis: true });
+    out.push({ key: 'Control mean', points: control.map((p) => [p.t, p.avg]), color: readTheme().success, emphasis: true });
   }
   const subjects = props.series?.subjects || {};
   for (const id of Object.keys(subjects).sort()) {

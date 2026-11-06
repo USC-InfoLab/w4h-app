@@ -6,14 +6,23 @@ export const PALETTE = [
   '#0072B2', '#D55E00', '#009E73', '#CC79A7', '#E69F00', '#56B4E9', '#6a51a3', '#7f7f7f',
 ];
 
+/**
+ * Chart chrome colours from the Bootstrap theme. The app sets data-bs-theme on <body>, so the
+ * variables are read there (on <html> they keep the light values in dark mode).
+ */
 export function readTheme() {
-  const css = getComputedStyle(document.documentElement);
+  const css = getComputedStyle(document.body || document.documentElement);
   const get = (name, fallback) => (css.getPropertyValue(name).trim() || fallback);
   return {
     text: get('--bs-body-color', '#212529'),
     muted: get('--bs-secondary-color', '#6c757d'),
     border: get('--bs-border-color', '#dee2e6'),
     bg: get('--bs-body-bg', '#ffffff'),
+    surface: get('--bs-tertiary-bg', '#f8f9fa'),
+    primary: get('--bs-primary', '#0d6efd'),
+    primarySubtle: get('--bs-primary-bg-subtle', '#cfe2ff'),
+    success: get('--bs-success', '#198754'),
+    successSubtle: get('--bs-success-bg-subtle', '#d1e7dd'),
   };
 }
 
@@ -72,8 +81,33 @@ const zoom = [
   { type: 'slider', height: 18, bottom: 8, filterMode: 'none' },
 ];
 
-/** series: [{ key, points: [[iso, value], ...] }] */
-export function lineOption(series, theme, { yName = '', band = null, stepped = false } = {}) {
+const ISO_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?Z$/;
+
+/**
+ * Human-readable time for tables and help: "2026-10-08 19:00 UTC" in UTC, or the browser's
+ * local date and time (with its zone name) when utc is false. Non-ISO values pass through.
+ */
+export function formatTime(value, { utc = true } = {}) {
+  if (typeof value !== 'string' || !ISO_RE.test(value)) return value;
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return value;
+  if (utc) {
+    const t = d.toISOString();
+    const secs = t.slice(17, 19) === '00' ? '' : t.slice(16, 19);
+    return `${t.slice(0, 10)} ${t.slice(11, 16)}${secs} UTC`;
+  }
+  return d.toLocaleString(undefined, {
+    year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short',
+  });
+}
+
+/** Axis label for a value: "pulse_rate_bpm (bpm)". */
+export function valueAxisName(name, unit) {
+  return unit ? `${name} (${unit})` : name || '';
+}
+
+/** series: [{ key, points: [[iso, value], ...] }] — utc: false shows times in the browser's zone. */
+export function lineOption(series, theme, { yName = '', band = null, stepped = false, utc = true } = {}) {
   const lines = (series || []).map((s, i) => ({
     name: s.key,
     type: 'line',
@@ -86,12 +120,13 @@ export function lineOption(series, theme, { yName = '', band = null, stepped = f
     markArea: i === 0 && band && band.min != null && band.max != null
       ? {
           silent: true,
-          itemStyle: { color: 'rgba(0, 158, 115, 0.12)' },
+          itemStyle: { color: theme.successSubtle, opacity: 0.6 },
           data: [[{ yAxis: band.min }, { yAxis: band.max }]],
         }
       : undefined,
   }));
   return base(theme, {
+    useUTC: utc,
     legend: { show: lines.length > 1, type: 'scroll', top: 0, textStyle: { color: theme.muted } },
     xAxis: timeAxis(theme),
     yAxis: { type: 'value', name: yName, scale: true, ...axisCommon(theme) },
@@ -127,7 +162,7 @@ export function boxOption(box, theme, { yName = '' } = {}) {
     series: [{
       type: 'boxplot',
       data: (box || []).map((b) => [b.min, b.q1, b.median, b.q3, b.max]),
-      itemStyle: { color: 'rgba(0,114,178,0.18)', borderColor: PALETTE[0] },
+      itemStyle: { color: theme.primarySubtle, borderColor: theme.primary },
     }],
   });
 }
@@ -151,7 +186,7 @@ export function heatmapOption(coverage, theme) {
     yAxis: { type: 'category', data: subjects, splitArea: { show: true }, ...axisCommon(theme) },
     visualMap: { min: 0, max, calculable: false, orient: 'horizontal', left: 'center', bottom: 6,
       itemWidth: 12, itemHeight: 120, textStyle: { color: theme.muted },
-      inRange: { color: ['#f2f2f2', '#9ecae1', '#0072B2'] } },
+      inRange: { color: [theme.surface, theme.primary] } },
     series: [{ type: 'heatmap', data, emphasis: { itemStyle: { borderColor: theme.text, borderWidth: 1 } } }],
   });
 }
@@ -178,7 +213,7 @@ export function scatterOption(scatter, theme) {
 }
 
 /** events: [[iso, subject, label], ...]  — one row per subject, one colour per label. */
-export function eventsOption(result, theme) {
+export function eventsOption(result, theme, { utc = true } = {}) {
   const subjects = result?.subjects || [];
   const labels = [...new Set((result?.events || []).map((e) => e[2]))];
   const shown = labels.slice(0, 10);
@@ -192,10 +227,11 @@ export function eventsOption(result, theme) {
   const rest = (result?.events || []).filter((e) => !shown.includes(e[2]));
   if (rest.length) series.push({ name: 'other', type: 'scatter', symbolSize: 10, data: rest.map((e) => ({ value: [e[0], e[1]], label: e[2] })) });
   return base(theme, {
+    useUTC: utc,
     legend: { type: 'scroll', top: 0, textStyle: { color: theme.muted } },
     tooltip: { trigger: 'item', confine: true, backgroundColor: theme.bg,
       borderColor: theme.border, textStyle: { color: theme.text },
-      formatter: (p) => `${p.data.label}<br/>${p.value[1]} · ${String(p.value[0]).replace('T', ' ').slice(0, 16)}` },
+      formatter: (p) => `${p.data.label}<br/>${p.value[1]} · ${formatTime(String(p.value[0]), { utc })}` },
     xAxis: timeAxis(theme),
     yAxis: { type: 'category', data: subjects, ...axisCommon(theme) },
     dataZoom: [{ type: 'inside', filterMode: 'none' }, { type: 'slider', height: 18, bottom: 8, filterMode: 'none' }],

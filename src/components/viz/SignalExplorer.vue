@@ -5,8 +5,8 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { api, authHeaders } from '@/utils/api';
 import ChartCard from '@/components/viz/ChartCard.vue';
 import {
-  boxOption, eventsOption, heatmapOption, histogramOption, lineOption,
-  readTheme, scatterOption, tableFor,
+  boxOption, eventsOption, formatTime, heatmapOption, histogramOption, lineOption,
+  readTheme, scatterOption, tableFor, valueAxisName,
 } from '@/components/viz/vizOptions';
 
 const props = defineProps({
@@ -49,6 +49,25 @@ const xSignal = ref('');
 const xValue = ref('');
 const ySignal = ref('');
 const yValue = ref('');
+// 'utc' or 'local'. Only offered when the signal's times carry a zone (epoch or timestamptz).
+const timeZone = ref('utc');
+const localZoneName = Intl.DateTimeFormat().resolvedOptions().timeZone || 'your time zone';
+
+// Plain-language labels for the in-app help.
+const ROLE_LABELS = {
+  numeric: 'Number',
+  categorical: 'Category (text)',
+  boolean: 'Yes / No',
+};
+const roleLabel = (role) => ROLE_LABELS[role] || role;
+function timeLabel(time) {
+  if (!time) return 'No time column';
+  const cols = time.columns.join(' + ');
+  if (time.source === 'epoch') return `${cols} — Unix time, converted to dates (UTC)`;
+  if (time.source === 'date_time') return `${cols} — separate date and time, as recorded`;
+  if (time.source === 'date') return `${cols} — one value per day`;
+  return time.zone === 'utc' ? `${cols} — date and time with a time zone (UTC)` : `${cols} — date and time as recorded (no time zone)`;
+}
 
 const signals = computed(() => catalog.value?.signals || []);
 const timeSignals = computed(() => signals.value.filter((s) => s.has_time));
@@ -65,6 +84,23 @@ const signalChoices = computed(() => {
   }
 });
 const currentSignal = computed(() => signals.value.find((s) => s.name === signal.value) || null);
+const zoneAware = computed(() => chart.value !== 'scatter' && currentSignal.value?.time?.zone === 'utc');
+// Coverage buckets are whole UTC days/hours, so only line and event charts can switch zone.
+const canSwitchZone = computed(() => zoneAware.value && ['line', 'events'].includes(chart.value));
+const showUtc = computed(() => !canSwitchZone.value || timeZone.value === 'utc');
+const cellFormatter = (cell) => formatTime(cell, { utc: showUtc.value });
+
+// Help follows the selection: the chosen signal, or both signals of a scatter.
+const helpSignals = computed(() => {
+  if (chart.value !== 'scatter') return currentSignal.value ? [currentSignal.value] : [];
+  const names = [...new Set([xSignal.value, ySignal.value].filter(Boolean))];
+  return names.map((n) => signals.value.find((s) => s.name === n)).filter(Boolean);
+});
+function isSelectedValue(s, v) {
+  if (chart.value === 'coverage') return false;
+  if (chart.value !== 'scatter') return v.name === value.value;
+  return (s.name === xSignal.value && v.name === xValue.value) || (s.name === ySignal.value && v.name === yValue.value);
+}
 const valueChoices = computed(() => {
   const s = currentSignal.value;
   if (!s) return [];
@@ -177,6 +213,9 @@ const subtitle = computed(() => {
   const bits = [];
   if (r.bucket_seconds) bits.push(`${r.agg || 'avg'} per ${r.bucket_seconds >= 86400 ? r.bucket_seconds / 86400 + ' d' : r.bucket_seconds >= 3600 ? r.bucket_seconds / 3600 + ' h' : r.bucket_seconds / 60 + ' min'}`);
   if (r.truncated) bits.push('truncated — narrow the range or subjects');
+  if (['series', 'events', 'coverage'].includes(r.kind)) {
+    bits.push(zoneAware.value ? (showUtc.value ? 'times in UTC' : `times in ${localZoneName}`) : 'times as recorded');
+  }
   return bits.join(' · ');
 });
 const theme = computed(() => { themeTick.value; return readTheme(); });
@@ -186,16 +225,16 @@ const cards = computed(() => {
   const r = result.value;
   if (!r) return [];
   const t = theme.value;
-  if (r.kind === 'series') return [{ key: 'line', option: r.series.length ? lineOption(r.series, t, { yName: r.value }) : null, table: tableFor('series', r) }];
+  if (r.kind === 'series') return [{ key: 'line', option: r.series.length ? lineOption(r.series, t, { yName: valueAxisName(r.value, r.unit), utc: showUtc.value }) : null, table: tableFor('series', r) }];
   if (r.kind === 'distribution') {
     return [
-      { key: 'hist', title: 'Distribution', option: r.histogram.length ? histogramOption(r.histogram, t, { xName: r.value }) : null, table: tableFor('distribution', r) },
-      { key: 'box', title: 'Spread per subject', option: r.box.length ? boxOption(r.box, t, { yName: r.value }) : null, table: tableFor('box', r) },
+      { key: 'hist', title: 'Distribution', option: r.histogram.length ? histogramOption(r.histogram, t, { xName: valueAxisName(r.value, r.unit) }) : null, table: tableFor('distribution', r) },
+      { key: 'box', title: 'Spread per subject', option: r.box.length ? boxOption(r.box, t, { yName: valueAxisName(r.value, r.unit) }) : null, table: tableFor('box', r) },
     ];
   }
   if (r.kind === 'coverage') return [{ key: 'cov', option: r.cells.length ? heatmapOption(r, t) : null, table: tableFor('coverage', r) }];
   if (r.kind === 'scatter') return [{ key: 'sc', option: r.points.length ? scatterOption(r, t) : null, table: tableFor('scatter', r) }];
-  return [{ key: 'ev', option: r.events.length ? eventsOption(r, t) : null, table: tableFor('events', r) }];
+  return [{ key: 'ev', option: r.events.length ? eventsOption(r, t, { utc: showUtc.value }) : null, table: tableFor('events', r) }];
 });
 </script>
 
@@ -268,6 +307,60 @@ const cards = computed(() => {
         </template>
       </div>
 
+      <details v-if="helpSignals.length" class="small mb-3">
+        <summary>
+          <i class="bi bi-info-circle" aria-hidden="true"></i>
+          About {{ helpSignals.map((h) => h.name).join(' and ') }} — values, types and units
+        </summary>
+        <div class="border rounded p-2 mt-2">
+          <div v-for="s in helpSignals" :key="s.name" class="mb-3">
+            <div class="d-flex flex-wrap align-items-baseline justify-content-between gap-2">
+              <div>
+                <span class="fw-semibold">{{ s.name }}</span>
+                <span v-if="s.description" class="text-muted"> — {{ s.description }}</span>
+              </div>
+              <a v-if="s.source_url" :href="s.source_url" target="_blank" rel="noopener noreferrer">
+                {{ s.source_name ? `${s.source_name} documentation` : 'Vendor documentation' }}
+                <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>
+              </a>
+            </div>
+            <div class="text-muted">
+              Time: {{ timeLabel(s.time) }}<span v-if="s.interval_minutes"> · one row every {{ s.interval_minutes }} min</span>
+              <span v-if="s.subject_column"> · Subject: {{ s.subject_column }}</span>
+              <span v-if="s.span?.start"> · {{ formatTime(s.span.start) }} → {{ formatTime(s.span.end) }}</span>
+            </div>
+            <div class="table-responsive">
+              <table class="table table-sm mb-0 mt-1">
+                <thead>
+                  <tr><th>Value</th><th>Type</th><th>Unit</th><th>What it means</th></tr>
+                </thead>
+                <tbody>
+                  <tr
+                    v-for="v in s.values"
+                    :key="v.name"
+                    :class="{ 'table-active': isSelectedValue(s, v) }"
+                    :aria-current="isSelectedValue(s, v) ? 'true' : undefined"
+                  >
+                    <td><code>{{ v.name }}</code></td>
+                    <td :title="v.type">{{ roleLabel(v.role) }}</td>
+                    <td>{{ v.unit || '—' }}</td>
+                    <td>{{ v.description || '—' }}</td>
+                  </tr>
+                  <tr v-if="!s.values.length">
+                    <td colspan="4" class="text-muted">No chartable values (only subject and time).</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <p class="text-muted mb-0">
+            <em>Number</em> values can be drawn as a time series, distribution or scatter; <em>Category</em>
+            values (text labels or codes) are drawn as events. Charts show an aggregate per time bucket, not every
+            raw row. From/To are whole days: UTC days when the signal's time is UTC, otherwise days as recorded.
+          </p>
+        </div>
+      </details>
+
       <div class="row g-2 align-items-end mb-3">
         <div class="col-6 col-md-3">
           <label class="form-label small mb-0" for="viz-start">From</label>
@@ -306,6 +399,13 @@ const cards = computed(() => {
             <option value="day">Day</option><option value="hour">Hour</option>
           </select>
         </div>
+        <div v-if="canSwitchZone" class="col-6 col-md-2">
+          <label class="form-label small mb-0" for="viz-tz">Show times in</label>
+          <select id="viz-tz" v-model="timeZone" class="form-select form-select-sm">
+            <option value="utc">UTC</option>
+            <option value="local">{{ localZoneName }}</option>
+          </select>
+        </div>
         <div class="col-12 col-md">
           <label class="form-label small mb-0" for="viz-subjects">Subjects <span class="text-muted">(none selected = first 12)</span></label>
           <select id="viz-subjects" v-model="subjects" multiple size="2" class="form-select form-select-sm">
@@ -326,6 +426,7 @@ const cards = computed(() => {
         :error="error"
         :height="chart === 'coverage' ? 340 : 300"
         :filename="filename"
+        :format-cell="cellFormatter"
         @theme-changed="themeTick += 1"
       />
       <ChartCard v-if="!cards.length" :loading="loading" :error="error" :option="null" />

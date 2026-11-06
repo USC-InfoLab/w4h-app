@@ -1,16 +1,5 @@
 <template>
   <main class="container-fluid p-0 project-workspace" v-if="loaded">
-    <div v-if="message" class="project-workspace-top px-3 pt-2 pb-0">
-      <div
-        class="alert alert-dismissible fade show mb-2"
-        :class="ok ? 'alert-success' : 'alert-danger'"
-        role="alert"
-      >
-        {{ message }}
-        <button type="button" class="btn-close" aria-label="Close" @click="clearMessage"></button>
-      </div>
-    </div>
-
     <ProjectHub
       :list-crumb="listCrumb"
       :can-manage="canManageThisProject"
@@ -54,7 +43,19 @@
       @dataset-run-complete="refreshDatasetsOnly"
       @team-renamed="onTeamRenamed"
       @team-reassigned="onTeamReassigned"
-    />
+    >
+      <template #notice>
+        <div
+          v-if="message"
+          class="alert alert-dismissible fade show small mb-2"
+          :class="ok ? 'alert-success' : 'alert-danger'"
+          role="alert"
+        >
+          {{ message }}
+          <button type="button" class="btn-close" aria-label="Close" @click="clearMessage"></button>
+        </div>
+      </template>
+    </ProjectHub>
   </main>
 </template>
 
@@ -537,11 +538,8 @@ async function archiveProject() {
     form.status = 'archived';
     await loadProjects();
     if (form.id) setActiveProject(String(form.id));
-    setMessage(
-      true,
-      'Archived. This project stays open and is hidden from the project menu. Restore puts it back.',
-      { sticky: true }
-    );
+    // The hub keeps its own "Archived" notice; this only confirms the action.
+    setMessage(true, 'Project archived.');
   } catch (error) {
     setMessage(false, error.response?.data?.error || error.message || 'Failed to archive project.');
   } finally {
@@ -563,7 +561,7 @@ async function restoreProject() {
     form.status = 'active';
     await loadProjects();
     if (form.id) setActiveProject(String(form.id));
-    setMessage(true, 'Restored. This project is back in the project menu.', { sticky: true });
+    setMessage(true, 'Restored. This project is back in the project menu.');
   } catch (error) {
     setMessage(false, error.response?.data?.error || error.message || 'Failed to restore project.');
   } finally {
