@@ -110,7 +110,7 @@
             <router-link :to="{ name: 'adminUsage' }" class="btn btn-sm btn-primary">
               Usage
             </router-link>
-            <router-link :to="{ name: 'users' }" class="btn btn-sm btn-outline-primary">
+            <router-link v-if="isDev" :to="{ name: 'users' }" class="btn btn-sm btn-outline-primary">
               Users
             </router-link>
             <router-link :to="{ name: 'adminTeams' }" class="btn btn-sm btn-outline-primary">
@@ -142,6 +142,7 @@
 </template>
 
 <script setup>
+const isDev = import.meta.env.DEV;
 import { ref, computed, onMounted } from 'vue';
 import { storeToRefs } from 'pinia';
 

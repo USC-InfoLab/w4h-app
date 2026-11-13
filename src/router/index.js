@@ -201,6 +201,8 @@ router.beforeEach(async (to, from, next) => {
     'teams',
     'teamSettings',
   ]);
+  // Dev only: the Super admin can open the Users list to use "Log in as".
+  if (import.meta.env.DEV) trialOperatorRoutes.delete('users');
   if (token && isSuperAdmin(user?.role) && trialOperatorRoutes.has(to.name)) {
     return next({ name: 'adminHome' });
   }

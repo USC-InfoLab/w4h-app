@@ -19,6 +19,8 @@ export default defineConfig({
     sourcemap: true,
   },
   server: {
+    port: 2025,
+    strictPort: true,
     sourcemapIgnoreList: false,
     watch: {
       usePolling: true,

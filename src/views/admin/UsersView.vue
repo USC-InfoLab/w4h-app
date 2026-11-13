@@ -32,6 +32,8 @@
       <p>Loading users...</p>
     </div>
 
+    <div v-else-if="loadError" class="alert alert-warning small">{{ loadError }}</div>
+
     <div v-else-if="!filteredRows.length" class="text-center my-5">
       <p class="text-muted mb-0">No users for this filter.</p>
     </div>
@@ -62,13 +64,24 @@
               </template>
             </div>
           </div>
-          <button
-            v-if="canEditRow(row)"
-            class="btn btn-sm btn-outline-primary flex-shrink-0"
-            @click="onEditButtonClick(row)"
-          >
-            Edit
-          </button>
+          <div class="d-flex gap-2 flex-shrink-0">
+            <button
+              v-if="canLoginAs(row)"
+              class="btn btn-sm btn-outline-secondary"
+              :disabled="loginAsBusy"
+              title="Dev only: sign in as this user"
+              @click="onLoginAs(row)"
+            >
+              Log in as
+            </button>
+            <button
+              v-if="canEditRow(row)"
+              class="btn btn-sm btn-outline-primary"
+              @click="onEditButtonClick(row)"
+            >
+              Edit
+            </button>
+          </div>
         </div>
       </li>
     </ul>
@@ -83,6 +96,9 @@ import { useUserStore } from '@/stores/user';
 import { APP_NAME } from '@/utils/defs';
 import { isSuperAdmin, roleLabel, teamMemberRoleLabel, TEAM_MEMBER_ROLES } from '@/utils/roles';
 import { useTeamContext } from '@/composables/useTeamContext';
+import { useUIStore } from '@/stores/ui';
+import { canAccessAdminUi } from '@/utils/roles';
+import { clearUsageSessionFlags } from '@/utils/clientUsage';
 
 const router = useRouter();
 const userStore = useUserStore();
@@ -97,6 +113,12 @@ const allRows = ref([]);
 const teamOptions = ref([]);
 const teamFilter = ref('all');
 const loading = ref(true);
+
+const uiStore = useUIStore();
+// Dev-only "Log in as" (API: W4H_DEV_LOGIN_AS=true, never in production).
+const loginAsEnabled = ref(false);
+const loginAsBusy = ref(false);
+const loadError = ref('');
 
 const isPlatformAdmin = computed(() => isSuperAdmin(userStore.user?.role));
 const canInvite = computed(() => isPlatformAdmin.value || isActiveTeamAdmin.value);
@@ -149,13 +171,27 @@ watch(activeTeamId, () => {
 onMounted(async () => {
   document.title = `${APP_NAME} Users`;
   try {
-    const [usersRes, teamsRes] = await Promise.all([
-      api.get('users/', authHeaders()),
+    // GET /users/ is closed to the Super admin; in dev the "Log in as" endpoint lists users instead.
+    const devSuperAdmin = import.meta.env.DEV && isPlatformAdmin.value;
+    const [usersRes, teamsRes] = await Promise.allSettled([
+      api.get(devSuperAdmin ? 'users/dev/login-as' : 'users/', authHeaders()),
       api.get('teams', authHeaders())
     ]);
-    teamOptions.value = Array.isArray(teamsRes.data) ? teamsRes.data : [];
+    if (usersRes.status === 'rejected') throw usersRes.reason;
+    teamOptions.value = teamsRes.status === 'fulfilled' && Array.isArray(teamsRes.value.data)
+      ? teamsRes.value.data
+      : [];
 
-    const users = Array.isArray(usersRes.data) ? usersRes.data : [];
+    const usersData = usersRes.value.data;
+    if (devSuperAdmin) {
+      loginAsEnabled.value = !!usersData?.enabled;
+      if (!loginAsEnabled.value) {
+        loadError.value = 'Set W4H_DEV_LOGIN_AS=true in w4h-api/.env and restart the API to list users here.';
+      }
+    }
+    const users = devSuperAdmin
+      ? (Array.isArray(usersData?.users) ? usersData.users : [])
+      : (Array.isArray(usersData) ? usersData : []);
     allRows.value = users.map((u) => {
       const teamIds = Array.isArray(u.team_ids) ? u.team_ids.map(String) : [];
       const superAdmin = isSuperAdmin(u.role);
@@ -181,17 +217,49 @@ onMounted(async () => {
   } catch (e) {
     console.error(e);
     allRows.value = [];
+    loadError.value = e?.response?.status === 404
+      ? 'The API does not have the "Log in as" endpoint yet. Restart it.'
+      : 'Could not load users.';
   } finally {
     loading.value = false;
   }
 });
 
 function canEditRow(row) {
-  if (isPlatformAdmin.value) return true;
+  // User editing is a team-admin page; the router keeps the Super admin out of it.
+  if (isPlatformAdmin.value) return false;
   if (!isActiveTeamAdmin.value) {
     return row.email === userStore.user?.email;
   }
   return true;
+}
+
+function canLoginAs(row) {
+  return loginAsEnabled.value
+    && (!row.status || row.status === 'active')
+    && String(row.id) !== String(userStore.user?.id);
+}
+
+async function onLoginAs(row) {
+  if (!window.confirm(`Sign in as ${row.email}? You will be signed out of your Super admin session.`)) return;
+  loginAsBusy.value = true;
+  try {
+    const { data } = await api.post('users/dev/login-as', { email: row.email }, authHeaders());
+    clearUsageSessionFlags();
+    localStorage.setItem('w4h.user.token', data.token);
+    await userStore.setUser(data);
+    if (canAccessAdminUi(data.role, data.caps)) {
+      uiStore.enterAdmin();
+      router.push({ name: 'adminHome' });
+    } else {
+      uiStore.exitAdmin();
+      router.push('/home');
+    }
+  } catch (e) {
+    window.alert(e?.response?.data?.error?.message || 'Log in as failed.');
+  } finally {
+    loginAsBusy.value = false;
+  }
 }
 
 function onEditButtonClick(row) {

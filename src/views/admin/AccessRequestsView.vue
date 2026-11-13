@@ -12,6 +12,12 @@
         <router-link :to="{ name: 'adminInviteAdmin' }" class="btn btn-sm btn-outline-primary">
           <i class="bi bi-envelope-plus" aria-hidden="true"></i> Invite Admin…
         </router-link>
+        <router-link
+          :to="{ name: 'adminInviteAdmin', query: { role: 'super_admin' } }"
+          class="btn btn-sm btn-outline-secondary ms-2"
+        >
+          <i class="bi bi-shield-plus" aria-hidden="true"></i> Invite Super admin…
+        </router-link>
       </div>
     </div>
 

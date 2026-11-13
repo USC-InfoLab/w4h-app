@@ -232,6 +232,15 @@ const navItems = computed(() => [
     badge: pendingRequests.value || '',
   },
   {
+    // Dev only: Users list for "Log in as" (the route is blocked for Super admin otherwise).
+    key: 'users',
+    label: 'Users',
+    icon: 'bi bi-people',
+    to: { name: 'users' },
+    active: isUsersActive.value,
+    show: import.meta.env.DEV && showSettings.value,
+  },
+  {
     key: 'contributions',
     label: 'Contributions',
     icon: 'bi bi-box-seam',

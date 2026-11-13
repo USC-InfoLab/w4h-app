@@ -495,6 +495,13 @@ const resetMessage = () => {
 };
 
 function initialLoginFields() {
+  // Dev only: prefill from .env.development.local (not loaded by production builds).
+  if (import.meta.env.DEV && import.meta.env.VITE_DEV_LOGIN_EMAIL) {
+    return {
+      email: String(import.meta.env.VITE_DEV_LOGIN_EMAIL).trim(),
+      password: String(import.meta.env.VITE_DEV_LOGIN_PASSWORD || ''),
+    };
+  }
   const lastEmail = readLastLoginEmail();
   return { email: lastEmail, password: '' };
 }

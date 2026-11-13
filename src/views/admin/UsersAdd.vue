@@ -9,13 +9,18 @@
           </router-link>
         </li>
         <li class="breadcrumb-item active" aria-current="page">
-          {{ platformInviteAdmin ? 'Invite Admin' : 'Invite User' }}
+          {{ platformInviteAdmin ? (invitingSuperAdmin ? 'Invite Super admin' : 'Invite Admin') : 'Invite User' }}
         </li>
       </ol>
     </nav>
 
     <p class="text-muted mb-3">
-      <template v-if="platformInviteAdmin">
+      <template v-if="platformInviteAdmin && invitingSuperAdmin">
+        Invite another <strong>Super admin</strong>. They get the same platform access you have: Access requests,
+        Contributions, Audit, Usage and Settings. Use a dedicated email — Super admins cannot be team members.
+        Every invitation is recorded in the audit log.
+      </template>
+      <template v-else-if="platformInviteAdmin">
         Invite someone you already know as a trial <strong>Admin</strong>. They receive the same invitation as an
         approved access request: sign in and <strong>create their own team</strong> — you do not create projects or datasets for them.
         If the email already has an account, they are granted permission to create a team.
@@ -50,6 +55,17 @@
             <div class="form-text">Optional — the invitee can set or change this when activating.</div>
           </div>
 
+          <div v-if="platformInviteAdmin" class="mb-3">
+            <label class="form-label d-block">Role</label>
+            <div class="form-check form-check-inline">
+              <input id="inviteRoleAdmin" v-model="platformRole" class="form-check-input" type="radio" :value="USER_ROLES.TEAM_ADMIN" />
+              <label class="form-check-label" for="inviteRoleAdmin">Admin (creates their own team)</label>
+            </div>
+            <div class="form-check form-check-inline">
+              <input id="inviteRoleSuper" v-model="platformRole" class="form-check-input" type="radio" :value="USER_ROLES.SUPER_ADMIN" />
+              <label class="form-check-label" for="inviteRoleSuper">Super admin</label>
+            </div>
+          </div>
           <div v-if="!platformInviteAdmin" class="mb-3">
             <label class="form-label">Role</label>
             <select v-model="form.role" class="form-select" :disabled="roleOptions.length <= 1">
@@ -137,6 +153,13 @@ const platformInviteAdmin = computed(
 
 const userStore = useUserStore();
 const { user: currentUser } = storeToRefs(userStore);
+// Platform invite page: Admin (default) or another Super admin (no limit on how many).
+const platformRole = ref(
+  route.query.role === USER_ROLES.SUPER_ADMIN ? USER_ROLES.SUPER_ADMIN : USER_ROLES.TEAM_ADMIN
+);
+const invitingSuperAdmin = computed(
+  () => platformInviteAdmin.value && platformRole.value === USER_ROLES.SUPER_ADMIN
+);
 
 const form = ref({
   email: '',
@@ -164,7 +187,7 @@ const isValidEmail = computed(() => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.value
 
 const canSubmit = computed(() => {
   if (!form.value.email || !isValidEmail.value) return false;
-  const role = platformInviteAdmin.value ? USER_ROLES.TEAM_ADMIN : form.value.role;
+  const role = platformInviteAdmin.value ? platformRole.value : form.value.role;
   if (!role) return false;
   if (!platformInviteAdmin.value && needsTeam.value && !teamOptional.value && !form.value.team_id) return false;
   return true;
@@ -200,7 +223,7 @@ async function onSave() {
   submitMessage.value = '';
   inviteUrl.value = '';
   try {
-    const inviteRole = platformInviteAdmin.value ? USER_ROLES.TEAM_ADMIN : form.value.role;
+    const inviteRole = platformInviteAdmin.value ? platformRole.value : form.value.role;
     const payload = {
       email: form.value.email,
       name: form.value.name,
@@ -267,11 +290,11 @@ async function onSave() {
 
 onMounted(async () => {
   document.title = platformInviteAdmin.value
-    ? `${APP_NAME} Invite Admin`
+    ? `${APP_NAME} ${invitingSuperAdmin.value ? 'Invite Super admin' : 'Invite Admin'}`
     : `${APP_NAME} Invite User`;
 
   if (platformInviteAdmin.value) {
-    form.value.role = USER_ROLES.TEAM_ADMIN;
+    form.value.role = platformRole.value;
     return;
   }
 

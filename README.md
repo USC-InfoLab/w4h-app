@@ -38,10 +38,10 @@ Start the API first (`npm start` in `w4h-api`), then:
 npm run dev
 ```
 
-Default dev URL: `http://localhost:5173`. Bind a specific host if another service already uses port 5173 on `localhost` vs `127.0.0.1`:
+Default dev URL: `http://localhost:2025`. The port is fixed outside Vite's default port range so the app keeps the same browser origin (and saved-password entry) regardless of startup order. If port 2025 is already in use, Vite exits instead of silently switching ports.
 
 ```bash
-npm run dev -- --host 127.0.0.1 --port 5173
+npm run dev -- --host 127.0.0.1
 ```
 
 ### First-time platform setup
