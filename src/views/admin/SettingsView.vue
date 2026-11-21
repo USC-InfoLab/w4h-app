@@ -11,32 +11,45 @@
       <div class="col-12 col-lg-8">
         <div class="card p-3 mb-3">
           <h5 class="card-title mb-3">Database</h5>
+          <p class="small mb-3">
+            <span class="text-muted">Mode:</span>
+            <strong>{{ dbModeLabel }}</strong>
+          </p>
+          <p v-if="dbStatusError" class="small text-danger mb-3" role="alert">{{ dbStatusError }}</p>
+          <p v-if="isBuiltinDb" class="small text-muted mb-3">
+            The built-in database runs inside this installation. Its connection is managed by W4H and cannot be
+            changed here.
+          </p>
 
-          <form @submit.prevent="saveDatabaseSettings">
+          <form @submit.prevent="dbLocked || saveDatabaseSettings()">
             <div class="row g-3">
               <div class="col-md-8">
-                <label class="form-label">Host</label>
-                <input v-model="db.host" class="form-control" placeholder="localhost" />
+                <label for="settings-db-host" class="form-label">Host</label>
+                <input id="settings-db-host" v-model="db.host" class="form-control" placeholder="localhost"
+                  :readonly="dbLocked" />
               </div>
               <div class="col-md-4">
-                <label class="form-label">Port</label>
-                <input v-model="db.port" class="form-control" placeholder="5432" />
+                <label for="settings-db-port" class="form-label">Port</label>
+                <input id="settings-db-port" v-model="db.port" class="form-control" placeholder="5432"
+                  :readonly="dbLocked" />
               </div>
               <div class="col-12">
-                <label class="form-label">Database</label>
-                <input v-model="db.database" class="form-control" placeholder="w4h-db" />
+                <label for="settings-db-database" class="form-label">Database</label>
+                <input id="settings-db-database" v-model="db.database" class="form-control" placeholder="w4h-db"
+                  :readonly="dbLocked" />
               </div>
               <div class="col-md-6">
-                <label class="form-label">User</label>
-                <input v-model="db.user" class="form-control" placeholder="postgres" />
+                <label for="settings-db-user" class="form-label">User</label>
+                <input id="settings-db-user" v-model="db.user" class="form-control" placeholder="postgres"
+                  :readonly="dbLocked" />
               </div>
-              <div class="col-md-6">
+              <div v-if="!dbLocked" class="col-md-6">
                 <label class="form-label">Password</label>
                 <input v-model="db.password" type="password" class="form-control"
                   placeholder="Leave blank to keep current password" autocomplete="new-password" />
               </div>
             </div>
-            <div class="d-flex gap-2 mt-3">
+            <div v-if="!dbLocked" class="d-flex gap-2 mt-3">
               <button class="btn btn-primary" :disabled="savingDb" type="submit">Save Database</button>
               <button class="btn btn-outline-secondary" :disabled="testingDb" type="button" @click="testDatabase">Test
                 Connection</button>
@@ -406,6 +419,18 @@ const aiMessage = ref('');
 const aiMessageType = ref('success');
 
 const db = ref({ host: '', port: '5432', database: '', user: '', password: '' });
+// ADR-031: `config/status` db_mode ('builtin' | 'external' | null).
+const dbMode = ref(null);
+const isBuiltinDb = computed(() => dbMode.value === 'builtin');
+// Fail closed: without a status answer, a built-in install could otherwise be re-pointed.
+const dbStatusError = ref('');
+const dbLocked = computed(() => isBuiltinDb.value || !!dbStatusError.value);
+const dbModeLabel = computed(() => {
+  if (dbMode.value === 'builtin') return 'Built-in (this computer)';
+  // Installs set up before W4H_DB_MODE existed are external.
+  if (dbMode.value === 'external' || dbConfigured.value) return 'External PostgreSQL';
+  return 'Not set';
+});
 const mailer = ref({ host: '', port: '587', secure: false, user: '', password: '', from: '', replyTo: '' });
 const appSettings = ref({ helpEmail: '', usageTracking: false });
 
@@ -432,13 +457,17 @@ async function loadSettings() {
   try {
     const dbRes = await api.get('config/status', authHeaders());
     dbConfigured.value = !!dbRes.data.configured;
+    dbMode.value = dbRes.data.db_mode || null;
+    dbStatusError.value = '';
     if (dbRes.data.details) {
       db.value.host = dbRes.data.details.host || '';
       db.value.port = String(dbRes.data.details.port || '5432');
       db.value.database = dbRes.data.details.database || '';
       db.value.user = dbRes.data.details.user || '';
     }
-  } catch { /* ignore */ }
+  } catch (error) {
+    dbStatusError.value = `Couldn't load the database status: ${error.response?.data?.error || error.message}`;
+  }
 
   try {
     const mailRes = await api.get('config/mailer-settings', authHeaders());

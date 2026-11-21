@@ -10,7 +10,21 @@
         team-owned projects.
       </p>
 
-      <template v-if="panel === 'setup'">
+      <template v-if="dbMode === 'choice'">
+        <p class="guest-lede mb-0">
+          First-time setup: choose where W4H keeps its data, then create your account.
+        </p>
+      </template>
+      <template v-else-if="dbMode === 'builtin'">
+        <p class="guest-lede mb-0">
+          <template v-if="panel === 'setup'">
+            First-time setup: create your account and team.
+          </template>
+          W4H runs on this computer only. Sign in with the account you created
+          during setup.
+        </p>
+      </template>
+      <template v-else-if="panel === 'setup'">
         <p class="guest-lede mb-0">
           First-time setup: connect PostgreSQL, then create the Super admin
           account. After that, researchers request access from this screen.
@@ -46,6 +60,9 @@
       <div class="guest-main-inner">
         <slot />
         <p v-if="copyright" class="guest-footer text-muted">{{ copyright }}</p>
+        <p v-if="releaseLabel" class="guest-footer guest-version text-muted">
+          Version {{ releaseLabel }}<template v-if="gitHash"> ({{ gitHash }})</template>
+        </p>
       </div>
     </div>
   </div>
@@ -53,6 +70,7 @@
 
 <script setup>
 import { APP_NAME, W4H_PROJECT_URL } from '@/utils/defs';
+import { formatReleaseLabel, gitHash } from '@/utils/release';
 
 defineProps({
   panel: {
@@ -60,9 +78,15 @@ defineProps({
     default: 'welcome',
     validator: (v) => v === 'welcome' || v === 'setup',
   },
+  // `config/status` db_mode ('builtin' | 'external' | null, ADR-031), or 'choice' on the setup choice panel.
+  dbMode: {
+    type: String,
+    default: null,
+  },
 });
 
 const copyright = import.meta.env.VITE_COPYRIGHT;
+const releaseLabel = formatReleaseLabel();
 </script>
 
 <style scoped>
@@ -171,6 +195,10 @@ const copyright = import.meta.env.VITE_COPYRIGHT;
   margin: 1.5rem 0 0;
   font-size: 0.8rem;
   text-align: center;
+}
+
+.guest-version {
+  margin-top: 0.5rem;
 }
 
 @media (max-width: 991.98px) {

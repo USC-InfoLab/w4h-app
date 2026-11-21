@@ -88,6 +88,24 @@
           </small>
         </div>
 
+        <!-- API keys (personal credential for notebooks, CLIs and run.sh) -->
+        <section id="api-keys" class="mt-4 pt-3 border-top" aria-labelledby="profile-api-keys-heading">
+          <h6 id="profile-api-keys-heading" class="mb-2">API keys</h6>
+          <p class="small text-muted mb-3">
+            Notebooks, command-line tools and importers sign in with this key.
+            <router-link :to="{ name: 'docs', params: { slug: 'quick-start' } }" class="text-decoration-none">
+              Setup instructions →
+            </router-link>
+          </p>
+          <ApiCredentialCard />
+        </section>
+
+        <!-- Usage export for Admins (their teams; ADR-031 §7). Super admin uses Platform Admin → Usage. -->
+        <section v-if="isScopedTeamAdmin(user)" class="mt-4 pt-3 border-top" aria-labelledby="profile-usage-heading">
+          <h6 id="profile-usage-heading" class="mb-2">Usage export</h6>
+          <UsageExportCard />
+        </section>
+
         <!-- Danger zone -->
         <div v-if="isSuperAdmin(user.role) && newUser.email !== user.email" class="card mt-4 border-danger p-3">
           <h6 class="text-danger mb-2">Danger zone</h6>
@@ -118,12 +136,14 @@ import { useRouter } from 'vue-router';
 const router = useRouter();
 
 import { useUserStore } from '@/stores/user';
+import ApiCredentialCard from '@/components/ApiCredentialCard.vue';
+import UsageExportCard from '@/components/UsageExportCard.vue';
 import { storeToRefs } from 'pinia';
 const userStore = useUserStore();
 const { user } = storeToRefs(userStore);
 
 import { useUIStore } from '@/stores/ui';
-import { canAccessAdminUi, isSuperAdmin } from '@/utils/roles';
+import { canAccessAdminUi, isScopedTeamAdmin, isSuperAdmin } from '@/utils/roles';
 const uiStore = useUIStore();
 const { darkMode, themeMode } = storeToRefs(uiStore);
 

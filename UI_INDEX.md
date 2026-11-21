@@ -3,7 +3,7 @@
 Structural map of `w4h-app` for agents and humans. **Index only** — not feature docs.
 
 - Regenerate: `npm run index:ui`
-- Generated: 2026-11-05
+- Generated: 2026-11-21
 - Do not hand-edit the lists below; change code, then re-run the script.
 
 ## Orientation
@@ -117,12 +117,13 @@ Shells: app (`NavBar`) vs Platform Admin (`AdminNavBar`). Project workspace: `Pr
 ### `src/views/docs/`
 - DocsView.vue
 
-## Components (49)
+## Components (51)
 
 ### `src/components/`
 - AboutModal.vue
 - AdminNavBar.vue
 - AiSecretKeyField.vue
+- ApiCredentialCard.vue
 - CopyBox.vue
 - CopyCode.vue
 - DocsAddNewDoc.vue
@@ -143,6 +144,7 @@ Shells: app (`NavBar`) vs Platform Admin (`AdminNavBar`). Project workspace: `Pr
 - RichDocEditor.vue
 - TeamAiSettings.vue
 - TeamProjectSwitcher.vue
+- UsageExportCard.vue
 - WhatsNewModal.vue
 
 ### `src/components/contributions/`
@@ -186,4 +188,4 @@ Shells: app (`NavBar`) vs Platform Admin (`AdminNavBar`). Project workspace: `Pr
 
 **Utils:** `utils/api.js`, `utils/browserCredentials.js`, `utils/cards.js`, `utils/chatMarkdown.js`, `utils/clientUsage.js`, `utils/contributionKinds.js`, `utils/defs.js`, `utils/docMedia.js`, `utils/docsHeadingId.js`, `utils/format.js`, `utils/fs.js`, `utils/importerSlugForDataset.js`, `utils/loginRemember.js`, `utils/pageCategories.js`, `utils/password-validator.js`, `utils/release.js`, `utils/roles.js`, `utils/toc.js`
 
-**Composables:** `composables/useDocTypes.js`, `composables/useTeamContext.js`, `composables/useVgtTheme.js`
+**Composables:** `composables/useDocsAudience.js`, `composables/useDocTypes.js`, `composables/useTeamContext.js`, `composables/useVgtTheme.js`

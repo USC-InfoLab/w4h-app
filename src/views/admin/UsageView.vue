@@ -24,6 +24,13 @@
 
     <div v-if="error" class="alert alert-danger">{{ error }}</div>
 
+    <section class="card mb-4" aria-labelledby="usage-export-heading">
+      <div class="card-body">
+        <h6 id="usage-export-heading" class="card-title">Export usage</h6>
+        <UsageExportCard settings-link />
+      </div>
+    </section>
+
     <template v-if="data">
       <p v-if="data.note" class="small text-muted mb-3">{{ data.note }}</p>
 
@@ -339,6 +346,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { api, authHeaders } from '@/utils/api';
+import UsageExportCard from '@/components/UsageExportCard.vue';
 
 const days = ref(14);
 const loading = ref(false);
@@ -459,7 +467,9 @@ function metaOf(e) {
 }
 
 function metaPath(e) {
-  return metaOf(e).path || '—';
+  // Server rows carry the route template (`route`, ADR-031); older rows and client events carry `path`.
+  const m = metaOf(e);
+  return m.route || m.path || '—';
 }
 
 function metaMethod(e) {
