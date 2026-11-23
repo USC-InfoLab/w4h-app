@@ -551,7 +551,7 @@ watch(
                   <option value="__new__">Create a new dataset…</option>
                 </select>
                 <div v-if="!catalogRows.length" class="small text-muted mt-1">
-                  Every dataset your team owns is already in this project.
+                  Every dataset you can link is already in this project.
                 </div>
               </div>
             </div>
