@@ -123,6 +123,7 @@ import AboutModal from '@/components/AboutModal.vue';
 import ReportIssueModal from '@/components/ReportIssueModal.vue';
 import TeamProjectSwitcher from '@/components/TeamProjectSwitcher.vue';
 import { clearUsageSessionFlags } from '@/utils/clientUsage';
+import { isScopedTeamAdmin } from '@/utils/roles';
 import { useTeamContext } from '@/composables/useTeamContext';
 import { useChatStore } from '@/stores/chat';
 
@@ -180,6 +181,15 @@ const navItems = computed(() => [
     to: { name: 'adminAuditLog' },
     active: isAuditActive.value,
     show: showAdminNav.value,
+  },
+  {
+    // Admins' Usage export lives on Profile; Super admin has /admin/usage in the Platform Admin bar.
+    key: 'usage',
+    label: 'Usage',
+    icon: 'bi bi-graph-up',
+    to: { name: 'userProfileEdit', hash: '#profile-usage' },
+    active: route.name === 'userProfileEdit' && route.hash === '#profile-usage',
+    show: isScopedTeamAdmin(user.value),
   },
   {
     key: 'contributions',

@@ -101,7 +101,7 @@
         </section>
 
         <!-- Usage export for Admins (their teams; ADR-031 §7). Super admin uses Platform Admin → Usage. -->
-        <section v-if="isScopedTeamAdmin(user)" class="mt-4 pt-3 border-top" aria-labelledby="profile-usage-heading">
+        <section v-if="isScopedTeamAdmin(user)" id="profile-usage" class="mt-4 pt-3 border-top" aria-labelledby="profile-usage-heading">
           <h6 id="profile-usage-heading" class="mb-2">Usage export</h6>
           <UsageExportCard />
         </section>

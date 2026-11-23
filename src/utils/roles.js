@@ -55,7 +55,8 @@ export function canManageTeam(role, caps = null) {
   if (caps && typeof caps.team_admin === 'boolean') {
     return caps.team_admin;
   }
-  return isTeamAdmin(role);
+  // No server caps: only the input alias `team_admin` implies Team admin (API `roleImpliesTeamAdmin`).
+  return role === USER_ROLES.TEAM_ADMIN;
 }
 
 export function roleLabel(role) {
